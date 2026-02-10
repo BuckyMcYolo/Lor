@@ -1,29 +1,13 @@
-import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
-import {
-	Card,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@repo/ui/components/card";
 import { Input } from "@repo/ui/components/input";
-import { Separator } from "@repo/ui/components/separator";
-import {
-	ArrowRight,
-	Code2,
-	Github,
-	Lock,
-	MessageSquare,
-	ShieldOff,
-	Star,
-	Users,
-} from "lucide-react";
+import { ArrowRight, Github, MessageSquare } from "lucide-react";
+import Image from "next/image";
 import { ThemeToggle } from "./components/theme-toggle";
 
 function Navbar() {
 	return (
 		<header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-sm">
-			<nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+			<nav className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
 				<div className="flex items-center gap-2">
 					<MessageSquare className="size-6" />
 					<span className="text-lg font-semibold tracking-tight">Townhall</span>
@@ -52,16 +36,12 @@ function Hero() {
 	return (
 		<section className="mx-auto max-w-6xl px-6 py-24 md:py-32 lg:py-40">
 			<div className="flex flex-col items-center text-center">
-				<Badge variant="secondary" className="mb-6">
-					No facial ID. No exceptions.
-				</Badge>
 				<h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-					Communication without surveillance
+					No face scans. No&nbsp;ID. Just&nbsp;chat.
 				</h1>
 				<p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-					Townhall is an open-source platform for communities to connect —
-					without handing over biometric data. Voice, video, text, and
-					everything you need. Nothing you don&apos;t.
+					A free, open source chat app for communities of any size. No ads, no
+					AI, no identity verification.
 				</p>
 				<div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:flex-row">
 					<Input
@@ -78,80 +58,57 @@ function Hero() {
 					Be the first to know when we launch. No spam, ever.
 				</p>
 			</div>
-			<div className="mt-16 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
-				<div className="flex aspect-video items-center justify-center">
-					<div className="text-center">
-						<div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-muted">
-							<MessageSquare className="size-6 text-muted-foreground" />
-						</div>
-						<p className="text-sm font-medium text-muted-foreground">
-							Screenshot coming soon
-						</p>
-						<p className="mt-1 text-xs text-muted-foreground/60">
-							Work in progress
-						</p>
-					</div>
-				</div>
+			<div className="mt-16 overflow-hidden rounded-xl border border-border/40 shadow-[0_-8px_30px_rgba(0,0,0,0.08),0_8px_30px_rgba(0,0,0,0.12)]">
+				<Image
+					src="/preview.png"
+					alt="Townhall messaging interface"
+					width={1920}
+					height={1080}
+					className="w-full"
+					priority
+				/>
 			</div>
 		</section>
 	);
 }
 
-const features = [
+const pillars = [
 	{
-		icon: ShieldOff,
-		title: "No Facial ID",
-		description:
-			"We will never ask you to scan your face. Verify your identity on your own terms — or don't. Your choice.",
+		statement: "Free and open source",
+		detail:
+			"The code is public. You can read it, fork it, or host it yourself. Townhall is free because chat should be free.",
 	},
 	{
-		icon: Lock,
-		title: "Privacy First",
-		description:
-			"Your conversations belong to you. We don't mine your data, sell your habits, or train models on your messages.",
+		statement: "No ads, no AI, no tracking",
+		detail:
+			"Your conversations are not training data. There are no algorithms deciding what you see. It\u0027s just a chat app.",
 	},
 	{
-		icon: Users,
-		title: "Community-First",
-		description:
-			"Servers, channels, voice, video, threads — all the tools your community needs to thrive, with no artificial limits.",
+		statement: "No forced identity verification",
+		detail:
+			"No face scans, no ID uploads, no phone number required. Create an account and start chatting.",
 	},
 	{
-		icon: Code2,
-		title: "Open Source",
-		description:
-			"Every line of code is public. Audit it, fork it, contribute to it. Transparency isn't a feature — it's the foundation.",
+		statement: "Self-host if you want",
+		detail:
+			"Run Townhall on your own server for full control, or use the hosted version. Your call.",
 	},
 ];
 
-function Features() {
+function Pillars() {
 	return (
-		<section className="border-t border-border/40 bg-muted/30 py-24">
-			<div className="mx-auto max-w-6xl px-6">
-				<div className="text-center">
-					<h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-						Built different
-					</h2>
-					<p className="mt-4 text-lg text-muted-foreground">
-						The features you expect, without the tradeoffs you shouldn&apos;t
-						have to make.
-					</p>
-				</div>
-				<div className="mt-14 grid gap-6 sm:grid-cols-2">
-					{features.map((feature) => (
-						<Card key={feature.title} className="border-border/40">
-							<CardHeader>
-								<div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary/10">
-									<feature.icon className="size-5 text-primary" />
-								</div>
-								<CardTitle>{feature.title}</CardTitle>
-								<CardDescription className="text-base">
-									{feature.description}
-								</CardDescription>
-							</CardHeader>
-						</Card>
-					))}
-				</div>
+		<section className="bg-muted/30 py-20 md:py-24">
+			<div className="mx-auto max-w-4xl space-y-20 px-6 md:space-y-28">
+				{pillars.map((pillar) => (
+					<div key={pillar.statement} className="text-center">
+						<h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+							{pillar.statement}
+						</h2>
+						<p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+							{pillar.detail}
+						</p>
+					</div>
+				))}
 			</div>
 		</section>
 	);
@@ -159,39 +116,40 @@ function Features() {
 
 function OpenSource() {
 	return (
-		<section className="py-24">
-			<div className="mx-auto max-w-6xl px-6 text-center">
-				<h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-					Open source, open arms
-				</h2>
-				<p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-					Townhall is built in the open. Star us on GitHub, open an issue, or
-					submit a PR. Every contribution makes the platform better for
-					everyone.
-				</p>
-				<div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+		<section className="py-20 md:py-24">
+			<div className="mx-auto max-w-3xl px-6">
+				<div className="text-center">
+					<h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+						Open source
+					</h2>
+					<p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">
+						Townhall is open source. The code is on GitHub. You can read every
+						line, contribute, or run your own instance.
+					</p>
+				</div>
+				<div className="mx-auto mt-10 max-w-lg overflow-hidden rounded-lg border border-border/40">
+					<div className="flex items-center gap-2 border-b border-border/40 bg-muted/50 px-4 py-2.5">
+						<div className="size-3 rounded-full bg-border" />
+						<div className="size-3 rounded-full bg-border" />
+						<div className="size-3 rounded-full bg-border" />
+						<span className="ml-2 text-xs text-muted-foreground">Terminal</span>
+					</div>
+					<div className="bg-card p-4 font-mono text-sm">
+						<span className="text-muted-foreground">$</span>{" "}
+						<span className="text-foreground">
+							git clone https://github.com/buckymcyolo/townhall
+						</span>
+					</div>
+				</div>
+				<div className="mt-8 text-center">
 					<Button variant="outline" size="lg" asChild>
 						<a
 							href="https://github.com"
 							target="_blank"
 							rel="noopener noreferrer"
 						>
-							<Star className="size-4" />
-							Star on GitHub
-							<Separator orientation="vertical" className="mx-1 h-4" />
-							<span className="font-mono text-sm text-muted-foreground">
-								--
-							</span>
-						</a>
-					</Button>
-					<Button variant="ghost" size="lg" asChild>
-						<a
-							href="https://github.com"
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							Read the Contributing Guide
-							<ArrowRight className="size-4" />
+							<Github className="size-4" />
+							View on GitHub
 						</a>
 					</Button>
 				</div>
@@ -202,17 +160,13 @@ function OpenSource() {
 
 function FinalCta() {
 	return (
-		<section
-			id="waitlist"
-			className="border-t border-border/40 bg-muted/30 py-24"
-		>
-			<div className="mx-auto max-w-6xl px-6 text-center">
+		<section id="waitlist" className="border-t border-border/40 py-20 md:py-24">
+			<div className="mx-auto max-w-3xl px-6 text-center">
 				<h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-					Ready to take back your privacy?
+					Ready to try it?
 				</h2>
-				<p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-					Join the waitlist and be the first to experience a communication
-					platform that respects you.
+				<p className="mx-auto mt-4 max-w-lg text-lg text-muted-foreground">
+					Join the waitlist. We&apos;ll let you know when Townhall is ready.
 				</p>
 				<div className="mx-auto mt-10 flex w-full max-w-md flex-col gap-3 sm:flex-row">
 					<Input
@@ -233,7 +187,7 @@ function FinalCta() {
 function Footer() {
 	return (
 		<footer className="border-t border-border/40 py-8">
-			<div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
+			<div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
 					<MessageSquare className="size-4" />
 					<span>&copy; {new Date().getFullYear()} Townhall</span>
@@ -248,13 +202,18 @@ function Footer() {
 						GitHub
 					</a>
 					<a
-						href="/privacy"
+						href="https://x.com"
+						target="_blank"
+						rel="noopener noreferrer"
 						className="transition-colors hover:text-foreground"
 					>
-						Privacy
+						X
 					</a>
-					<a href="/terms" className="transition-colors hover:text-foreground">
-						Terms
+					<a
+						href="mailto:hello@townhall.chat"
+						className="transition-colors hover:text-foreground"
+					>
+						Contact
 					</a>
 				</div>
 			</div>
@@ -268,7 +227,7 @@ export default function Home() {
 			<Navbar />
 			<main className="flex-1">
 				<Hero />
-				<Features />
+				<Pillars />
 				<OpenSource />
 				<FinalCta />
 			</main>

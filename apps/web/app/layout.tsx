@@ -13,9 +13,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-	title: "Townhall — Communication without surveillance",
+	title: "Townhall — Community chat. Nothing else.",
 	description:
-		"An open-source Discord alternative. No facial ID verification. No compromises on privacy. Join the waitlist.",
+		"A free, open source chat app for communities of any size. No ads, no AI, no identity verification.",
 };
 
 export default function RootLayout({
