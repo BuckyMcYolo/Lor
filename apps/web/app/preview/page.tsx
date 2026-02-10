@@ -6,7 +6,6 @@ import {
 	CornerUpRight,
 	Hash,
 	Inbox,
-	MessageSquare,
 	MessageSquareText,
 	Mic,
 	Paperclip,
@@ -112,7 +111,6 @@ const messages: Message[] = [
 			{ emoji: "🎉", count: 5, active: false },
 			{ emoji: "🔥", count: 3, active: true },
 		],
-		discussion: { count: 3, avatars: [2, 3, 6] },
 	},
 	{
 		id: "m2",
@@ -154,11 +152,11 @@ const messages: Message[] = [
 			"Hey everyone, just joined the project yesterday! Where's the best place to start if I want to contribute? Mostly do frontend work.",
 		timestamp: "10:36 AM",
 		reactions: [],
+		discussion: { count: 3, avatars: [2, 3, 6] },
 	},
 	{
 		id: "m7",
 		userId: 2,
-		replyTo: "m6",
 		content:
 			"Welcome! Check out CONTRIBUTING.md in the repo — the getting started section is solid. And the #development channel is where most technical discussion happens.",
 		timestamp: "10:37 AM",
@@ -214,7 +212,7 @@ function Avatar({
 }
 
 export default function PreviewPage() {
-	redirect("/");
+	// redirect("/");
 
 	return (
 		<div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
@@ -222,9 +220,13 @@ export default function PreviewPage() {
 			<div className="flex w-[248px] shrink-0 flex-col border-r border-border bg-card">
 				{/* Workspace header */}
 				<div className="flex h-[49px] items-center gap-2.5 border-b border-border px-5">
-					<div className="flex size-7 items-center justify-center rounded-lg bg-primary">
-						<MessageSquare className="size-4 text-primary-foreground" />
-					</div>
+					<Image
+						src="/logo.png"
+						alt="Townhall"
+						width={28}
+						height={28}
+						className="rounded-lg"
+					/>
 					<h2 className="text-[15px] font-bold tracking-tight">Townhall</h2>
 				</div>
 
