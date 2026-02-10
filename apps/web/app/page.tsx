@@ -1,8 +1,8 @@
 import { Button } from "@repo/ui/components/button";
-import { Input } from "@repo/ui/components/input";
-import { ArrowRight, Github, MessageSquare } from "lucide-react";
+import { Github, MessageSquare } from "lucide-react";
 import Image from "next/image";
 import { ThemeToggle } from "./components/theme-toggle";
+import { WaitlistForm } from "./components/waitlist-form";
 
 function Navbar() {
 	return (
@@ -43,20 +43,12 @@ function Hero() {
 					A free, open source chat app for communities of any size. No ads, no
 					AI, no identity verification.
 				</p>
-				<div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:flex-row">
-					<Input
-						type="email"
-						placeholder="you@email.com"
-						className="h-11 sm:flex-1"
-					/>
-					<Button size="lg" className="h-11">
-						Join the Waitlist
-						<ArrowRight className="size-4" />
-					</Button>
+				<div className="mt-10 flex w-full flex-col items-center">
+					<WaitlistForm />
+					<p className="mt-3 text-sm text-muted-foreground">
+						Be the first to know when we launch. No spam, ever.
+					</p>
 				</div>
-				<p className="mt-3 text-sm text-muted-foreground">
-					Be the first to know when we launch. No spam, ever.
-				</p>
 			</div>
 			<div className="mt-16 overflow-hidden rounded-xl border border-border/40 shadow-[0_-8px_30px_rgba(0,0,0,0.08),0_8px_30px_rgba(0,0,0,0.12)]">
 				<Image
@@ -161,23 +153,15 @@ function OpenSource() {
 function FinalCta() {
 	return (
 		<section id="waitlist" className="border-t border-border/40 py-20 md:py-24">
-			<div className="mx-auto max-w-3xl px-6 text-center">
+			<div className="mx-auto flex max-w-3xl flex-col items-center px-6 text-center">
 				<h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
 					Ready to try it?
 				</h2>
 				<p className="mx-auto mt-4 max-w-lg text-lg text-muted-foreground">
 					Join the waitlist. We&apos;ll let you know when Townhall is ready.
 				</p>
-				<div className="mx-auto mt-10 flex w-full max-w-md flex-col gap-3 sm:flex-row">
-					<Input
-						type="email"
-						placeholder="you@email.com"
-						className="h-11 sm:flex-1"
-					/>
-					<Button size="lg" className="h-11">
-						Join the Waitlist
-						<ArrowRight className="size-4" />
-					</Button>
+				<div className="mt-10">
+					<WaitlistForm />
 				</div>
 			</div>
 		</section>
