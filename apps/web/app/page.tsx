@@ -1,7 +1,6 @@
 import { Button } from "@repo/ui/components/button";
 import { Github } from "lucide-react";
 import Image from "next/image";
-import { ThemeToggle } from "./components/theme-toggle";
 import { WaitlistForm } from "./components/waitlist-form";
 
 function Navbar() {
@@ -209,7 +208,6 @@ export default function Home() {
 				<FinalCta />
 			</main>
 			<Footer />
-			<ThemeToggle />
 		</div>
 	);
 }
