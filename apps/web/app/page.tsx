@@ -15,7 +15,9 @@ function Navbar() {
 						height={48}
 						className="rounded-xl"
 					/>
-					<span className="text-2xl font-semibold tracking-tight">Townhall</span>
+					<span className="text-2xl font-semibold tracking-tight">
+						Townhall
+					</span>
 				</div>
 				<div className="flex items-center gap-3">
 					<Button variant="ghost" size="sm" asChild>
@@ -42,7 +44,7 @@ function Hero() {
 		<section className="mx-auto max-w-6xl px-6 py-24 md:py-32 lg:py-40">
 			<div className="flex flex-col items-center text-center">
 				<h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-				Community chat. Nothing&nbsp;else.
+					Community chat. Nothing&nbsp;else.
 				</h1>
 				<p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
 					A free, open source chat app for communities of any size. No ads, no
@@ -70,7 +72,7 @@ function Hero() {
 }
 
 const pillars = [
- 	{
+	{
 		statement: "No ads, no AI, no tracking",
 		detail:
 			"Your conversations are not training data. There are no algorithms deciding what you see. It\u0027s just a chat app.",
@@ -79,8 +81,8 @@ const pillars = [
 		statement: "No forced identity verification",
 		detail:
 			"No face scans, no ID uploads, no credit card required. Create an account and start chatting.",
-  },
-  {
+	},
+	{
 		statement: "Free and open source",
 		detail:
 			"The code is public. You can read it, fork it, or host it yourself. Townhall Core is free because chat should be free.",

@@ -5,7 +5,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
-		"build": "tsc",
+		"build": "tsup",
 		"start": "node dist/index.js",
 		"check-types": "tsc --noEmit"
 	},
@@ -17,6 +17,7 @@
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
+		"tsup": "^8.5.1",
 		"tsx": "^4.21.0"
 	}
 }
