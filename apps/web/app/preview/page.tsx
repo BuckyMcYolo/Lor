@@ -212,7 +212,7 @@ function Avatar({
 }
 
 export default function PreviewPage() {
-	// redirect("/");
+	redirect("/");
 
 	return (
 		<div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
