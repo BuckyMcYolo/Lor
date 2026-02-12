@@ -11,6 +11,7 @@ if (process.env.NODE_ENV !== "production") {
 const serverSchema = z.object({
   DATABASE_URL: z.string().url(),
   PORT: z.coerce.number().default(8080),
+  BETTER_AUTH_SECRET: z.string().min(1),
 })
 
 export const env = serverSchema.parse(process.env)

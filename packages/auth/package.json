@@ -1,0 +1,22 @@
+{
+  "name": "@repo/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo/db": "workspace:*",
+    "@repo/env": "workspace:*",
+    "better-auth": "^1.4.9"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/lib/auth.ts",
+    "./client": "./src/lib/auth-client.ts",
+    "./utils": "./src/lib/auth-utils.ts"
+  }
+}
