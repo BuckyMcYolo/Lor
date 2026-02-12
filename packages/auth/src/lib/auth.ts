@@ -10,7 +10,40 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  plugins: [organization(), admin(), username(), twoFactor()],
+  advanced: {
+    cookiePrefix: "townhall",
+    database: {
+      generateId: false,
+    },
+  },
+  plugins: [
+    organization({
+      schema: {
+        organization: {
+          modelName: "guild",
+        },
+        member: {
+          modelName: "guildMember",
+          fields: {
+            organizationId: "guildId",
+          },
+        },
+        invitation: {
+          fields: {
+            organizationId: "guildId",
+          },
+        },
+        session: {
+          fields: {
+            activeOrganizationId: "activeGuildId",
+          },
+        },
+      },
+    }),
+    admin(),
+    username(),
+    twoFactor(),
+  ],
 })
 
 export type Session = typeof auth.$Infer.Session
