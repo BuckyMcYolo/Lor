@@ -21,6 +21,7 @@ apps/
   api/          — Hono API server
 
 packages/
+  api-client/   — Shared type-safe Hono API client
   ui/           — Shared shadcn/ui component library
   db/           — Drizzle ORM schema & database client
   env/          — Type-safe environment variables (server/client)

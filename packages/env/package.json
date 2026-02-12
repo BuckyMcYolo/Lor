@@ -1,20 +1,20 @@
 {
-	"name": "@repo/env",
-	"version": "0.0.0",
-	"type": "module",
-	"private": true,
-	"exports": {
-		"./server": "./src/server.ts",
-		"./client": "./src/client.ts"
-	},
-	"scripts": {
-		"check-types": "tsc --noEmit"
-	},
-	"dependencies": {
-		"dotenv": "^17.2.4",
-		"zod": "^4.3.6"
-	},
-	"devDependencies": {
-		"@repo/typescript-config": "workspace:*"
-	}
+  "name": "@repo/env",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./server": "./src/server.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*"
+  }
 }

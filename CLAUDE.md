@@ -19,8 +19,17 @@ This is a pnpm + Turborepo monorepo for **Townhall**, an open-source Discord alt
 ### Workspaces
 
 - `apps/web` — Next.js 16.1.5 marketing site (React 19, App Router)
+- `apps/api` — Hono API server (`@repo/api`), OpenAPI via `@hono/zod-openapi`
 - `packages/ui` — Shared component library (`@repo/ui`), shadcn/ui + Tailwind CSS v4
 - `packages/typescript-config` — Shared TypeScript configs
+
+### API (`apps/api`)
+
+- Build: `tsc && tsc-alias` (no bundler — workspace deps resolved via pnpm linking)
+- Uses `@/*` path alias for `src/*` imports (e.g., `import foo from "@/lib/foo"`)
+- `tsc-alias` with `resolveFullPaths: true` rewrites `@/*` to relative `.js` paths in `dist/`
+- tsconfig overrides base with `module: "ESNext"` + `moduleResolution: "Bundler"` (no `.js` extensions in source)
+- Dev: `tsx watch src/index.ts`
 
 ### CSS/Tailwind (Single Source of Truth in `packages/ui`)
 
@@ -41,9 +50,9 @@ All CSS lives in `packages/ui`. Apps do NOT have their own `globals.css`.
 
 ### Biome (replaces ESLint + Prettier)
 
-- Tabs for indentation, double quotes for strings
+- 2-space indentation, double quotes, no semicolons, LF line endings
 - `check` and `check:fix` are root-level Turbo tasks (`//#check`)
-- `biome.json` has `css.parser.tailwindDirectives: true` for Tailwind CSS
+- `noExplicitAny: "error"`, `noNonNullAssertion: "error"`
 - Run `pnpm run check:fix` after adding shadcn components (they need import reordering)
 
 ### Package Exports (`@repo/ui`)
