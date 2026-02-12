@@ -36,3 +36,6 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Auto-generated
+packages/db/src/generated-schema.ts
