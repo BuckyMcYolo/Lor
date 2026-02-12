@@ -7,8 +7,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "paths": {
-      "@/*": ["./src/*"],
-      "@db/*": ["../../packages/db/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],

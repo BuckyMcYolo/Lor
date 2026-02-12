@@ -20,6 +20,9 @@ This is a pnpm + Turborepo monorepo for **Townhall**, an open-source Discord alt
 
 - `apps/web` — Next.js 16.1.5 marketing site (React 19, App Router)
 - `apps/api` — Hono API server (`@repo/api`), OpenAPI via `@hono/zod-openapi`
+- `packages/auth` — Auth package (`@repo/auth`), better-auth + Drizzle adapter
+- `packages/db` — Database package (`@repo/db`), Drizzle ORM + Postgres
+- `packages/env` — Environment validation (`@repo/env`), Zod schemas for server/client env
 - `packages/ui` — Shared component library (`@repo/ui`), shadcn/ui + Tailwind CSS v4
 - `packages/typescript-config` — Shared TypeScript configs
 
@@ -30,6 +33,11 @@ This is a pnpm + Turborepo monorepo for **Townhall**, an open-source Discord alt
 - `tsc-alias` with `resolveFullPaths: true` rewrites `@/*` to relative `.js` paths in `dist/`
 - tsconfig overrides base with `module: "ESNext"` + `moduleResolution: "Bundler"` (no `.js` extensions in source)
 - Dev: `tsx watch src/index.ts`
+
+### Path Aliases
+
+- **Only compiled packages** (like `apps/api`) should use path aliases (`@/*`). `tsc-alias` rewrites them at build time.
+- **Uncompiled packages** (`packages/db`, `packages/env`, `packages/auth`, etc.) export raw `.ts` and must use relative imports. Node resolves these at runtime and cannot resolve path aliases.
 
 ### CSS/Tailwind (Single Source of Truth in `packages/ui`)
 
