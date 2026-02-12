@@ -38,6 +38,9 @@ importers:
       '@repo/env':
         specifier: workspace:*
         version: link:../../packages/env
+      dotenv:
+        specifier: ^17.2.4
+        version: 17.2.4
       hono:
         specifier: ^4.11.9
         version: 4.11.9
