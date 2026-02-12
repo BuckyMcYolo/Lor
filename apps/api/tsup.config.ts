@@ -6,4 +6,5 @@ export default defineConfig({
   outDir: "dist",
   dts: true,
   noExternal: [/@repo\/.*/],
+  external: ["dotenv"],
 })
