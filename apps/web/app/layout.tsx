@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import localFont from "next/font/local"
-// import { ThemeProvider } from "./components/theme-provider";
+import { Providers } from "./components/providers"
 import "@repo/ui/globals.css"
 
 const geistSans = localFont({
@@ -13,9 +13,8 @@ const geistMono = localFont({
 })
 
 export const metadata: Metadata = {
-  title: "Townhall — Community chat. Nothing else.",
-  description:
-    "A free, open source chat app for communities of any size. No ads, no AI, no identity verification.",
+  title: "Townhall",
+  description: "Community chat. Nothing else.",
 }
 
 export default function RootLayout({
@@ -28,14 +27,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.className} ${geistMono.variable} antialiased`}
       >
-        {/* <ThemeProvider
-					attribute="class"
-					defaultTheme="system"
-					enableSystem
-					disableTransitionOnChange
-				> */}
-        {children}
-        {/* </ThemeProvider> */}
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

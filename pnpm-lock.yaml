@@ -67,7 +67,7 @@ importers:
         specifier: ^4.21.0
         version: 4.21.0
 
-  apps/app:
+  apps/web:
     dependencies:
       '@repo/api-client':
         specifier: workspace:*
@@ -140,7 +140,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
 
-  apps/web:
+  apps/www:
     dependencies:
       '@hookform/resolvers':
         specifier: ^5.2.2

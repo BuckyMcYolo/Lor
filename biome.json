@@ -115,7 +115,7 @@
       }
     },
     {
-      "includes": ["apps/web/**/*.ts", "apps/web/**/*.tsx"],
+      "includes": ["apps/www/**/*.ts", "apps/www/**/*.tsx"],
       "linter": {
         "rules": {
           "a11y": {
