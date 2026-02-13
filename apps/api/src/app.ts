@@ -10,13 +10,23 @@ app.use("*", cors())
 
 configureOpenAPI(app)
 
+// Health check at root
 app.route("/", index)
 
-const routes = [waitlistRouter] as const
-for (const route of routes) {
+// Internal routes (not versioned)
+const internalRoutes = [waitlistRouter] as const
+for (const route of internalRoutes) {
   app.route("/", route)
 }
 
-export type AppType = (typeof routes)[number]
+// Versioned public API routes
+const v1Routes = [] as const
+for (const route of v1Routes) {
+  app.route("/v1", route)
+}
+
+const allRoutes = [...internalRoutes, ...v1Routes] as const
+
+export type AppType = (typeof allRoutes)[number]
 
 export default app
