@@ -8,10 +8,15 @@ if (process.env.NODE_ENV !== "production") {
   dotenvConfig({ path: resolve(process.cwd(), "../../.env") })
 }
 
+/** 20 MB default — keep in sync with client.ts */
+const DEFAULT_MAX_FILE_UPLOAD_SIZE = 20 * 1024 * 1024
+
 const serverSchema = z.object({
   DATABASE_URL: z.string().url(),
   PORT: z.coerce.number().default(8080),
   BETTER_AUTH_SECRET: z.string().min(1),
+  SELF_HOSTED: z.coerce.boolean().default(true),
+  MAX_FILE_UPLOAD_SIZE: z.coerce.number().default(DEFAULT_MAX_FILE_UPLOAD_SIZE),
 })
 
 export const env = serverSchema.parse(process.env)
