@@ -1,11 +1,12 @@
-import { db } from "@repo/db"
+import { db, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { betterAuth } from "better-auth/minimal"
 import { admin, organization, twoFactor, username } from "better-auth/plugins"
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: "pg" }),
+  baseURL: env.NEXT_PUBLIC_API_URL,
+  database: drizzleAdapter(db, { provider: "pg", schema }),
   secret: env.BETTER_AUTH_SECRET,
   emailAndPassword: {
     enabled: true,
@@ -21,6 +22,20 @@ export const auth = betterAuth({
       schema: {
         organization: {
           modelName: "guild",
+          additionalFields: {
+            ownerId: {
+              type: "string",
+              fieldName: "ownerId",
+              references: {
+                field: "id",
+                table: "user",
+                model: "user",
+                onDelete: "restrict",
+              },
+              required: true,
+              returned: true,
+            },
+          },
         },
         member: {
           modelName: "guildMember",
@@ -38,6 +53,9 @@ export const auth = betterAuth({
             activeOrganizationId: "activeGuildId",
           },
         },
+      },
+      dynamicAccessControl: {
+        enabled: true,
       },
     }),
     admin(),
