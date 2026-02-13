@@ -105,11 +105,11 @@ export const guild = pgTable(
   (table) => [uniqueIndex("guild_slug_uidx").on(table.slug)]
 )
 
-export const organizationRole = pgTable(
-  "organization_role",
+export const guildRole = pgTable(
+  "guild_role",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
+    guildId: text("guild_id")
       .notNull()
       .references(() => guild.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
@@ -120,8 +120,8 @@ export const organizationRole = pgTable(
     ),
   },
   (table) => [
-    index("organizationRole_organizationId_idx").on(table.organizationId),
-    index("organizationRole_role_idx").on(table.role),
+    index("guildRole_guildId_idx").on(table.guildId),
+    index("guildRole_role_idx").on(table.role),
   ]
 )
 
@@ -210,20 +210,17 @@ export const guildRelations = relations(guild, ({ one, many }) => ({
     fields: [guild.ownerId],
     references: [user.id],
   }),
-  organizationRoles: many(organizationRole),
+  guildRoles: many(guildRole),
   guildMembers: many(guildMember),
   invitations: many(invitation),
 }))
 
-export const organizationRoleRelations = relations(
-  organizationRole,
-  ({ one }) => ({
-    guild: one(guild, {
-      fields: [organizationRole.organizationId],
-      references: [guild.id],
-    }),
-  })
-)
+export const guildRoleRelations = relations(guildRole, ({ one }) => ({
+  guild: one(guild, {
+    fields: [guildRole.guildId],
+    references: [guild.id],
+  }),
+}))
 
 export const guildMemberRelations = relations(guildMember, ({ one }) => ({
   guild: one(guild, {

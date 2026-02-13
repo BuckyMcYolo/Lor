@@ -1,5 +1,6 @@
 export * from "./accounts"
 export * from "./guild-members"
+export * from "./guild-roles"
 export * from "./guilds"
 export * from "./invitations"
 export * from "./sessions"

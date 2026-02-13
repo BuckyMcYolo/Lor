@@ -53,6 +53,12 @@ export const auth = betterAuth({
             activeOrganizationId: "activeGuildId",
           },
         },
+        organizationRole: {
+          modelName: "guildRole",
+          fields: {
+            organizationId: "guildId",
+          },
+        },
       },
       dynamicAccessControl: {
         enabled: true,
