@@ -1,6 +1,6 @@
-import type { ZodSchema } from "zod"
+import type { ZodType } from "zod"
 
-const jsonContent = <T extends ZodSchema>({
+const jsonContent = <T extends ZodType>({
   schema,
   description,
 }: {

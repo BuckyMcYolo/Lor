@@ -10,6 +10,11 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core"
+import {
+  createInsertSchema,
+  createSelectSchema,
+  createUpdateSchema,
+} from "drizzle-zod"
 import { guild } from "./guilds"
 import { message } from "./messages"
 import { user } from "./users"
@@ -118,3 +123,30 @@ export const channelMemberRelations = relations(channelMember, ({ one }) => ({
     references: [user.id],
   }),
 }))
+
+// Zod schemas
+export const selectChannelSchema = createSelectSchema(channel)
+
+export const insertChannelSchema = createInsertSchema(channel, {
+  name: (s) => s.min(1).max(100),
+  topic: (s) => s.max(1024).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  guildId: true,
+  ownerId: true,
+  position: true,
+  rateLimitPerUser: true,
+})
+
+export const updateChannelSchema = createUpdateSchema(channel, {
+  name: (s) => s.min(1).max(100),
+  topic: (s) => s.max(1024),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  guildId: true,
+  ownerId: true,
+})
