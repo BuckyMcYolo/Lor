@@ -1,3 +1,4 @@
+import { auth } from "@repo/auth"
 import { cors } from "hono/cors"
 import createApp from "@/lib/helpers/app/create-app"
 import configureOpenAPI from "@/lib/helpers/openapi/configure-openapi"
@@ -6,7 +7,15 @@ import waitlistRouter from "@/routes/waitlist/index"
 
 const app = createApp()
 
-app.use("*", cors())
+app.use(
+  "*",
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+)
+
+app.on(["GET", "POST"], "/api/auth/**", (c) => auth.handler(c.req.raw))
 
 configureOpenAPI(app)
 

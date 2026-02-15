@@ -7,10 +7,10 @@ export const guildMember = pgTable(
   "guild_member",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    guildId: text("guild_id")
+    guildId: uuid("guild_id")
       .notNull()
       .references(() => guild.id, { onDelete: "cascade" }),
-    userId: text("user_id")
+    userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),

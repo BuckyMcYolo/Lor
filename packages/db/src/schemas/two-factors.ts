@@ -8,7 +8,7 @@ export const twoFactor = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     secret: text("secret").notNull(),
     backupCodes: text("backup_codes").notNull(),
-    userId: text("user_id")
+    userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
