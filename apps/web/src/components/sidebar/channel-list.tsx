@@ -16,12 +16,6 @@ const voiceChannels = [
   { name: "Dev Session", usersIn: [] as string[] },
 ]
 
-const dmUsers = [
-  { name: "Sam Chen", status: "online" as const },
-  { name: "Casey Kim", status: "online" as const },
-  { name: "Drew Foster", status: "away" as const },
-]
-
 export function ChannelList() {
   return (
     <nav>
@@ -87,28 +81,6 @@ export function ChannelList() {
               ))}
             </div>
           )}
-        </div>
-      ))}
-
-      {/* Direct Messages */}
-      <span className="mb-1 mt-5 block px-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        Messages
-      </span>
-      {dmUsers.map((dm) => (
-        <div
-          key={dm.name}
-          className="flex items-center gap-2.5 rounded-lg px-2 py-[6px] text-[14px] text-muted-foreground"
-        >
-          <div className="relative">
-            <UserAvatar name={dm.name} size="sm" />
-            <div
-              className={cn(
-                "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-[2px] border-card",
-                dm.status === "online" ? "bg-emerald-500" : "bg-amber-400"
-              )}
-            />
-          </div>
-          <span className="truncate">{dm.name}</span>
         </div>
       ))}
     </nav>
