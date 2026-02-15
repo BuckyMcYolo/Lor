@@ -6,6 +6,11 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core"
+import {
+  createInsertSchema,
+  createSelectSchema,
+  createUpdateSchema,
+} from "drizzle-zod"
 import { guildMember } from "./guild-members"
 import { guildRole } from "./guild-roles"
 import { invitation } from "./invitations"
@@ -36,3 +41,14 @@ export const guildRelations = relations(guild, ({ one, many }) => ({
   guildMembers: many(guildMember),
   invitations: many(invitation),
 }))
+
+// Zod schemas
+export const selectGuildSchema = createSelectSchema(guild)
+
+export const insertGuildSchema = createInsertSchema(guild, {
+  name: (s) => s.min(1).max(100),
+})
+
+export const updateGuildSchema = createUpdateSchema(guild, {
+  name: (s) => s.min(1).max(100),
+})

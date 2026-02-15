@@ -3,6 +3,7 @@ import { env } from "@repo/env/server"
 import { cors } from "hono/cors"
 import createApp from "@/lib/helpers/app/create-app"
 import configureOpenAPI from "@/lib/helpers/openapi/configure-openapi"
+import channelsRouter from "@/routes/channels/index"
 import index from "@/routes/index.route"
 import waitlistRouter from "@/routes/waitlist/index"
 
@@ -33,7 +34,7 @@ for (const route of internalRoutes) {
 }
 
 // Versioned public API routes
-const v1Routes = [] as const
+const v1Routes = [channelsRouter] as const
 for (const route of v1Routes) {
   app.route("/v1", route)
 }

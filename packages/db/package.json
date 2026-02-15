@@ -17,7 +17,9 @@
   "dependencies": {
     "@repo/env": "workspace:*",
     "drizzle-orm": "^0.45.1",
-    "postgres": "^3.4.8"
+    "drizzle-zod": "^0.7.1",
+    "postgres": "^3.4.8",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
