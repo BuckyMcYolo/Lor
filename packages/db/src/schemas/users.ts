@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm"
 import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
 import { account } from "./accounts"
 import { guildMember } from "./guild-members"
+import { guild } from "./guilds"
 import { invitation } from "./invitations"
 import { session } from "./sessions"
 import { twoFactor } from "./two-factors"
@@ -29,6 +30,7 @@ export const user = pgTable("user", {
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
+  guilds: many(guild), // can be owners of many guilds
   guildMembers: many(guildMember),
   invitations: many(invitation),
   twoFactors: many(twoFactor),

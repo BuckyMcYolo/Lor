@@ -26,10 +26,10 @@ export const message = pgTable(
   "message",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    channelId: text("channel_id")
+    channelId: uuid("channel_id")
       .notNull()
       .references(() => channel.id, { onDelete: "cascade" }),
-    authorId: text("author_id") // all messages must have an author
+    authorId: uuid("author_id") // all messages must have an author
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
 
@@ -37,7 +37,7 @@ export const message = pgTable(
     type: messageTypeEnum("type").notNull().default("default"),
 
     // for replies — points to the message being replied to
-    referencedMessageId: text("referenced_message_id").references(
+    referencedMessageId: uuid("referenced_message_id").references(
       (): AnyPgColumn => message.id,
       { onDelete: "set null" }
     ),

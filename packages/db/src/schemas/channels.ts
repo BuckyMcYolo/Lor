@@ -38,12 +38,12 @@ export const channel = pgTable(
     type: channelTypeEnum("type").notNull().default("text"),
 
     // null for DMs/group DMs
-    guildId: text("guild_id").references(() => guild.id, {
+    guildId: uuid("guild_id").references(() => guild.id, {
       onDelete: "cascade",
     }),
 
     // points to a category channel
-    parentId: text("parent_id").references((): AnyPgColumn => channel.id, {
+    parentId: uuid("parent_id").references((): AnyPgColumn => channel.id, {
       onDelete: "set null",
     }),
 
@@ -51,7 +51,7 @@ export const channel = pgTable(
     position: integer("position").default(0).notNull(),
 
     // group DM owner — null for guild channels (use roles/permissions instead)
-    ownerId: text("owner_id").references(() => user.id, {
+    ownerId: uuid("owner_id").references(() => user.id, {
       onDelete: "set null",
     }),
 
@@ -91,10 +91,10 @@ export const channelMember = pgTable(
   "channel_member",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    channelId: text("channel_id")
+    channelId: uuid("channel_id")
       .notNull()
       .references(() => channel.id, { onDelete: "cascade" }),
-    userId: text("user_id")
+    userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
