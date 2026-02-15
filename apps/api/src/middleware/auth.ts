@@ -7,7 +7,8 @@ import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import type { AppBindings } from "@/lib/types/app-types"
 
 /**
- * Middleware that authenticates requests via better-auth session.
+ * Authenticates the request via better-auth session and resolves the
+ * user's active guild + membership.
  *
  * Sets in context:
  * - user: The authenticated user

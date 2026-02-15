@@ -3,8 +3,8 @@ import { env } from "@repo/env/server"
 import { cors } from "hono/cors"
 import createApp from "@/lib/helpers/app/create-app"
 import configureOpenAPI from "@/lib/helpers/openapi/configure-openapi"
-import channelsRouter from "@/routes/channels/index"
 import index from "@/routes/index.route"
+import channelsRouter from "@/routes/v1/channels/index"
 import waitlistRouter from "@/routes/waitlist/index"
 
 const app = createApp()
