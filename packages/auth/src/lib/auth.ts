@@ -8,6 +8,8 @@ export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_API_URL,
   database: drizzleAdapter(db, { provider: "pg", schema }),
   secret: env.BETTER_AUTH_SECRET,
+  trustedOrigins:
+    env.NODE_ENV === "development" ? ["http://localhost:3000"] : [],
   emailAndPassword: {
     enabled: true,
   },

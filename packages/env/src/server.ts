@@ -17,6 +17,9 @@ const addProtocol = (url: string) =>
 const DEFAULT_MAX_FILE_UPLOAD_SIZE = 20 * 1024 * 1024
 
 const serverSchema = z.object({
+  NODE_ENV: z
+    .enum(["development", "staging", "production", "test"])
+    .default("production"),
   DATABASE_URL: z.string().url(),
   PORT: z.coerce.number().default(8080),
   BETTER_AUTH_SECRET: z.string().min(1),
