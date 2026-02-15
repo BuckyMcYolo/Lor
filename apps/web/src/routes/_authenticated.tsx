@@ -1,6 +1,7 @@
 import { authClient } from "@repo/auth/client"
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
+import { Sidebar } from "../components/sidebar/sidebar"
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -28,5 +29,10 @@ function AuthenticatedLayout() {
     return null
   }
 
-  return <Outlet />
+  return (
+    <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
+      <Sidebar />
+      <Outlet />
+    </div>
+  )
 }
