@@ -24,7 +24,7 @@ function LoginPage() {
   const [password, setPassword] = useState("")
 
   const {
-    mutateAsync: signIn,
+    mutate: signIn,
     isPending,
     error,
   } = useMutation({

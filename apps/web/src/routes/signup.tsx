@@ -26,7 +26,7 @@ function SignUpPage() {
   const [password, setPassword] = useState("")
 
   const {
-    mutateAsync: signUp,
+    mutate: signUp,
     isPending,
     error,
   } = useMutation({
