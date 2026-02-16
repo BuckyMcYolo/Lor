@@ -1,0 +1,126 @@
+import { authClient } from "@repo/auth/client"
+import { cn } from "@repo/ui/lib/utils"
+import { useQuery } from "@tanstack/react-query"
+import { useNavigate, useParams } from "@tanstack/react-router"
+import { MessageCircle, Plus } from "lucide-react"
+
+function GuildIcon({
+  name,
+  logo,
+  active,
+  onClick,
+}: {
+  name: string
+  logo: string | null | undefined
+  active: boolean
+  onClick: () => void
+}) {
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative flex items-center justify-center px-3 py-1"
+    >
+      {/* Left pill indicator */}
+      <div
+        className={cn(
+          "absolute left-0 w-1 rounded-r-full bg-foreground transition-all",
+          active ? "h-10" : "h-0 group-hover:h-5"
+        )}
+      />
+
+      <div
+        className={cn(
+          "flex size-12 items-center justify-center overflow-hidden text-[15px] font-semibold transition-all",
+          active
+            ? "rounded-2xl bg-primary text-primary-foreground"
+            : "rounded-[24px] bg-muted text-muted-foreground hover:rounded-2xl hover:bg-primary hover:text-primary-foreground"
+        )}
+      >
+        {logo ? (
+          <img src={logo} alt={name} className="size-full object-cover" />
+        ) : (
+          initials
+        )}
+      </div>
+    </button>
+  )
+}
+
+export function GuildBar() {
+  const navigate = useNavigate()
+
+  const { guildSlug } = useParams({ strict: false })
+
+  const { data: guilds } = useQuery({
+    queryKey: ["guilds"],
+    queryFn: async () => {
+      const res = await authClient.organization.list()
+      return res.data
+    },
+  })
+  const { data: activeOrg } = useQuery({
+    queryKey: ["active-guild", guildSlug],
+    queryFn: async () => {
+      const res = await authClient.organization.getFullOrganization()
+      return res.data
+    },
+  })
+
+  return (
+    <div className="flex w-[72px] shrink-0 flex-col items-center bg-background py-3">
+      {/* Home / DMs button */}
+      <button
+        type="button"
+        onClick={() => navigate({ to: "/" })}
+        className="group relative flex items-center justify-center px-3 py-1"
+      >
+        <div className="absolute left-0 h-0 w-1 rounded-r-full bg-foreground transition-all group-hover:h-5" />
+        <div className="flex size-12 items-center justify-center rounded-[24px] bg-muted text-muted-foreground transition-all hover:rounded-2xl hover:bg-primary hover:text-primary-foreground">
+          <MessageCircle className="size-6" />
+        </div>
+      </button>
+
+      {/* Separator */}
+      <div className="mx-auto my-1 h-px w-8 rounded-full bg-border" />
+
+      {/* Guild icons */}
+      {guilds && guilds.length > 0 ? (
+        guilds.map((guild) => (
+          <GuildIcon
+            key={guild.id}
+            name={guild.name}
+            logo={guild.logo}
+            active={activeOrg?.id === guild.id}
+            onClick={() =>
+              navigate({
+                to: "/$guildSlug",
+                params: { guildSlug: guild.slug },
+              })
+            }
+          />
+        ))
+      ) : (
+        <div className="flex size-12 items-center justify-center rounded-[24px] bg-muted text-muted-foreground text-xs">
+          —
+        </div>
+      )}
+
+      {/* Separator */}
+      <div className="mx-auto my-1 h-px w-8 rounded-full bg-border" />
+
+      {/* Add guild button */}
+      <div className="group relative flex items-center justify-center px-3 py-1">
+        <div className="flex size-12 items-center justify-center rounded-[24px] bg-muted text-emerald-500 transition-all hover:rounded-2xl hover:bg-emerald-500 hover:text-white">
+          <Plus className="size-6" />
+        </div>
+      </div>
+    </div>
+  )
+}

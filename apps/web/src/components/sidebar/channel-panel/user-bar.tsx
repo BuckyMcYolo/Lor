@@ -1,6 +1,6 @@
 import { authClient } from "@repo/auth/client"
 import { Settings } from "lucide-react"
-import { UserAvatar } from "../user-avatar"
+import { UserAvatar } from "../../ui/user-avatar"
 
 export function UserBar() {
   const { data: session } = authClient.useSession()
