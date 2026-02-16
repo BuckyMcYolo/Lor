@@ -3,11 +3,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "outDir": "dist",
-    "rootDir": "src",
-    "paths": {
-      "@repo/api/*": ["../../apps/api/src/*"]
-    }
+    "rootDir": "src"
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
