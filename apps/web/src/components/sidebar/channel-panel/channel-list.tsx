@@ -1,6 +1,6 @@
 import { cn } from "@repo/ui/lib/utils"
 import { Hash, Volume2 } from "lucide-react"
-import { UserAvatar } from "../ui/user-avatar"
+import { UserAvatar } from "../../ui/user-avatar"
 
 // Hardcoded mock data — will be replaced with real data
 const channels = [
