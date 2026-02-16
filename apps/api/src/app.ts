@@ -27,20 +27,25 @@ configureOpenAPI(app)
 // Health check at root
 app.route("/", index)
 
-// Internal routes (not versioned)
-const internalRoutes = [waitlistRouter] as const
-for (const route of internalRoutes) {
-  app.route("/", route)
-}
+// Route mounting — chained for Hono RPC type inference
+const routes = app.route("/", waitlistRouter).route("/v1", channelsRouter)
 
-// Versioned public API routes
-const v1Routes = [channelsRouter] as const
-for (const route of v1Routes) {
-  app.route("/v1", route)
-}
+export type AppType = typeof routes
 
-const allRoutes = [...internalRoutes, ...v1Routes] as const
-
-export type AppType = (typeof allRoutes)[number]
+// // Internal routes (not versioned)
+// const internalRoutes = [waitlistRouter] as const
+// for (const route of internalRoutes) {
+//   app.route("/", route)
+// }
+//
+// // Versioned public API routes
+// const v1Routes = [channelsRouter] as const
+// for (const route of v1Routes) {
+//   app.route("/v1", route)
+// }
+//
+// const allRoutes = [...internalRoutes, ...v1Routes] as const
+//
+// export type AppType = (typeof allRoutes)[number]
 
 export default app

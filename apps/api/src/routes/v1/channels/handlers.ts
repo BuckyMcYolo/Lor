@@ -1,6 +1,6 @@
 import { db } from "@repo/db"
 import { channel } from "@repo/db/schema"
-import { eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type { CreateChannelRoute, ListChannelsRoute } from "./routes"
@@ -12,8 +12,42 @@ export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
     .select()
     .from(channel)
     .where(eq(channel.guildId, guild.id))
+    .orderBy(asc(channel.position))
 
-  return c.json({ success: true, data: channels }, HttpStatusCodes.OK)
+  const categoryMap = new Map<string, typeof channels>()
+  const categories: typeof channels = []
+  const uncategorized: typeof channels = []
+
+  for (const ch of channels) {
+    if (ch.type === "category") {
+      categories.push(ch)
+      categoryMap.set(ch.id, [])
+    }
+  }
+
+  for (const ch of channels) {
+    if (ch.type === "category") continue
+    const parent = ch.parentId ? categoryMap.get(ch.parentId) : undefined
+    if (parent) {
+      parent.push(ch)
+    } else {
+      uncategorized.push(ch)
+    }
+  }
+
+  return c.json(
+    {
+      success: true,
+      data: {
+        uncategorized,
+        categories: categories.map((cat) => ({
+          ...cat,
+          channels: categoryMap.get(cat.id) ?? [],
+        })),
+      },
+    },
+    HttpStatusCodes.OK
+  )
 }
 
 export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
