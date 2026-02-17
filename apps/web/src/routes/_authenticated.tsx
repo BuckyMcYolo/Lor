@@ -1,7 +1,14 @@
 import { authClient } from "@repo/auth/client"
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router"
 import { useEffect } from "react"
 import { Sidebar } from "../components/sidebar"
+
+const LAST_PATH_KEY = "townhall:last-path"
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -9,6 +16,7 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: session, isPending } = authClient.useSession()
 
   useEffect(() => {
@@ -16,6 +24,12 @@ function AuthenticatedLayout() {
       navigate({ to: "/login" })
     }
   }, [isPending, session, navigate])
+
+  useEffect(() => {
+    if (location.pathname !== "/") {
+      localStorage.setItem(LAST_PATH_KEY, location.pathname)
+    }
+  }, [location.pathname])
 
   if (isPending) {
     return (
@@ -31,8 +45,9 @@ function AuthenticatedLayout() {
 
   return (
     <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
-      <Sidebar />
-      <Outlet />
+      <Sidebar>
+        <Outlet />
+      </Sidebar>
     </div>
   )
 }

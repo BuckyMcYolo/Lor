@@ -65,24 +65,28 @@ export function GuildBar() {
       return res.data
     },
   })
-  const { data: activeOrg } = useQuery({
-    queryKey: ["active-guild", guildSlug],
-    queryFn: async () => {
-      const res = await authClient.organization.getFullOrganization()
-      return res.data
-    },
-  })
-
   return (
     <div className="flex w-[72px] shrink-0 flex-col items-center bg-background py-3">
       {/* Home / DMs button */}
       <button
         type="button"
-        onClick={() => navigate({ to: "/" })}
+        onClick={() => navigate({ to: "/dms" })}
         className="group relative flex items-center justify-center px-3 py-1"
       >
-        <div className="absolute left-0 h-0 w-1 rounded-r-full bg-foreground transition-all group-hover:h-5" />
-        <div className="flex size-12 items-center justify-center rounded-[24px] bg-muted text-muted-foreground transition-all hover:rounded-2xl hover:bg-primary hover:text-primary-foreground">
+        <div
+          className={cn(
+            "absolute left-0 w-1 rounded-r-full bg-foreground transition-all",
+            !guildSlug ? "h-10" : "h-0 group-hover:h-5"
+          )}
+        />
+        <div
+          className={cn(
+            "flex size-12 items-center justify-center overflow-hidden transition-all",
+            !guildSlug
+              ? "rounded-2xl bg-primary text-primary-foreground"
+              : "rounded-[24px] bg-muted text-muted-foreground hover:rounded-2xl hover:bg-primary hover:text-primary-foreground"
+          )}
+        >
           <MessageCircle className="size-6" />
         </div>
       </button>
@@ -97,7 +101,7 @@ export function GuildBar() {
             key={guild.id}
             name={guild.name}
             logo={guild.logo}
-            active={activeOrg?.id === guild.id}
+            active={guildSlug === guild.slug}
             onClick={() =>
               navigate({
                 to: "/$guildSlug",

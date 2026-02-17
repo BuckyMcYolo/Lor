@@ -1,15 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useEffect } from "react"
+
+const LAST_PATH_KEY = "townhall:last-path"
 
 export const Route = createFileRoute("/_authenticated/")({
-  component: Home,
+  component: RedirectHome,
 })
 
-function Home() {
-  return (
-    <div className="flex flex-1 items-center justify-center">
-      <span className="text-sm text-muted-foreground">
-        Select a channel to start chatting
-      </span>
-    </div>
-  )
+function RedirectHome() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const lastPath = localStorage.getItem(LAST_PATH_KEY)
+    navigate({ to: lastPath && lastPath !== "/" ? lastPath : "/dms" })
+  }, [navigate])
+
+  return null
 }

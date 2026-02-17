@@ -6,7 +6,7 @@ import { UserBar } from "./user-bar"
 
 export function ChannelPanel() {
   return (
-    <div className="flex w-[240px] shrink-0 flex-col border-r border-border bg-card">
+    <div className="flex h-full flex-col border-r border-border bg-card">
       <GuildHeader />
       <SearchBar />
       <ScrollArea className="flex-1 px-3 pt-3">

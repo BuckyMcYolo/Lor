@@ -1,3 +1,4 @@
+import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
@@ -8,6 +9,8 @@ import {
   MessageSquare,
   Volume2,
 } from "lucide-react"
+import { AnimatePresence, motion } from "motion/react"
+import { useState } from "react"
 import { apiClient } from "@/lib/api-client"
 
 const channelIcons = {
@@ -22,10 +25,38 @@ function ChannelIcon({ type }: { type: string }) {
   return <Icon className="size-4 shrink-0 opacity-50" />
 }
 
+function ChannelListSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        {Array.from({ length: 4 }).map((_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
+          <div key={i} className="flex items-center gap-2 px-2 py-[6px]">
+            <Skeleton className="size-4 rounded" />
+            <Skeleton className="h-4 w-24 rounded" />
+          </div>
+        ))}
+      </div>
+      <div>
+        <div className="flex items-center gap-0.5 px-1 pb-1">
+          <Skeleton className="h-3 w-20 rounded" />
+        </div>
+        {Array.from({ length: 3 }).map((_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
+          <div key={i} className="flex items-center gap-2 px-2 py-[6px]">
+            <Skeleton className="size-4 rounded" />
+            <Skeleton className="h-4 w-28 rounded" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ChannelList() {
   const { guildSlug } = useParams({ strict: false })
 
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: ["channels", guildSlug],
     queryFn: async () => {
       const res = await apiClient.v1.channels.$get()
@@ -37,6 +68,10 @@ export function ChannelList() {
     },
     enabled: !!guildSlug,
   })
+
+  if (isPending) {
+    return <ChannelListSkeleton />
+  }
 
   if (!data) {
     return null
@@ -67,20 +102,54 @@ export function ChannelList() {
 
       {/* Categories with children */}
       {data.categories.map((cat) => (
-        <div key={cat.id}>
-          <button
-            type="button"
-            className="flex w-full items-center gap-0.5 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-          >
-            <ChevronDown className="size-3 shrink-0" />
-            <span className="truncate">{cat.name}</span>
-          </button>
+        <CategorySection key={cat.id} name={cat.name ?? ""}>
           {cat.channels.map((ch) => (
             <ChannelItem key={ch.id} name={ch.name ?? ""} type={ch.type} />
           ))}
-        </div>
+        </CategorySection>
       ))}
     </nav>
+  )
+}
+
+function CategorySection({
+  name,
+  children,
+}: {
+  name: string
+  children: React.ReactNode
+}) {
+  const [collapsed, setCollapsed] = useState(false)
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex w-full items-center gap-0.5 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      >
+        <motion.div
+          animate={{ rotate: collapsed ? -90 : 0 }}
+          transition={{ duration: 0.15, ease: "easeInOut" }}
+        >
+          <ChevronDown className="size-3 shrink-0" />
+        </motion.div>
+        <span className="truncate">{name}</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
