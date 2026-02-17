@@ -1,9 +1,13 @@
 import { db } from "@repo/db"
 import { channel } from "@repo/db/schema"
-import { asc, eq } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import type { AppRouteHandler } from "@/lib/types/app-types"
-import type { CreateChannelRoute, ListChannelsRoute } from "./routes"
+import type {
+  CreateChannelRoute,
+  ListChannelsRoute,
+  ReorderChannelsRoute,
+} from "./routes"
 
 export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
   const guild = c.var.guild
@@ -71,4 +75,37 @@ export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
   }
 
   return c.json({ success: true, data: newChannel }, HttpStatusCodes.CREATED)
+}
+
+export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
+  c
+) => {
+  const guild = c.var.guild
+  const { channels: updates } = c.req.valid("json")
+
+  const channelIds = updates.map((u) => u.id)
+
+  // Verify all channels belong to this guild
+  const existing = await db
+    .select({ id: channel.id })
+    .from(channel)
+    .where(and(eq(channel.guildId, guild.id), inArray(channel.id, channelIds)))
+
+  if (existing.length !== channelIds.length) {
+    return c.json(
+      { success: false, message: "One or more channels not found in guild" },
+      HttpStatusCodes.FORBIDDEN
+    )
+  }
+
+  await db.transaction(async (tx) => {
+    for (const update of updates) {
+      await tx
+        .update(channel)
+        .set({ position: update.position, parentId: update.parentId })
+        .where(and(eq(channel.id, update.id), eq(channel.guildId, guild.id)))
+    }
+  })
+
+  return c.json({ success: true }, HttpStatusCodes.OK)
 }

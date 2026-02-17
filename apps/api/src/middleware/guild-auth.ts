@@ -8,15 +8,19 @@ import type { AppBindings } from "@/lib/types/app-types"
 
 /**
  * Authenticates the request via better-auth session and resolves the
- * user's active guild + membership.
+ * guild from the :guildSlug path parameter. Verifies the user is a
+ * member of the guild.
  *
  * Sets in context:
  * - user: The authenticated user
  * - session: The session object
- * - guild: The user's active guild
- * - member: The user's membership in the active guild
+ * - guild: The resolved guild
+ * - member: The user's membership in the guild
  */
-export const authMiddleware = async (c: Context<AppBindings>, next: Next) => {
+export const guildAuthMiddleware = async (
+  c: Context<AppBindings>,
+  next: Next
+) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers })
 
   if (!session) {
@@ -26,12 +30,19 @@ export const authMiddleware = async (c: Context<AppBindings>, next: Next) => {
     )
   }
 
-  const activeGuildId = session.session.activeOrganizationId
+  const guildSlug = c.req.param("guildSlug")
 
-  if (!activeGuildId) {
+  const guildRecord = await db
+    .select()
+    .from(guild)
+    .where(eq(guild.slug, guildSlug))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!guildRecord) {
     return c.json(
-      { success: false, message: "No active guild selected" },
-      HttpStatusCodes.BAD_REQUEST
+      { success: false, message: "Guild not found" },
+      HttpStatusCodes.NOT_FOUND
     )
   }
 
@@ -41,7 +52,7 @@ export const authMiddleware = async (c: Context<AppBindings>, next: Next) => {
     .where(
       and(
         eq(guildMember.userId, session.user.id),
-        eq(guildMember.guildId, activeGuildId)
+        eq(guildMember.guildId, guildRecord.id)
       )
     )
     .limit(1)
@@ -49,22 +60,8 @@ export const authMiddleware = async (c: Context<AppBindings>, next: Next) => {
 
   if (!memberRecord) {
     return c.json(
-      { success: false, message: "You are not a member of this guild" },
+      { success: false, message: "Forbidden" },
       HttpStatusCodes.FORBIDDEN
-    )
-  }
-
-  const guildRecord = await db
-    .select()
-    .from(guild)
-    .where(eq(guild.id, activeGuildId))
-    .limit(1)
-    .then((rows) => rows[0])
-
-  if (!guildRecord) {
-    return c.json(
-      { success: false, message: "Guild not found" },
-      HttpStatusCodes.NOT_FOUND
     )
   }
 

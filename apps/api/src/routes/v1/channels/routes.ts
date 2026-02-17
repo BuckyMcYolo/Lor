@@ -6,20 +6,26 @@ import {
   internalServerErrorSchema,
   unauthorizedSchema,
 } from "@/lib/helpers/openapi/schemas"
-import { authMiddleware } from "@/middleware/auth"
+import { guildAuthMiddleware } from "@/middleware/guild-auth"
 import {
   createChannelRequestSchema,
   createChannelResponseSchema,
+  guildSlugParamsSchema,
   listChannelsResponseSchema,
+  reorderChannelsRequestSchema,
+  reorderChannelsResponseSchema,
 } from "./schema"
 
 export const listChannels = createRoute({
-  path: "/channels",
+  path: "/guilds/{guildSlug}/channels",
   method: "get",
   summary: "List channels",
-  description: "Lists all channels in the user's active guild.",
+  description: "Lists all channels in the specified guild.",
   tags: ["Channels"],
-  middleware: [authMiddleware] as const,
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: guildSlugParamsSchema,
+  },
   responses: {
     [HttpStatusCodes.OK]: jsonContent({
       schema: listChannelsResponseSchema,
@@ -32,14 +38,14 @@ export const listChannels = createRoute({
 })
 
 export const createChannel = createRoute({
-  path: "/channels",
+  path: "/guilds/{guildSlug}/channels",
   method: "post",
   summary: "Create a channel",
-  description:
-    "Creates a new channel in the user's active guild. Guild ID is derived from the session.",
+  description: "Creates a new channel in the specified guild.",
   tags: ["Channels"],
-  middleware: [authMiddleware] as const,
+  middleware: [guildAuthMiddleware] as const,
   request: {
+    params: guildSlugParamsSchema,
     body: jsonContent({
       schema: createChannelRequestSchema,
       description: "Channel details",
@@ -56,5 +62,32 @@ export const createChannel = createRoute({
   },
 })
 
+export const reorderChannels = createRoute({
+  path: "/guilds/{guildSlug}/channels/reorder",
+  method: "patch",
+  summary: "Reorder channels",
+  description:
+    "Batch-update channel positions and parent categories within the specified guild.",
+  tags: ["Channels"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: guildSlugParamsSchema,
+    body: jsonContent({
+      schema: reorderChannelsRequestSchema,
+      description: "Channel positions to update",
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: reorderChannelsResponseSchema,
+      description: "Channels reordered",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export type ListChannelsRoute = typeof listChannels
 export type CreateChannelRoute = typeof createChannel
+export type ReorderChannelsRoute = typeof reorderChannels
