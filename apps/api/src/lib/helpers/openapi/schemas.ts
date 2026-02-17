@@ -1,5 +1,22 @@
 import { z } from "@hono/zod-openapi"
+import type { ZodType } from "zod"
 import jsonContent from "./json-content"
+
+// ── Pagination ──────────────────────────────────────────
+
+export const paginationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  perPage: z.coerce.number().int().min(1).max(100).default(50),
+})
+
+export const paginatedResponseSchema = <T extends ZodType>(itemSchema: T) =>
+  z.object({
+    itemsTotal: z.number(),
+    currentPage: z.number(),
+    nextPage: z.number().nullable(),
+    prevPage: z.number().nullable(),
+    data: z.array(itemSchema),
+  })
 
 const errorSchema = z.object({
   success: z.literal(false),

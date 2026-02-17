@@ -5,6 +5,7 @@ import createApp from "@/lib/helpers/app/create-app"
 import configureOpenAPI from "@/lib/helpers/openapi/configure-openapi"
 import index from "@/routes/index.route"
 import channelsRouter from "@/routes/v1/channels/index"
+import dmsRouter from "@/routes/v1/dms/index"
 import waitlistRouter from "@/routes/waitlist/index"
 
 const app = createApp()
@@ -28,7 +29,10 @@ configureOpenAPI(app)
 app.route("/", index)
 
 // Route mounting — chained for Hono RPC type inference
-const routes = app.route("/", waitlistRouter).route("/v1", channelsRouter)
+const routes = app
+  .route("/", waitlistRouter)
+  .route("/v1", channelsRouter)
+  .route("/v1", dmsRouter)
 
 export type AppType = typeof routes
 
