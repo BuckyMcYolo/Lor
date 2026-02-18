@@ -15,6 +15,13 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@repo/ui/components/dropdown-menu"
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -24,6 +31,7 @@ import {
   Hash,
   Megaphone,
   MessageSquare,
+  MoreHorizontal,
   Volume2,
 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
@@ -535,6 +543,8 @@ function SortableChannelItem({
     isDragging,
   } = useSortable({ id })
 
+  const [menuOpen, setMenuOpen] = useState(false)
+
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
@@ -542,18 +552,20 @@ function SortableChannelItem({
   }
 
   return (
-    <button
+    // biome-ignore lint/a11y/useSemanticElements: dnd-kit requires a div here to avoid nested interactive elements
+    // biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit requires a div here
+    // biome-ignore lint/a11y/useKeyWithClickEvents: dnd-kit handles keyboard interactions
+    <div
       ref={setNodeRef}
       style={style}
-      type="button"
       onClick={onClick}
       {...attributes}
       {...listeners}
       className={cn(
         "group relative flex w-full items-center gap-2 rounded-lg px-2 py-[6px] text-[14px] hover:bg-foreground/[0.06] cursor-pointer",
-        active
-          ? "bg-foreground/[0.06] font-medium text-foreground"
-          : "text-muted-foreground"
+        active && "bg-foreground/[0.06] font-medium text-foreground",
+        !active && "text-muted-foreground",
+        menuOpen && "bg-foreground/[0.06]"
       )}
     >
       {active && (
@@ -561,7 +573,32 @@ function SortableChannelItem({
       )}
       <ChannelIcon type={type} />
       <span className="truncate">{name}</span>
-    </button>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            "ml-auto flex size-5 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
+            menuOpen && "opacity-100"
+          )}
+        >
+          <MoreHorizontal className="size-4 shrink-0" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="bottom" align="start">
+          {/* TODO: handleEditChannel */}
+          <DropdownMenuItem disabled>Edit Channel</DropdownMenuItem>
+          {/* TODO: handleCopyChannelId */}
+          <DropdownMenuItem disabled>Copy Channel ID</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {/* TODO: handleDeleteChannel — requires confirmation */}
+          <DropdownMenuItem
+            disabled
+            className="text-destructive focus:text-destructive"
+          >
+            Delete Channel
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }
 

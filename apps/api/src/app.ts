@@ -1,5 +1,4 @@
 import { auth } from "@repo/auth"
-import { env } from "@repo/env/server"
 import { cors } from "hono/cors"
 import createApp from "@/lib/helpers/app/create-app"
 import configureOpenAPI from "@/lib/helpers/openapi/configure-openapi"
@@ -13,10 +12,7 @@ const app = createApp()
 app.use(
   "*",
   cors({
-    origin:
-      env.NODE_ENV === "development"
-        ? "http://localhost:3000"
-        : env.NEXT_PUBLIC_API_URL,
+    origin: (origin) => origin,
     credentials: true,
   })
 )

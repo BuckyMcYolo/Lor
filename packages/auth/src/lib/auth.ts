@@ -8,8 +8,19 @@ export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_API_URL,
   database: drizzleAdapter(db, { provider: "pg", schema }),
   secret: env.BETTER_AUTH_SECRET,
+  user: {
+    additionalFields: {
+      onboardingCompleted: {
+        type: "boolean",
+        defaultValue: false,
+        returned: true,
+      },
+    },
+  },
   trustedOrigins:
-    env.NODE_ENV === "development" ? ["http://localhost:3000"] : [],
+    env.NODE_ENV === "development"
+      ? ["http://localhost:3000", "http://localhost:3001"]
+      : [],
   emailAndPassword: {
     enabled: true,
   },
@@ -36,11 +47,11 @@ export const auth = betterAuth({
               fieldName: "ownerId",
               references: {
                 field: "id",
-                table: "user",
                 model: "user",
                 onDelete: "restrict",
               },
-              required: true,
+              required: false,
+              input: false,
               returned: true,
             },
           },
@@ -66,6 +77,11 @@ export const auth = betterAuth({
           fields: {
             organizationId: "guildId",
           },
+        },
+      },
+      organizationHooks: {
+        beforeCreateOrganization: async ({ organization, user }) => {
+          return { data: { ...organization, ownerId: user.id } }
         },
       },
       dynamicAccessControl: {
