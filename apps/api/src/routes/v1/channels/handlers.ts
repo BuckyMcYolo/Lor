@@ -84,14 +84,17 @@ export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
   const { channels: updates } = c.req.valid("json")
 
   const channelIds = updates.map((u) => u.id)
+  const uniqueChannelIds = [...new Set(channelIds)]
 
   // Verify all channels belong to this guild
   const existing = await db
     .select({ id: channel.id })
     .from(channel)
-    .where(and(eq(channel.guildId, guild.id), inArray(channel.id, channelIds)))
+    .where(
+      and(eq(channel.guildId, guild.id), inArray(channel.id, uniqueChannelIds))
+    )
 
-  if (existing.length !== channelIds.length) {
+  if (existing.length !== uniqueChannelIds.length) {
     return c.json(
       { success: false, message: "One or more channels not found in guild" },
       HttpStatusCodes.FORBIDDEN

@@ -7,10 +7,11 @@ import { useMemo } from "react"
 export function GuildHeader() {
   const { guildSlug } = useParams({ strict: false })
 
-  const { data: guilds } = useQuery({
+  const { data: guilds, isPending } = useQuery({
     queryKey: ["guilds"],
     queryFn: async () => {
       const res = await authClient.organization.list()
+      if (res.error) throw res.error
       return res.data
     },
   })
@@ -20,14 +21,14 @@ export function GuildHeader() {
     [guilds, guildSlug]
   )
 
+  const title = isPending ? "Loading..." : (guildName ?? "Guild not found")
+
   return (
     <button
       type="button"
       className="flex h-[49px] w-full items-center justify-between border-b border-border px-4 hover:bg-foreground/5"
     >
-      <h2 className="truncate text-[15px] font-bold tracking-tight">
-        {guildName ?? "Loading..."}
-      </h2>
+      <h2 className="truncate text-[15px] font-bold tracking-tight">{title}</h2>
       <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
     </button>
   )

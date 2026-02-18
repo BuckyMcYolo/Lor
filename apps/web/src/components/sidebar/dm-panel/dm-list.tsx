@@ -8,7 +8,6 @@ import {
 import { cn } from "@repo/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { X } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { UserAvatar } from "../../ui/user-avatar"
 
@@ -140,7 +139,6 @@ function DMItem({
           </div>
         )}
       </div>
-      <X className="hidden size-4 shrink-0 text-muted-foreground group-hover:block" />
     </button>
   )
 }

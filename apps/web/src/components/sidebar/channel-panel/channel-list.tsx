@@ -272,38 +272,39 @@ export function ChannelList() {
       const overItem = findChannel(over.id as string)
       if (!draggedItem || !overItem) return
 
+      let newData: ChannelData | undefined
       queryClient.setQueryData(
         ["channels", guildSlug],
         (old: ChannelData | undefined) => {
           if (!old) return old
-          const newData = structuredClone(old)
+          const updated = structuredClone(old)
 
           if (draggedItem.isCategory && overItem.isCategory) {
             // Reorder categories
-            const oldIdx = newData.categories.findIndex(
+            const oldIdx = updated.categories.findIndex(
               (c) => c.id === active.id
             )
-            const newIdx = newData.categories.findIndex((c) => c.id === over.id)
+            const newIdx = updated.categories.findIndex((c) => c.id === over.id)
             if (oldIdx >= 0 && newIdx >= 0) {
-              const moved = newData.categories.splice(oldIdx, 1)[0]
-              if (moved) newData.categories.splice(newIdx, 0, moved)
+              const moved = updated.categories.splice(oldIdx, 1)[0]
+              if (moved) updated.categories.splice(newIdx, 0, moved)
             }
           } else if (!draggedItem.isCategory) {
             // Reorder within same container
             const container = draggedItem.channel.parentId
             if (container === null) {
-              const oldIdx = newData.uncategorized.findIndex(
+              const oldIdx = updated.uncategorized.findIndex(
                 (c) => c.id === active.id
               )
-              const newIdx = newData.uncategorized.findIndex(
+              const newIdx = updated.uncategorized.findIndex(
                 (c) => c.id === over.id
               )
               if (oldIdx >= 0 && newIdx >= 0) {
-                const moved = newData.uncategorized.splice(oldIdx, 1)[0]
-                if (moved) newData.uncategorized.splice(newIdx, 0, moved)
+                const moved = updated.uncategorized.splice(oldIdx, 1)[0]
+                if (moved) updated.uncategorized.splice(newIdx, 0, moved)
               }
             } else {
-              const cat = newData.categories.find((c) => c.id === container)
+              const cat = updated.categories.find((c) => c.id === container)
               if (cat) {
                 const oldIdx = cat.channels.findIndex((c) => c.id === active.id)
                 const newIdx = cat.channels.findIndex((c) => c.id === over.id)
@@ -315,13 +316,14 @@ export function ChannelList() {
             }
           }
 
-          // Send reorder to API
-          const payload = buildReorderPayload(newData)
-          reorderMutation.mutate(payload)
-
-          return newData
+          newData = updated
+          return updated
         }
       )
+
+      if (newData) {
+        reorderMutation.mutate(buildReorderPayload(newData))
+      }
     },
     [data, findChannel, guildSlug, queryClient, reorderMutation]
   )
