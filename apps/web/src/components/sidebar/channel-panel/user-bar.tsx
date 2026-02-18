@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/dropdown-menu"
 import { ToggleGroup, ToggleGroupItem } from "@repo/ui/components/toggle-group"
+import { useNavigate } from "@tanstack/react-router"
 import {
   ChevronsUpDown,
   Laptop,
@@ -23,12 +24,22 @@ import { UserAvatar } from "../../ui/user-avatar"
 export function UserBar() {
   const { data: session } = authClient.useSession()
   const { setTheme, theme } = useTheme()
+  const navigate = useNavigate()
 
   const name = session?.user.name ?? "User"
   const email = session?.user.email ?? ""
 
   const handleLogout = async () => {
-    await authClient.signOut()
+    try {
+      await authClient.signOut()
+    } catch (err) {
+      console.error("Sign out failed:", err)
+    }
+  }
+
+  const handleOpenSettings = () => {
+    // TODO: Navigate to settings page
+    // navigate({ to: "/settings" })
   }
 
   return (
@@ -109,7 +120,7 @@ export function UserBar() {
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleOpenSettings}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </DropdownMenuItem>
@@ -117,7 +128,7 @@ export function UserBar() {
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+            <DropdownMenuItem variant="destructive" onSelect={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Log out
             </DropdownMenuItem>
@@ -125,6 +136,9 @@ export function UserBar() {
         </DropdownMenu>
         <button
           type="button"
+          aria-label="Open settings"
+          title="Open settings"
+          onClick={handleOpenSettings}
           className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
         >
           <Settings className="size-4" />

@@ -18,7 +18,9 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins:
-    env.NODE_ENV === "development" ? ["http://localhost:3000"] : [],
+    env.NODE_ENV === "development"
+      ? ["http://localhost:3000", "http://localhost:3001"]
+      : [],
   emailAndPassword: {
     enabled: true,
   },

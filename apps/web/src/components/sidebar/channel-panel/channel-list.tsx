@@ -584,10 +584,16 @@ function SortableChannelItem({
           <MoreHorizontal className="size-4 shrink-0" />
         </DropdownMenuTrigger>
         <DropdownMenuContent side="bottom" align="start">
-          <DropdownMenuItem>Edit Channel</DropdownMenuItem>
-          <DropdownMenuItem>Copy Channel ID</DropdownMenuItem>
+          {/* TODO: handleEditChannel */}
+          <DropdownMenuItem disabled>Edit Channel</DropdownMenuItem>
+          {/* TODO: handleCopyChannelId */}
+          <DropdownMenuItem disabled>Copy Channel ID</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive">
+          {/* TODO: handleDeleteChannel — requires confirmation */}
+          <DropdownMenuItem
+            disabled
+            className="text-destructive focus:text-destructive"
+          >
             Delete Channel
           </DropdownMenuItem>
         </DropdownMenuContent>

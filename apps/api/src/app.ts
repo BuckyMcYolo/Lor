@@ -12,8 +12,8 @@ const app = createApp()
 app.use(
   "*",
   cors({
-    origin: "*",
-    credentials: false,
+    origin: (origin) => origin,
+    credentials: true,
   })
 )
 

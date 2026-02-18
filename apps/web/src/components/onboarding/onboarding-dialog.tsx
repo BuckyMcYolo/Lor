@@ -25,6 +25,7 @@ function toSlug(name: string) {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, 50)
 }
 
@@ -63,7 +64,14 @@ export function OnboardingDialog({ open }: { open: boolean }) {
         return
       }
 
-      await authClient.updateUser({ onboardingCompleted: true })
+      // Best-effort — guild was created successfully so proceed regardless
+      try {
+        await authClient.updateUser({ onboardingCompleted: true })
+      } catch {
+        // Non-blocking: dialog will reappear next session but guild exists
+        setError("Guild created, but failed to save onboarding state.")
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["guilds"] })
       navigate({ to: "/$guildSlug", params: { guildSlug: slug.trim() } })
     } catch {
@@ -186,13 +194,13 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
                   <div className="space-y-1.5">
                     <Label htmlFor="guild-slug">Slug</Label>
-                    <div className="flex items-center rounded-md border border-input bg-muted px-3 py-2 text-sm focus-within:ring-1 focus-within:ring-ring">
+                    <div className="flex items-center rounded-md border border-input bg-muted px-3 text-sm focus-within:ring-1 focus-within:ring-ring">
                       <span className="shrink-0 text-muted-foreground">
-                        townhall.gg/
+                        townhall.chat/
                       </span>
-                      <input
+                      <Input
                         id="guild-slug"
-                        className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+                        className="min-w-0 flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 px-1"
                         placeholder="my-awesome-guild"
                         value={slug}
                         onChange={(e) => {
