@@ -18,10 +18,9 @@ import { CSS } from "@dnd-kit/utilities"
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useParams } from "@tanstack/react-router"
+import { useNavigate, useParams } from "@tanstack/react-router"
 import {
   ChevronDown,
-  GripVertical,
   Hash,
   Megaphone,
   MessageSquare,
@@ -107,7 +106,8 @@ function buildReorderPayload(data: ChannelData) {
 }
 
 export function ChannelList() {
-  const { guildSlug } = useParams({ strict: false })
+  const { guildSlug, channelId: activeChannelId } = useParams({ strict: false })
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const { data, isPending } = useQuery({
@@ -368,6 +368,16 @@ export function ChannelList() {
                   id={ch.id}
                   name={ch.name ?? ""}
                   type={ch.type}
+                  active={activeChannelId === ch.id}
+                  onClick={() =>
+                    navigate({
+                      to: "/$guildSlug/$channelId",
+                      params: {
+                        guildSlug: guildSlug as string,
+                        channelId: ch.id,
+                      },
+                    })
+                  }
                 />
               ))}
             </div>
@@ -386,6 +396,13 @@ export function ChannelList() {
               name={cat.name ?? ""}
               channels={cat.channels}
               draggingCategory={activeItem?.isCategory ?? false}
+              activeChannelId={activeChannelId}
+              onChannelClick={(channelId) =>
+                navigate({
+                  to: "/$guildSlug/$channelId",
+                  params: { guildSlug: guildSlug as string, channelId },
+                })
+              }
             />
           ))}
         </SortableContext>
@@ -419,11 +436,15 @@ function SortableCategorySection({
   name,
   channels,
   draggingCategory,
+  activeChannelId,
+  onChannelClick,
 }: {
   id: string
   name: string
   channels: Channel[]
   draggingCategory: boolean
+  activeChannelId?: string
+  onChannelClick?: (channelId: string) => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const {
@@ -446,15 +467,10 @@ function SortableCategorySection({
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
-        className="group flex w-full items-center gap-0.5 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        {...attributes}
+        {...listeners}
+        className="group flex w-full items-center gap-0.5 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer"
       >
-        <div
-          {...attributes}
-          {...listeners}
-          className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing"
-        >
-          <GripVertical className="size-3 shrink-0" />
-        </div>
         <motion.div
           animate={{ rotate: collapsed ? -90 : 0 }}
           transition={{ duration: 0.15, ease: "easeInOut" }}
@@ -483,6 +499,8 @@ function SortableCategorySection({
                   id={ch.id}
                   name={ch.name ?? ""}
                   type={ch.type}
+                  active={activeChannelId === ch.id}
+                  onClick={() => onChannelClick?.(ch.id)}
                 />
               ))}
             </SortableContext>
@@ -498,11 +516,13 @@ function SortableChannelItem({
   name,
   type,
   active = false,
+  onClick,
 }: {
   id: string
   name: string
   type: string
   active?: boolean
+  onClick?: () => void
 }) {
   const {
     attributes,
@@ -524,8 +544,11 @@ function SortableChannelItem({
       ref={setNodeRef}
       style={style}
       type="button"
+      onClick={onClick}
+      {...attributes}
+      {...listeners}
       className={cn(
-        "group relative flex w-full items-center gap-2 rounded-lg px-2 py-[6px] text-[14px] hover:bg-foreground/[0.06]",
+        "group relative flex w-full items-center gap-2 rounded-lg px-2 py-[6px] text-[14px] hover:bg-foreground/[0.06] cursor-pointer",
         active
           ? "bg-foreground/[0.06] font-medium text-foreground"
           : "text-muted-foreground"
@@ -534,13 +557,6 @@ function SortableChannelItem({
       {active && (
         <div className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
       )}
-      <div
-        {...attributes}
-        {...listeners}
-        className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing"
-      >
-        <GripVertical className="size-3 shrink-0" />
-      </div>
       <ChannelIcon type={type} />
       <span className="truncate">{name}</span>
     </button>

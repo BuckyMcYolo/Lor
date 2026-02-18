@@ -106,10 +106,48 @@ export const listDMs: AppRouteHandler<ListDMsRoute> = async (c) => {
     ])
   )
 
+  // Query 3: Members for each DM channel (excluding the current user)
+  const members = await db
+    .select({
+      channelId: channelMember.channelId,
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      displayUsername: user.displayUsername,
+      image: user.image,
+    })
+    .from(channelMember)
+    .innerJoin(user, eq(channelMember.userId, user.id))
+    .where(inArray(channelMember.channelId, dmChannelIds))
+
+  const membersByChannel = new Map<
+    string,
+    {
+      id: string
+      name: string
+      username: string | null
+      displayUsername: string | null
+      image: string | null
+    }[]
+  >()
+  for (const m of members) {
+    if (m.id === currentUser.id) continue
+    const list = membersByChannel.get(m.channelId) ?? []
+    list.push({
+      id: m.id,
+      name: m.name,
+      username: m.username,
+      displayUsername: m.displayUsername,
+      image: m.image,
+    })
+    membersByChannel.set(m.channelId, list)
+  }
+
   const totalPages = Math.ceil(itemsTotal / perPage)
 
   const data = dmChannels.map((ch) => ({
     ...ch,
+    members: membersByChannel.get(ch.id) ?? [],
     lastMessage: lastMessageByChannel.get(ch.id) ?? null,
   }))
 

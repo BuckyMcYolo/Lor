@@ -1,19 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useEffect } from "react"
-
-const LAST_PATH_KEY = "townhall:last-path"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/_authenticated/")({
-  component: RedirectHome,
+  beforeLoad: () => {
+    throw redirect({ to: "/dms" })
+  },
 })
-
-function RedirectHome() {
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    const lastPath = localStorage.getItem(LAST_PATH_KEY)
-    navigate({ to: lastPath && lastPath !== "/" ? lastPath : "/dms" })
-  }, [navigate])
-
-  return null
-}
