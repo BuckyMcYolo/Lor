@@ -5,5 +5,6 @@ import * as routes from "./routes"
 const channelsRouter = createRouter()
   .openapi(routes.listChannels, handlers.listChannels)
   .openapi(routes.createChannel, handlers.createChannel)
+  .openapi(routes.reorderChannels, handlers.reorderChannels)
 
 export default channelsRouter

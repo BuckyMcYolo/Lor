@@ -12,7 +12,7 @@ import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
 import { useMutation } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { type FormEvent, useState } from "react"
+import { type FormEvent, useEffect, useState } from "react"
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -20,8 +20,15 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { data: session, isPending: sessionPending } = authClient.useSession()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+
+  useEffect(() => {
+    if (!sessionPending && session) {
+      navigate({ to: "/" })
+    }
+  }, [sessionPending, session, navigate])
 
   const {
     mutate: signIn,
