@@ -26,7 +26,7 @@ export function DMPanel() {
           )}
         >
           <Users className="size-4 shrink-0" />
-          Friends
+          Allies
         </button>
         <button
           type="button"

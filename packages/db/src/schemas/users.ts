@@ -25,6 +25,7 @@ export const user = pgTable("user", {
   username: text("username").unique(),
   displayUsername: text("display_username"),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
 })
 
 export const userRelations = relations(user, ({ many }) => ({

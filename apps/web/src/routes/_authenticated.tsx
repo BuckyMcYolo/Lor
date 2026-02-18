@@ -6,6 +6,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import { useEffect } from "react"
+import { OnboardingDialog } from "../components/onboarding/onboarding-dialog"
 import { Sidebar } from "../components/sidebar"
 
 const LAST_PATH_KEY = "townhall:last-path"
@@ -43,11 +44,14 @@ function AuthenticatedLayout() {
     return null
   }
 
+  const showOnboarding = session.user.onboardingCompleted === false
+
   return (
     <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
       <Sidebar>
         <Outlet />
       </Sidebar>
+      <OnboardingDialog open={showOnboarding} />
     </div>
   )
 }
