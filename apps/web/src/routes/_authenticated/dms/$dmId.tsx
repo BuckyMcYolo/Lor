@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { ChatView } from "@/components/chat/chat-view"
+import { ChatHeader } from "@/components/chat/header"
+import { MessageInput } from "@/components/chat/message-input"
+import { MessageList } from "@/components/chat/message-list"
 import { apiClient } from "@/lib/api-client"
 
 export const Route = createFileRoute("/_authenticated/dms/$dmId")({
@@ -44,5 +46,11 @@ function DMConversation() {
           avatarUrl: dm.members[0]?.image ?? undefined,
         }
 
-  return <ChatView context={context} />
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      <ChatHeader context={context} />
+      <MessageList context={context} messages={[]} />
+      <MessageInput context={context} onSend={() => {}} />
+    </div>
+  )
 }

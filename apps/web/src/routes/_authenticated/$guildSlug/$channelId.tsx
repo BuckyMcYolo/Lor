@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { ChatView } from "@/components/chat/chat-view"
+import { ChatHeader } from "@/components/chat/header"
+import { MessageInput } from "@/components/chat/message-input"
+import { MessageList } from "@/components/chat/message-list"
 import { apiClient } from "@/lib/api-client"
 
 export const Route = createFileRoute("/_authenticated/$guildSlug/$channelId")({
@@ -39,13 +41,17 @@ function ChannelView() {
     )
   }
 
+  const context = {
+    type: "channel" as const,
+    name: data.name ?? channelId,
+    topic: data.topic ?? undefined,
+  }
+
   return (
-    <ChatView
-      context={{
-        type: "channel",
-        name: data.name ?? channelId,
-        topic: data.topic ?? undefined,
-      }}
-    />
+    <div className="flex h-full flex-col overflow-hidden">
+      <ChatHeader context={context} />
+      <MessageList context={context} messages={[]} />
+      <MessageInput context={context} onSend={() => {}} />
+    </div>
   )
 }
