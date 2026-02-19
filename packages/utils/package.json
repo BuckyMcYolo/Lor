@@ -1,0 +1,21 @@
+{
+  "name": "@repo/utils",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./slug": "./src/slug.ts",
+    "./date": "./src/date.ts",
+    "./phone": "./src/phone.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/luxon": "^3.7.1"
+  },
+  "dependencies": {
+    "luxon": "^3.7.2"
+  }
+}

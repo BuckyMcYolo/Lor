@@ -37,6 +37,11 @@ import {
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useState } from "react"
 import { apiClient } from "@/lib/api-client"
+import type {
+  CategoryWithChannels,
+  Channel,
+  ListChannelsResponse,
+} from "@/lib/api-types"
 
 const channelIcons = {
   text: Hash,
@@ -45,22 +50,8 @@ const channelIcons = {
   forum: MessageSquare,
 } as const
 
-type Channel = {
-  id: string
-  name: string | null
-  type: string
-  position: number
-  parentId: string | null
-}
-
-type Category = Channel & {
-  channels: Channel[]
-}
-
-type ChannelData = {
-  uncategorized: Channel[]
-  categories: Category[]
-}
+type Category = CategoryWithChannels
+type ChannelData = ListChannelsResponse
 
 function ChannelIcon({ type }: { type: string }) {
   const Icon = channelIcons[type as keyof typeof channelIcons] ?? Hash
@@ -127,8 +118,7 @@ export function ChannelList() {
       if (!res.ok) {
         throw new Error("Failed to fetch channels")
       }
-      const json = await res.json()
-      return json.data
+      return res.json()
     },
     enabled: !!guildSlug,
   })

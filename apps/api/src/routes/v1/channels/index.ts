@@ -6,5 +6,7 @@ const channelsRouter = createRouter()
   .openapi(routes.listChannels, handlers.listChannels)
   .openapi(routes.createChannel, handlers.createChannel)
   .openapi(routes.reorderChannels, handlers.reorderChannels)
+  .openapi(routes.getChannel, handlers.getChannel)
+  .openapi(routes.listChannelMessages, handlers.listChannelMessages)
 
 export default channelsRouter

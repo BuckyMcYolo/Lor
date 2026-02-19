@@ -11,23 +11,13 @@ import {
 } from "@repo/ui/components/dialog"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
+import { sluggify } from "@repo/utils/slug"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Loader2, Plus, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 
 type Step = "welcome" | "create" | "join"
-
-function toSlug(name: string) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50)
-}
 
 export function OnboardingDialog({ open }: { open: boolean }) {
   const [step, setStep] = useState<Step>("welcome")
@@ -42,7 +32,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
   useEffect(() => {
     if (!slugEdited) {
-      setSlug(toSlug(name))
+      setSlug(sluggify(name))
     }
   }, [name, slugEdited])
 
@@ -205,7 +195,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                         value={slug}
                         onChange={(e) => {
                           setSlugEdited(true)
-                          setSlug(toSlug(e.target.value))
+                          setSlug(sluggify(e.target.value))
                         }}
                         disabled={loading}
                       />

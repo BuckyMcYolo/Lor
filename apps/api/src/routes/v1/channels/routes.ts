@@ -4,14 +4,19 @@ import jsonContent from "@/lib/helpers/openapi/json-content"
 import {
   forbiddenSchema,
   internalServerErrorSchema,
+  notFoundSchema,
   unauthorizedSchema,
 } from "@/lib/helpers/openapi/schemas"
 import { guildAuthMiddleware } from "@/middleware/guild-auth"
 import {
+  channelParamsSchema,
+  channelResponseSchema,
   createChannelRequestSchema,
   createChannelResponseSchema,
   guildSlugParamsSchema,
   listChannelsResponseSchema,
+  listMessagesQuerySchema,
+  listMessagesResponseSchema,
   reorderChannelsRequestSchema,
   reorderChannelsResponseSchema,
 } from "./schema"
@@ -88,6 +93,53 @@ export const reorderChannels = createRoute({
   },
 })
 
+export const getChannel = createRoute({
+  path: "/guilds/{guildSlug}/channels/{channelId}",
+  method: "get",
+  summary: "Get a channel",
+  description: "Gets a single channel by ID within the specified guild.",
+  tags: ["Channels"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: channelParamsSchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: channelResponseSchema,
+      description: "Channel",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
+export const listChannelMessages = createRoute({
+  path: "/guilds/{guildSlug}/channels/{channelId}/messages",
+  method: "get",
+  summary: "List channel messages",
+  description: "Returns paginated messages for a channel.",
+  tags: ["Channels"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: channelParamsSchema,
+    query: listMessagesQuerySchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: listMessagesResponseSchema,
+      description: "Paginated messages",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export type ListChannelsRoute = typeof listChannels
 export type CreateChannelRoute = typeof createChannel
 export type ReorderChannelsRoute = typeof reorderChannels
+export type GetChannelRoute = typeof getChannel
+export type ListChannelMessagesRoute = typeof listChannelMessages
