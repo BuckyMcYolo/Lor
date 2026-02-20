@@ -1,6 +1,20 @@
 import { z } from "@hono/zod-openapi"
 import { selectChannelSchema } from "@repo/db/schema"
+import {
+  listMessagesQuerySchema,
+  listMessagesResponseSchema,
+} from "@/lib/helpers/openapi/message-schemas"
 import { paginatedResponseSchema } from "@/lib/helpers/openapi/schemas"
+
+export const dmParamsSchema = z.object({
+  dmId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "dmId", in: "path", required: true },
+      example: "00000000-0000-0000-0000-000000000000",
+    }),
+})
 
 export const lastMessageAuthorSchema = z.object({
   id: z.string().uuid(),
@@ -31,3 +45,8 @@ export const dmChannelSchema = selectChannelSchema.extend({
 })
 
 export const listDMsResponseSchema = paginatedResponseSchema(dmChannelSchema)
+
+export const getDMResponseSchema = dmChannelSchema
+
+export const listDMMessagesQuerySchema = listMessagesQuerySchema
+export const listDMMessagesResponseSchema = listMessagesResponseSchema

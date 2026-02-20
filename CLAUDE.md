@@ -21,6 +21,7 @@ This is a pnpm + Turborepo monorepo for **Townhall**, an open-source Discord alt
 - `apps/web` — Next.js 16.1.6 main app (React 19, App Router, port 3000)
 - `apps/www` — Next.js 16.1.6 marketing site (React 19, App Router, port 3001)
 - `apps/api` — Hono API server (`@repo/api`), OpenAPI via `@hono/zod-openapi`
+- `apps/realtime` — Socket.IO realtime gateway (`@repo/realtime`, defaults to port 8081)
 - `packages/auth` — Auth package (`@repo/auth`), better-auth + Drizzle adapter
 - `packages/db` — Database package (`@repo/db`), Drizzle ORM + Postgres
 - `packages/env` — Environment validation (`@repo/env`), Zod schemas for server/client env

@@ -1,0 +1,111 @@
+import { z } from "zod"
+
+export const channelRoomPayloadSchema = z.object({
+  channelId: z.string().uuid(),
+})
+
+export const sendMessagePayloadSchema = z.object({
+  channelId: z.string().uuid(),
+  content: z.string().trim().min(1).max(2000),
+  nonce: z.string().max(100).optional(),
+})
+
+export const markChannelReadPayloadSchema = z.object({
+  channelId: z.string().uuid(),
+  lastReadMessageId: z.string().uuid().optional(),
+})
+
+export type ChannelRoomPayload = z.infer<typeof channelRoomPayloadSchema>
+export type SendMessagePayload = z.infer<typeof sendMessagePayloadSchema>
+export type MarkChannelReadPayload = z.infer<
+  typeof markChannelReadPayloadSchema
+>
+
+type OkResult = { ok: true }
+type ErrorResult = { ok: false; error: string }
+
+export type JoinLeaveAck = (result: OkResult | ErrorResult) => void
+
+export type RealtimeMessageType =
+  | "default"
+  | "reply"
+  | "system_join"
+  | "system_leave"
+  | "system_pin"
+  | "channel_name_change"
+
+export type RealtimeMessage = {
+  id: string
+  channelId: string
+  // message:send currently emits non-null content; null is reserved for
+  // system/attachment-only message shapes from persisted history.
+  content: string | null
+  type: RealtimeMessageType
+  createdAt: string
+  author: {
+    id: string
+    name: string
+    username: string | null
+    displayUsername: string | null
+    image: string | null
+  }
+  nonce?: string
+}
+
+export type SendMessageAck = (
+  result: { ok: true; message: RealtimeMessage } | ErrorResult
+) => void
+
+export type ChannelReadState = {
+  channelId: string
+  lastReadMessageId: string | null
+  lastReadAt: string
+  unreadCount: number
+  mentionCount: number
+}
+
+export type MarkChannelReadAck = (
+  result: { ok: true; state: ChannelReadState } | ErrorResult
+) => void
+
+export type UnreadNotification = {
+  channelId: string
+  guildId: string | null
+  messageId: string
+  unreadCountDelta: number
+}
+
+export type MentionNotification = {
+  id: string
+  type: "direct_mention" | "everyone_mention"
+  messageId: string
+  channelId: string
+  guildId: string | null
+  createdAt: string
+}
+
+export interface ClientToServerEvents {
+  "channel:join": (payload: ChannelRoomPayload, ack?: JoinLeaveAck) => void
+  "channel:leave": (payload: ChannelRoomPayload, ack?: JoinLeaveAck) => void
+  "message:send": (payload: SendMessagePayload, ack?: SendMessageAck) => void
+  "channel:mark-read": (
+    payload: MarkChannelReadPayload,
+    ack?: MarkChannelReadAck
+  ) => void
+}
+
+export interface ServerToClientEvents {
+  "presence:ready": (payload: {
+    userId: string
+    rooms: {
+      user: string
+      guilds: string[]
+    }
+  }) => void
+  "message:created": (payload: RealtimeMessage) => void
+  "notification:unread": (payload: UnreadNotification) => void
+  "notification:mention": (payload: MentionNotification) => void
+  "channel:read-state": (payload: ChannelReadState) => void
+}
+
+export type InterServerEvents = Record<string, never>

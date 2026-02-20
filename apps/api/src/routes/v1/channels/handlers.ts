@@ -2,9 +2,12 @@ import { db } from "@repo/db"
 import { channel } from "@repo/db/schema"
 import { and, asc, eq, inArray } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
+import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
   CreateChannelRoute,
+  GetChannelRoute,
+  ListChannelMessagesRoute,
   ListChannelsRoute,
   ReorderChannelsRoute,
 } from "./routes"
@@ -41,14 +44,11 @@ export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
 
   return c.json(
     {
-      success: true,
-      data: {
-        uncategorized,
-        categories: categories.map((cat) => ({
-          ...cat,
-          channels: categoryMap.get(cat.id) ?? [],
-        })),
-      },
+      uncategorized,
+      categories: categories.map((cat) => ({
+        ...cat,
+        channels: categoryMap.get(cat.id) ?? [],
+      })),
     },
     HttpStatusCodes.OK
   )
@@ -74,7 +74,7 @@ export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
     )
   }
 
-  return c.json({ success: true, data: newChannel }, HttpStatusCodes.CREATED)
+  return c.json(newChannel, HttpStatusCodes.CREATED)
 }
 
 export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
@@ -111,4 +111,53 @@ export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
   })
 
   return c.json({ success: true }, HttpStatusCodes.OK)
+}
+
+export const getChannel: AppRouteHandler<GetChannelRoute> = async (c) => {
+  const guild = c.var.guild
+  const { channelId } = c.req.valid("param")
+
+  const ch = await db
+    .select()
+    .from(channel)
+    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!ch) {
+    return c.json(
+      { success: false, message: "Channel not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  return c.json(ch, HttpStatusCodes.OK)
+}
+
+export const listChannelMessages: AppRouteHandler<
+  ListChannelMessagesRoute
+> = async (c) => {
+  const guild = c.var.guild
+  const { channelId } = c.req.valid("param")
+  const { page, perPage } = c.req.valid("query")
+
+  // Verify channel belongs to this guild
+  const ch = await db
+    .select({ id: channel.id })
+    .from(channel)
+    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!ch) {
+    return c.json(
+      { success: false, message: "Channel not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  return c.json(
+    await fetchMessagePage(channelId, page, perPage),
+    HttpStatusCodes.OK
+  )
 }

@@ -17,6 +17,7 @@
     "@repo/auth": "workspace:*",
     "@repo/env": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@repo/utils": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-router": "^1.120.3",

@@ -10,6 +10,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core"
+import { createInsertSchema, createSelectSchema } from "drizzle-zod"
 import { channel } from "./channels"
 import { user } from "./users"
 
@@ -80,6 +81,13 @@ export const messageRelations = relations(message, ({ one }) => ({
     relationName: "messageReply",
   }),
 }))
+
+export const selectMessageSchema = createSelectSchema(message)
+export const insertMessageSchema = createInsertSchema(message).omit({
+  id: true,
+  createdAt: true,
+  editedAt: true,
+})
 
 // Type definitions for the JSONB fields
 export type Attachment = {

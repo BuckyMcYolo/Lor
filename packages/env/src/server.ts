@@ -20,13 +20,17 @@ const addProtocol = (url: string) => {
 
 /** 20 MB default — keep in sync with client.ts */
 const DEFAULT_MAX_FILE_UPLOAD_SIZE = 20 * 1024 * 1024
+const DEFAULT_REALTIME_CORS_ORIGIN =
+  "http://localhost:3000,http://localhost:3001"
 
 const serverSchema = z.object({
   NODE_ENV: z
     .enum(["development", "staging", "production", "test"])
     .default("production"),
   DATABASE_URL: z.string().url(),
-  PORT: z.coerce.number().default(8080),
+  PORT: z.coerce.number().int().min(1).max(65535).default(8080),
+  REALTIME_PORT: z.coerce.number().int().min(1).max(65535).default(8000),
+  REALTIME_CORS_ORIGIN: z.string().default(DEFAULT_REALTIME_CORS_ORIGIN),
   BETTER_AUTH_SECRET: z.string().min(1),
   SELF_HOSTED: z.coerce.boolean().default(true),
   MAX_FILE_UPLOAD_SIZE: z.coerce.number().default(DEFAULT_MAX_FILE_UPLOAD_SIZE),

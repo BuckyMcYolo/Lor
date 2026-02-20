@@ -17,14 +17,18 @@ This is a pnpm + Turborepo monorepo:
 
 ```
 apps/
-  web/          — Next.js marketing site & waitlist
+  web/          — Main chat app (Vite + React + TanStack Router)
+  www/          — Marketing site & waitlist (Next.js)
   api/          — Hono API server
+  realtime/     — Socket.IO realtime gateway
 
 packages/
   api-client/   — Shared type-safe Hono API client
+  auth/         — Better Auth configuration and helpers
   ui/           — Shared shadcn/ui component library
   db/           — Drizzle ORM schema & database client
   env/          — Type-safe environment variables (server/client)
+  utils/        — Shared utility helpers
   typescript-config/ — Shared TypeScript configs
 ```
 

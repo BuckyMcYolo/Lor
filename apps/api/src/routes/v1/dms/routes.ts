@@ -3,11 +3,18 @@ import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import jsonContent from "@/lib/helpers/openapi/json-content"
 import {
   internalServerErrorSchema,
+  notFoundSchema,
   paginationQuerySchema,
   unauthorizedSchema,
 } from "@/lib/helpers/openapi/schemas"
 import { sessionAuthMiddleware } from "@/middleware/session-auth"
-import { listDMsResponseSchema } from "./schema"
+import {
+  dmParamsSchema,
+  getDMResponseSchema,
+  listDMMessagesQuerySchema,
+  listDMMessagesResponseSchema,
+  listDMsResponseSchema,
+} from "./schema"
 
 export const listDMs = createRoute({
   path: "/dms",
@@ -29,4 +36,50 @@ export const listDMs = createRoute({
   },
 })
 
+export const getDM = createRoute({
+  path: "/dms/{dmId}",
+  method: "get",
+  summary: "Get a DM",
+  description:
+    "Gets a single DM or group DM channel by ID for the authenticated user.",
+  tags: ["DMs"],
+  middleware: [sessionAuthMiddleware] as const,
+  request: {
+    params: dmParamsSchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: getDMResponseSchema,
+      description: "DM channel with member info",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
+export const listDMMessages = createRoute({
+  path: "/dms/{dmId}/messages",
+  method: "get",
+  summary: "List DM messages",
+  description: "Returns paginated messages for a DM or group DM channel.",
+  tags: ["DMs"],
+  middleware: [sessionAuthMiddleware] as const,
+  request: {
+    params: dmParamsSchema,
+    query: listDMMessagesQuerySchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: listDMMessagesResponseSchema,
+      description: "Paginated DM messages",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export type ListDMsRoute = typeof listDMs
+export type GetDMRoute = typeof getDM
+export type ListDMMessagesRoute = typeof listDMMessages

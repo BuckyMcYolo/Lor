@@ -11,22 +11,20 @@ import {
 } from "@repo/ui/components/dialog"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
+import { sluggify } from "@repo/utils/slug"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Loader2, Plus, Users } from "lucide-react"
 import { useEffect, useState } from "react"
+import { apiClient } from "@/lib/api-client"
 
 type Step = "welcome" | "create" | "join"
 
-function toSlug(name: string) {
-  return name
+function normalizeSlugInput(value: string) {
+  return value
     .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50)
+    .replace(/[^a-z0-9-]/g, "")
 }
 
 export function OnboardingDialog({ open }: { open: boolean }) {
@@ -42,40 +40,68 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
   useEffect(() => {
     if (!slugEdited) {
-      setSlug(toSlug(name))
+      setSlug(sluggify(name))
     }
   }, [name, slugEdited])
 
+  const getFirstChannelId = async (guildSlug: string) => {
+    const channelsRes = await apiClient.v1.guilds[":guildSlug"].channels.$get({
+      param: { guildSlug },
+    })
+
+    if (!channelsRes.ok) return null
+
+    const channels = await channelsRes.json()
+    return (
+      channels.uncategorized[0]?.id ??
+      channels.categories[0]?.channels[0]?.id ??
+      null
+    )
+  }
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !slug.trim()) return
+    const normalizedSlug = sluggify(slug)
+    if (!name.trim() || !normalizedSlug) return
     setError(null)
     setLoading(true)
 
     try {
       const res = await authClient.organization.create({
         name: name.trim(),
-        slug: slug.trim(),
+        slug: normalizedSlug,
       })
 
       if (res.error) {
         setError(res.error.message ?? "Failed to create guild")
-        setLoading(false)
         return
       }
 
-      // Best-effort — guild was created successfully so proceed regardless
+      const createdGuildSlug = res.data?.slug ?? normalizedSlug
+      await queryClient.invalidateQueries({ queryKey: ["guilds"] })
+
+      let firstChannelId: string | null = null
       try {
-        await authClient.updateUser({ onboardingCompleted: true })
-      } catch {
-        // Non-blocking: dialog will reappear next session but guild exists
-        setError("Guild created, but failed to save onboarding state.")
+        firstChannelId = await getFirstChannelId(createdGuildSlug)
+      } catch (error) {
+        console.error(
+          `Failed to fetch first channel for guild ${createdGuildSlug}:`,
+          error
+        )
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["guilds"] })
-      navigate({ to: "/$guildSlug", params: { guildSlug: slug.trim() } })
+      if (firstChannelId) {
+        navigate({
+          to: "/$guildSlug/$channelId",
+          params: { guildSlug: createdGuildSlug, channelId: firstChannelId },
+        })
+        return
+      }
+
+      navigate({ to: "/$guildSlug", params: { guildSlug: createdGuildSlug } })
     } catch {
       setError("Something went wrong. Please try again.")
+    } finally {
       setLoading(false)
     }
   }
@@ -205,8 +231,11 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                         value={slug}
                         onChange={(e) => {
                           setSlugEdited(true)
-                          setSlug(toSlug(e.target.value))
+                          setSlug(normalizeSlugInput(e.target.value))
                         }}
+                        onBlur={() =>
+                          setSlug((currentSlug) => sluggify(currentSlug))
+                        }
                         disabled={loading}
                       />
                     </div>
@@ -217,7 +246,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={loading || !name.trim() || !slug.trim()}
+                    disabled={loading || !name.trim() || !sluggify(slug)}
                   >
                     {loading && (
                       <Loader2 className="mr-2 size-4 animate-spin" />
