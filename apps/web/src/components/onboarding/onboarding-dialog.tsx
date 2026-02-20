@@ -46,7 +46,9 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
     const channels = await channelsRes.json()
     return (
-      channels.uncategorized[0]?.id ?? channels.categories[0]?.channels[0]?.id
+      channels.uncategorized[0]?.id ??
+      channels.categories[0]?.channels[0]?.id ??
+      null
     )
   }
 
@@ -64,7 +66,6 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
       if (res.error) {
         setError(res.error.message ?? "Failed to create guild")
-        setLoading(false)
         return
       }
 
@@ -83,6 +84,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       navigate({ to: "/$guildSlug", params: { guildSlug: createdGuildSlug } })
     } catch {
       setError("Something went wrong. Please try again.")
+    } finally {
       setLoading(false)
     }
   }

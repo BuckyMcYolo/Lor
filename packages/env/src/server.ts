@@ -27,6 +27,7 @@ const serverSchema = z.object({
     .default("production"),
   DATABASE_URL: z.string().url(),
   PORT: z.coerce.number().default(8080),
+  REALTIME_PORT: z.coerce.number().int().min(1).max(65535).default(8000),
   BETTER_AUTH_SECRET: z.string().min(1),
   SELF_HOSTED: z.coerce.boolean().default(true),
   MAX_FILE_UPLOAD_SIZE: z.coerce.number().default(DEFAULT_MAX_FILE_UPLOAD_SIZE),

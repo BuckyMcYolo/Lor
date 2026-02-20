@@ -1,5 +1,6 @@
 import { createServer } from "node:http"
 import { auth, type Session } from "@repo/auth"
+import { db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import { Server } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
@@ -10,20 +11,42 @@ import type {
 } from "@/lib/events"
 import {
   channelRoomPayloadSchema,
+  markChannelReadPayloadSchema,
   sendMessagePayloadSchema,
 } from "@/lib/events"
+import { channelRoom, guildRoom, userRoom } from "@/lib/rooms"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
 import { createMessage } from "@/services/messages"
+import { buildMessageFanout } from "@/services/notifications"
+import { markChannelRead } from "@/services/read-states"
 
 type SocketData = {
   user: Session["user"]
   session: Session["session"]
 }
 
-const realtimePort = Number(process.env.REALTIME_PORT ?? env.PORT + 1)
-if (!Number.isFinite(realtimePort)) {
-  throw new Error("Invalid realtime port")
+function toHeaders(
+  handshakeHeaders: Record<string, string | string[] | undefined>
+) {
+  const headers = new Headers()
+
+  for (const [key, value] of Object.entries(handshakeHeaders)) {
+    if (value === undefined) continue
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        headers.append(key, item)
+      }
+      continue
+    }
+
+    headers.set(key, value)
+  }
+
+  return headers
 }
+
+const realtimePort = env.REALTIME_PORT
 
 const defaultOrigins = ["http://localhost:3000", "http://localhost:3001"]
 const corsOrigins = (
@@ -67,7 +90,7 @@ const io = new Server<
 io.use(async (socket, next) => {
   try {
     const session = await auth.api.getSession({
-      headers: new Headers(socket.handshake.headers as HeadersInit),
+      headers: toHeaders(socket.handshake.headers),
     })
 
     if (!session) {
@@ -83,14 +106,42 @@ io.use(async (socket, next) => {
   }
 })
 
-io.on("connection", (socket) => {
-  socket.emit("presence:ready", { userId: socket.data.user.id })
+io.on("connection", async (socket) => {
+  try {
+    const userPresenceRoom = userRoom(socket.data.user.id)
+    await socket.join(userPresenceRoom)
+
+    const guildMembershipRows = await db
+      .select({
+        guildId: schema.guildMember.guildId,
+      })
+      .from(schema.guildMember)
+      .where(eq(schema.guildMember.userId, socket.data.user.id))
+
+    const guildPresenceRooms = guildMembershipRows.map((row) =>
+      guildRoom(row.guildId)
+    )
+    if (guildPresenceRooms.length > 0) {
+      await socket.join(guildPresenceRooms)
+    }
+
+    socket.emit("presence:ready", {
+      userId: socket.data.user.id,
+      rooms: {
+        user: userPresenceRoom,
+        guilds: guildPresenceRooms,
+      },
+    })
+  } catch {
+    socket.disconnect(true)
+    return
+  }
 
   socket.on("channel:join", async (payload, ack) => {
     try {
       const parsed = channelRoomPayloadSchema.parse(payload)
       await assertUserCanAccessChannel(socket.data.user.id, parsed.channelId)
-      await socket.join(parsed.channelId)
+      await socket.join(channelRoom(parsed.channelId))
       ack?.({ ok: true })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
@@ -100,7 +151,7 @@ io.on("connection", (socket) => {
   socket.on("channel:leave", async (payload, ack) => {
     try {
       const parsed = channelRoomPayloadSchema.parse(payload)
-      await socket.leave(parsed.channelId)
+      await socket.leave(channelRoom(parsed.channelId))
       ack?.({ ok: true })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
@@ -112,13 +163,50 @@ io.on("connection", (socket) => {
       const parsed = sendMessagePayloadSchema.parse(payload)
       const createdMessage = await createMessage({
         userId: socket.data.user.id,
-        channelId: parsed.channelId,
-        content: parsed.content,
-        nonce: parsed.nonce,
+        payload: parsed,
       })
 
-      io.to(parsed.channelId).emit("message:created", createdMessage)
-      ack?.({ ok: true, message: createdMessage })
+      socket
+        .to(channelRoom(parsed.channelId))
+        .emit("message:created", createdMessage.message)
+
+      const fanout = await buildMessageFanout({
+        authorId: socket.data.user.id,
+        channel: createdMessage.channel,
+        message: createdMessage.message,
+      })
+
+      for (const unreadNotification of fanout.unreadNotifications) {
+        io.to(userRoom(unreadNotification.userId)).emit(
+          "notification:unread",
+          unreadNotification.payload
+        )
+      }
+
+      for (const mentionNotification of fanout.mentionNotifications) {
+        io.to(userRoom(mentionNotification.userId)).emit(
+          "notification:mention",
+          mentionNotification.payload
+        )
+      }
+
+      ack?.({ ok: true, message: createdMessage.message })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("channel:mark-read", async (payload, ack) => {
+    try {
+      const parsed = markChannelReadPayloadSchema.parse(payload)
+      const state = await markChannelRead({
+        userId: socket.data.user.id,
+        channelId: parsed.channelId,
+        lastReadMessageId: parsed.lastReadMessageId,
+      })
+
+      io.to(userRoom(socket.data.user.id)).emit("channel:read-state", state)
+      ack?.({ ok: true, state })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }

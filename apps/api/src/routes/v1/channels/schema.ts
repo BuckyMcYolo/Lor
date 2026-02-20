@@ -19,11 +19,7 @@ export const guildSlugParamsSchema = z.object({
   }),
 })
 
-export const channelParamsSchema = z.object({
-  guildSlug: z.string().openapi({
-    param: { name: "guildSlug", in: "path", required: true },
-    example: "my-guild",
-  }),
+export const channelParamsSchema = guildSlugParamsSchema.extend({
   channelId: z
     .string()
     .uuid()

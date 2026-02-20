@@ -1,9 +1,15 @@
 import { and, db, eq, schema } from "@repo/db"
 
+export type AccessibleChannel = {
+  id: string
+  type: (typeof schema.channel.$inferSelect)["type"]
+  guildId: string | null
+}
+
 export async function assertUserCanAccessChannel(
   userId: string,
   channelId: string
-) {
+): Promise<AccessibleChannel> {
   const channelRecord = await db
     .select({
       id: schema.channel.id,

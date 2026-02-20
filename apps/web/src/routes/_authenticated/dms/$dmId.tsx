@@ -21,7 +21,13 @@ function DMConversation() {
     },
   })
 
-  if (isPending) return null
+  if (isPending) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    )
+  }
 
   if (!dm) {
     return (
@@ -37,7 +43,13 @@ function DMConversation() {
     dm.type === "group_dm"
       ? {
           type: "group_dm" as const,
-          name: dm.name ?? dm.members.map((m) => m.name).join(", "),
+          name:
+            dm.name ??
+            (dm.members
+              .map((m) => m.name?.trim() ?? "")
+              .filter((name) => name.length > 0)
+              .join(", ") ||
+              "Unknown group"),
           memberCount: dm.members.length,
         }
       : {

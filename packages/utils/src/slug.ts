@@ -10,6 +10,6 @@ export function sluggify(value: string, maxLength = 50): string {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
     .slice(0, maxLength)
+    .replace(/^-+|-+$/g, "")
 }

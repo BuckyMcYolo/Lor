@@ -1,8 +1,15 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
+import { formatTime } from "@repo/utils/date"
 import type { Message } from "@/lib/api-types"
 
 interface MessageItemProps {
   message: Message
   showHeader: boolean
+}
+
+function nameInitial(name: string) {
+  const trimmed = name.trim()
+  return trimmed.length > 0 ? trimmed.charAt(0).toUpperCase() : "?"
 }
 
 export function MessageItem({ message, showHeader }: MessageItemProps) {
@@ -11,11 +18,12 @@ export function MessageItem({ message, showHeader }: MessageItemProps) {
   return (
     <div className="group flex gap-3 px-4 py-0.5 hover:bg-muted/40">
       {showHeader ? (
-        <img
-          src={author.image ?? undefined}
-          alt={author.name}
-          className="mt-0.5 size-10 shrink-0 rounded-full bg-muted object-cover"
-        />
+        <Avatar size="lg" className="mt-0.5">
+          {author.image && <AvatarImage src={author.image} alt={author.name} />}
+          <AvatarFallback className="text-xs font-semibold">
+            {nameInitial(author.displayUsername ?? author.name)}
+          </AvatarFallback>
+        </Avatar>
       ) : (
         <div className="w-10 shrink-0" />
       )}
@@ -26,10 +34,7 @@ export function MessageItem({ message, showHeader }: MessageItemProps) {
               {author.displayUsername ?? author.name}
             </span>
             <span className="text-xs text-muted-foreground">
-              {new Date(message.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatTime(message.createdAt)}
             </span>
           </div>
         )}

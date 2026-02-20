@@ -1,4 +1,4 @@
-import { Hash } from "lucide-react"
+import { Hash, User, Users } from "lucide-react"
 import type { Message } from "@/lib/api-types"
 import type { ChatContext } from "./header"
 import { MessageItem } from "./message-item"
@@ -15,7 +15,15 @@ function EmptyState({ context }: { context: ChatContext }) {
   return (
     <div className="flex flex-1 flex-col items-start justify-end px-4 pb-4">
       <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-foreground/10">
-        <Hash className="size-8 text-foreground/60" />
+        {context.type === "channel" && (
+          <Hash className="size-8 text-foreground/60" />
+        )}
+        {context.type === "dm" && (
+          <User className="size-8 text-foreground/60" />
+        )}
+        {context.type === "group_dm" && (
+          <Users className="size-8 text-foreground/60" />
+        )}
       </div>
       <h2 className="text-xl font-bold">
         {context.type === "channel"
@@ -39,7 +47,16 @@ export function MessageList({
   onLoadMore,
 }: MessageListProps) {
   if (isLoading) {
-    return <div className="flex flex-1 items-center justify-center" />
+    return (
+      <output
+        className="flex flex-1 items-center justify-center"
+        aria-live="polite"
+      >
+        <span className="text-sm text-muted-foreground">
+          Loading messages...
+        </span>
+      </output>
+    )
   }
 
   if (messages.length === 0) {
@@ -48,6 +65,13 @@ export function MessageList({
 
   return (
     <div className="flex flex-1 flex-col-reverse overflow-y-auto py-4">
+      {messages.map((msg, i) => {
+        const next = messages[i + 1]
+        const showHeader = !next || next.authorId !== msg.authorId
+        return (
+          <MessageItem key={msg.id} message={msg} showHeader={showHeader} />
+        )
+      })}
       {hasMore && (
         <div className="flex justify-center py-2">
           <button
@@ -59,13 +83,6 @@ export function MessageList({
           </button>
         </div>
       )}
-      {messages.map((msg, i) => {
-        const prev = messages[i - 1]
-        const showHeader = !prev || prev.authorId !== msg.authorId
-        return (
-          <MessageItem key={msg.id} message={msg} showHeader={showHeader} />
-        )
-      })}
     </div>
   )
 }

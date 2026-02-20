@@ -1,68 +1,74 @@
 import { db, eq, schema } from "@repo/db"
-import type { RealtimeMessage } from "@/lib/events"
-import { sendMessagePayloadSchema } from "@/lib/events"
-import { assertUserCanAccessChannel } from "./channel-access"
+import type { RealtimeMessage, SendMessagePayload } from "@/lib/events"
+import {
+  type AccessibleChannel,
+  assertUserCanAccessChannel,
+} from "./channel-access"
 
 type CreateMessageInput = {
   userId: string
-  channelId: string
-  content: string
-  nonce?: string
+  payload: SendMessagePayload
+}
+
+export type CreateMessageResult = {
+  message: RealtimeMessage
+  channel: AccessibleChannel
 }
 
 export async function createMessage(input: CreateMessageInput) {
-  const parsed = sendMessagePayloadSchema.parse({
-    channelId: input.channelId,
-    content: input.content,
-    nonce: input.nonce,
+  const channelRecord = await assertUserCanAccessChannel(
+    input.userId,
+    input.payload.channelId
+  )
+
+  const messageWithAuthor = await db.transaction(async (tx) => {
+    const insertedMessage = await tx
+      .insert(schema.message)
+      .values({
+        channelId: input.payload.channelId,
+        authorId: input.userId,
+        content: input.payload.content,
+        type: "default",
+      })
+      .returning({
+        id: schema.message.id,
+      })
+      .then((rows) => rows[0])
+
+    if (!insertedMessage) {
+      throw new Error("Failed to create message")
+    }
+
+    await tx
+      .update(schema.channel)
+      .set({ updatedAt: new Date() })
+      .where(eq(schema.channel.id, input.payload.channelId))
+
+    const createdMessageWithAuthor = await tx
+      .select({
+        id: schema.message.id,
+        channelId: schema.message.channelId,
+        content: schema.message.content,
+        type: schema.message.type,
+        createdAt: schema.message.createdAt,
+        authorId: schema.user.id,
+        authorName: schema.user.name,
+        authorUsername: schema.user.username,
+        authorDisplayUsername: schema.user.displayUsername,
+        authorImage: schema.user.image,
+      })
+      .from(schema.message)
+      .innerJoin(schema.user, eq(schema.message.authorId, schema.user.id))
+      .where(eq(schema.message.id, insertedMessage.id))
+      .limit(1)
+      .then((rows) => rows[0])
+
+    if (!createdMessageWithAuthor) {
+      throw new Error("Failed to fetch created message")
+    }
+
+    return createdMessageWithAuthor
   })
-
-  await assertUserCanAccessChannel(input.userId, parsed.channelId)
-
-  const insertedMessage = await db
-    .insert(schema.message)
-    .values({
-      channelId: parsed.channelId,
-      authorId: input.userId,
-      content: parsed.content,
-      type: "default",
-    })
-    .returning({
-      id: schema.message.id,
-    })
-    .then((rows) => rows[0])
-
-  if (!insertedMessage) {
-    throw new Error("Failed to create message")
-  }
-
-  await db
-    .update(schema.channel)
-    .set({ updatedAt: new Date() })
-    .where(eq(schema.channel.id, parsed.channelId))
-
-  const messageWithAuthor = await db
-    .select({
-      id: schema.message.id,
-      channelId: schema.message.channelId,
-      content: schema.message.content,
-      type: schema.message.type,
-      createdAt: schema.message.createdAt,
-      authorId: schema.user.id,
-      authorName: schema.user.name,
-      authorUsername: schema.user.username,
-      authorDisplayUsername: schema.user.displayUsername,
-      authorImage: schema.user.image,
-    })
-    .from(schema.message)
-    .innerJoin(schema.user, eq(schema.message.authorId, schema.user.id))
-    .where(eq(schema.message.id, insertedMessage.id))
-    .limit(1)
-    .then((rows) => rows[0])
-
-  if (!messageWithAuthor) {
-    throw new Error("Failed to fetch created message")
-  }
 
   const createdMessage: RealtimeMessage = {
     id: messageWithAuthor.id,
@@ -79,9 +85,12 @@ export async function createMessage(input: CreateMessageInput) {
     },
   }
 
-  if (parsed.nonce) {
-    createdMessage.nonce = parsed.nonce
+  if (input.payload.nonce) {
+    createdMessage.nonce = input.payload.nonce
   }
 
-  return createdMessage
+  return {
+    message: createdMessage,
+    channel: channelRecord,
+  } satisfies CreateMessageResult
 }

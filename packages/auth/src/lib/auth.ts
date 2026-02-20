@@ -29,40 +29,43 @@ const defaultGuildChannels = {
 
 async function seedDefaultGuildChannels(guildId: string) {
   await db.transaction(async (tx) => {
-    for (const [index, ch] of defaultGuildChannels.uncategorized.entries()) {
-      await tx.insert(schema.channel).values({
-        name: ch.name,
-        type: ch.type,
-        guildId,
-        position: index,
-      })
+    let topLevelPosition = 0
+
+    const uncategorizedRows = defaultGuildChannels.uncategorized.map((ch) => ({
+      name: ch.name,
+      type: ch.type,
+      guildId,
+      position: topLevelPosition++,
+    }))
+
+    if (uncategorizedRows.length > 0) {
+      await tx.insert(schema.channel).values(uncategorizedRows)
     }
 
-    for (const [
-      categoryIndex,
-      categoryConfig,
-    ] of defaultGuildChannels.categories.entries()) {
-      const insertedCategories = await tx
+    for (const categoryConfig of defaultGuildChannels.categories) {
+      const createdCategory = await tx
         .insert(schema.channel)
         .values({
           name: categoryConfig.name,
           type: "category",
           guildId,
-          position: categoryIndex,
+          position: topLevelPosition++,
         })
         .returning({ id: schema.channel.id })
+        .then((rows) => rows[0])
 
-      const createdCategory = insertedCategories[0]
       if (!createdCategory) continue
 
-      for (const [channelIndex, ch] of categoryConfig.channels.entries()) {
-        await tx.insert(schema.channel).values({
-          name: ch.name,
-          type: ch.type,
-          guildId,
-          parentId: createdCategory.id,
-          position: channelIndex,
-        })
+      const childRows = categoryConfig.channels.map((ch, channelIndex) => ({
+        name: ch.name,
+        type: ch.type,
+        guildId,
+        parentId: createdCategory.id,
+        position: channelIndex,
+      }))
+
+      if (childRows.length > 0) {
+        await tx.insert(schema.channel).values(childRows)
       }
     }
   })
@@ -160,6 +163,7 @@ export const auth = betterAuth({
               `Failed to seed default channels for guild ${organization.id}:`,
               error
             )
+            return
           }
 
           try {

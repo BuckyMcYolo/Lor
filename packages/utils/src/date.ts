@@ -1,13 +1,16 @@
 import { DateTime } from "luxon"
 
+function toDateTime(date: Date | string) {
+  return typeof date === "string"
+    ? DateTime.fromISO(date)
+    : DateTime.fromJSDate(date)
+}
+
 /**
  * Returns a relative time string (e.g. "2 hours ago", "just now").
  */
 export function timeAgo(date: Date | string): string {
-  const dt =
-    typeof date === "string"
-      ? DateTime.fromISO(date)
-      : DateTime.fromJSDate(date)
+  const dt = toDateTime(date)
   return dt.toRelative() ?? formatDate(date)
 }
 
@@ -15,10 +18,7 @@ export function timeAgo(date: Date | string): string {
  * Formats a date as "Jan 1, 2024".
  */
 export function formatDate(date: Date | string): string {
-  const dt =
-    typeof date === "string"
-      ? DateTime.fromISO(date)
-      : DateTime.fromJSDate(date)
+  const dt = toDateTime(date)
   return dt.toLocaleString(DateTime.DATE_MED)
 }
 
@@ -26,10 +26,7 @@ export function formatDate(date: Date | string): string {
  * Formats a date as "Jan 1, 2024, 3:45 PM".
  */
 export function formatDateTime(date: Date | string): string {
-  const dt =
-    typeof date === "string"
-      ? DateTime.fromISO(date)
-      : DateTime.fromJSDate(date)
+  const dt = toDateTime(date)
   return dt.toLocaleString(DateTime.DATETIME_MED)
 }
 
@@ -37,10 +34,7 @@ export function formatDateTime(date: Date | string): string {
  * Formats a time as "3:45 PM".
  */
 export function formatTime(date: Date | string): string {
-  const dt =
-    typeof date === "string"
-      ? DateTime.fromISO(date)
-      : DateTime.fromJSDate(date)
+  const dt = toDateTime(date)
   return dt.toLocaleString(DateTime.TIME_SIMPLE)
 }
 
@@ -48,10 +42,7 @@ export function formatTime(date: Date | string): string {
  * Groups timestamps by day label ("Today", "Yesterday", "Jan 1, 2024").
  */
 export function getDayLabel(date: Date | string): string {
-  const dt =
-    typeof date === "string"
-      ? DateTime.fromISO(date)
-      : DateTime.fromJSDate(date)
+  const dt = toDateTime(date)
   const now = DateTime.now()
 
   if (dt.hasSame(now, "day")) return "Today"

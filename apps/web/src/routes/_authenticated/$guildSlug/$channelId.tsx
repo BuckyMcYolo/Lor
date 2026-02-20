@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/$guildSlug/$channelId")({
 function ChannelView() {
   const { guildSlug, channelId } = Route.useParams()
 
-  const { data, isPending } = useQuery({
+  const { data, isPending, isError, error } = useQuery({
     queryKey: ["channel", guildSlug, channelId],
     queryFn: async () => {
       const res = await apiClient.v1.guilds[":guildSlug"].channels[
@@ -29,6 +29,16 @@ function ChannelView() {
     return (
       <div className="flex flex-1 items-center justify-center">
         <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <span className="text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : "Failed to load channel"}
+        </span>
       </div>
     )
   }

@@ -170,7 +170,19 @@ export const getDM: AppRouteHandler<GetDMRoute> = async (c) => {
 
   // Verify the channel exists and the user is a member
   const ch = await db
-    .select()
+    .select({
+      id: channel.id,
+      createdAt: channel.createdAt,
+      updatedAt: channel.updatedAt,
+      name: channel.name,
+      topic: channel.topic,
+      type: channel.type,
+      guildId: channel.guildId,
+      parentId: channel.parentId,
+      position: channel.position,
+      ownerId: channel.ownerId,
+      rateLimitPerUser: channel.rateLimitPerUser,
+    })
     .from(channel)
     .innerJoin(channelMember, eq(channelMember.channelId, channel.id))
     .where(
@@ -181,7 +193,7 @@ export const getDM: AppRouteHandler<GetDMRoute> = async (c) => {
       )
     )
     .limit(1)
-    .then((rows) => rows[0]?.channel)
+    .then((rows) => rows[0])
 
   if (!ch) {
     return c.json(
