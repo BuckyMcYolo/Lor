@@ -137,7 +137,15 @@ async function initializeConnection(socket: RealtimeSocket) {
         guilds: guildPresenceRooms,
       },
     })
-  } catch {
+  } catch (error) {
+    console.error(
+      "initializeConnection failed (schema.guildMember lookup or socket.join):",
+      {
+        socketId: socket.id,
+        userId: socket.data.user.id,
+        error,
+      }
+    )
     socket.disconnect(true)
   }
 }
