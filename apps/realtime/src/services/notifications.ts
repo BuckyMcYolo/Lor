@@ -27,6 +27,7 @@ type NotificationInsertType = Extract<
 const USER_MENTION_REGEX =
   /<@([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})>/gi
 const EVERYONE_MENTION_REGEX = /(^|\s)@everyone\b/i
+const mentionNotificationTypes = ["direct_mention", "everyone_mention"] as const
 
 function extractDirectMentionUserIds(content: string) {
   const userIds = new Set<string>()
@@ -97,6 +98,12 @@ function toNotificationType(
   mentionType: MentionInsertType
 ): NotificationInsertType {
   return mentionType === "direct" ? "direct_mention" : "everyone_mention"
+}
+
+function isMentionNotificationType(
+  type: (typeof schema.notificationEvent.$inferSelect)["type"]
+): type is MentionNotification["type"] {
+  return (mentionNotificationTypes as readonly string[]).includes(type)
 }
 
 export async function buildMessageFanout(input: MessageFanoutInput) {
@@ -196,7 +203,10 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
       .where(
         and(
           eq(schema.notificationEvent.messageId, input.message.id),
-          inArray(schema.notificationEvent.userId, [...new Set(missingUserIds)])
+          inArray(schema.notificationEvent.userId, [
+            ...new Set(missingUserIds),
+          ]),
+          inArray(schema.notificationEvent.type, mentionNotificationTypes)
         )
       )
 
@@ -223,17 +233,25 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
   }
 
   const mentionNotifications: Array<UserTargetedPayload<MentionNotification>> =
-    allNotifications.map((notification) => ({
-      userId: notification.userId,
-      payload: {
-        id: notification.id,
-        type: notification.type as MentionNotification["type"],
-        messageId: notification.messageId ?? input.message.id,
-        channelId: notification.channelId ?? input.channel.id,
-        guildId: notification.guildId ?? input.channel.guildId,
-        createdAt: notification.createdAt.toISOString(),
-      },
-    }))
+    allNotifications.flatMap((notification) => {
+      if (!isMentionNotificationType(notification.type)) {
+        return []
+      }
+
+      return [
+        {
+          userId: notification.userId,
+          payload: {
+            id: notification.id,
+            type: notification.type,
+            messageId: notification.messageId ?? input.message.id,
+            channelId: notification.channelId ?? input.channel.id,
+            guildId: notification.guildId ?? input.channel.guildId,
+            createdAt: notification.createdAt.toISOString(),
+          },
+        },
+      ]
+    })
 
   return {
     unreadNotifications,

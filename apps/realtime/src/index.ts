@@ -56,9 +56,7 @@ function toHeaders(
 const realtimePort = env.REALTIME_PORT
 
 const defaultOrigins = ["http://localhost:3000", "http://localhost:3001"]
-const corsOrigins = (
-  process.env.REALTIME_CORS_ORIGIN ?? defaultOrigins.join(",")
-)
+const corsOrigins = (env.REALTIME_CORS_ORIGIN || defaultOrigins.join(","))
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean)

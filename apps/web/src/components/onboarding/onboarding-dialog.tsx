@@ -80,7 +80,16 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       const createdGuildSlug = res.data?.slug ?? normalizedSlug
       await queryClient.invalidateQueries({ queryKey: ["guilds"] })
 
-      const firstChannelId = await getFirstChannelId(createdGuildSlug)
+      let firstChannelId: string | null = null
+      try {
+        firstChannelId = await getFirstChannelId(createdGuildSlug)
+      } catch (error) {
+        console.error(
+          `Failed to fetch first channel for guild ${createdGuildSlug}:`,
+          error
+        )
+      }
+
       if (firstChannelId) {
         navigate({
           to: "/$guildSlug/$channelId",

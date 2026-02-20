@@ -1,6 +1,6 @@
 import { db } from "@repo/db"
 import { channel, channelMember, message, user } from "@repo/db/schema"
-import { and, count, desc, eq, inArray, ne, or } from "drizzle-orm"
+import { and, count, desc, eq, inArray, ne } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
@@ -13,6 +13,36 @@ const emptyPage = (page: number) => ({
   prevPage: null,
   data: [],
 })
+
+const DM_CHANNEL_TYPES = ["dm", "group_dm"] as const
+
+async function fetchDMMembershipChannel(dmId: string, userId: string) {
+  return db
+    .select({
+      id: channel.id,
+      createdAt: channel.createdAt,
+      updatedAt: channel.updatedAt,
+      name: channel.name,
+      topic: channel.topic,
+      type: channel.type,
+      guildId: channel.guildId,
+      parentId: channel.parentId,
+      position: channel.position,
+      ownerId: channel.ownerId,
+      rateLimitPerUser: channel.rateLimitPerUser,
+    })
+    .from(channel)
+    .innerJoin(channelMember, eq(channelMember.channelId, channel.id))
+    .where(
+      and(
+        eq(channel.id, dmId),
+        eq(channelMember.userId, userId),
+        inArray(channel.type, DM_CHANNEL_TYPES)
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0] ?? null)
+}
 
 export const listDMs: AppRouteHandler<ListDMsRoute> = async (c) => {
   const currentUser = c.var.user
@@ -172,32 +202,8 @@ export const getDM: AppRouteHandler<GetDMRoute> = async (c) => {
   const currentUser = c.var.user
   const { dmId } = c.req.valid("param")
 
-  // Verify the channel exists and the user is a member
-  const ch = await db
-    .select({
-      id: channel.id,
-      createdAt: channel.createdAt,
-      updatedAt: channel.updatedAt,
-      name: channel.name,
-      topic: channel.topic,
-      type: channel.type,
-      guildId: channel.guildId,
-      parentId: channel.parentId,
-      position: channel.position,
-      ownerId: channel.ownerId,
-      rateLimitPerUser: channel.rateLimitPerUser,
-    })
-    .from(channel)
-    .innerJoin(channelMember, eq(channelMember.channelId, channel.id))
-    .where(
-      and(
-        eq(channel.id, dmId),
-        eq(channelMember.userId, currentUser.id),
-        or(eq(channel.type, "dm"), eq(channel.type, "group_dm"))
-      )
-    )
-    .limit(1)
-    .then((rows) => rows[0])
+  // Verify the channel exists and the user is a member.
+  const ch = await fetchDMMembershipChannel(dmId, currentUser.id)
 
   if (!ch) {
     return c.json(
@@ -261,13 +267,7 @@ export const getDM: AppRouteHandler<GetDMRoute> = async (c) => {
   return c.json(
     {
       ...ch,
-      members: members.map((m) => ({
-        id: m.id,
-        name: m.name,
-        username: m.username,
-        displayUsername: m.displayUsername,
-        image: m.image,
-      })),
+      members,
       lastMessage,
     },
     HttpStatusCodes.OK
@@ -281,20 +281,8 @@ export const listDMMessages: AppRouteHandler<ListDMMessagesRoute> = async (
   const { dmId } = c.req.valid("param")
   const { page, perPage } = c.req.valid("query")
 
-  // Verify the channel exists and the user is a member
-  const ch = await db
-    .select({ id: channel.id })
-    .from(channel)
-    .innerJoin(channelMember, eq(channelMember.channelId, channel.id))
-    .where(
-      and(
-        eq(channel.id, dmId),
-        eq(channelMember.userId, currentUser.id),
-        or(eq(channel.type, "dm"), eq(channel.type, "group_dm"))
-      )
-    )
-    .limit(1)
-    .then((rows) => rows[0])
+  // Verify the channel exists and the user is a member.
+  const ch = await fetchDMMembershipChannel(dmId, currentUser.id)
 
   if (!ch) {
     return c.json(
