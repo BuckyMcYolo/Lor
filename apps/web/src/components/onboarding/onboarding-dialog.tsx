@@ -16,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Loader2, Plus, Users } from "lucide-react"
 import { useEffect, useState } from "react"
+import { apiClient } from "@/lib/api-client"
 
 type Step = "welcome" | "create" | "join"
 
@@ -36,6 +37,19 @@ export function OnboardingDialog({ open }: { open: boolean }) {
     }
   }, [name, slugEdited])
 
+  const getFirstChannelId = async (guildSlug: string) => {
+    const channelsRes = await apiClient.v1.guilds[":guildSlug"].channels.$get({
+      param: { guildSlug },
+    })
+
+    if (!channelsRes.ok) return null
+
+    const channels = await channelsRes.json()
+    return (
+      channels.uncategorized[0]?.id ?? channels.categories[0]?.channels[0]?.id
+    )
+  }
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() || !slug.trim()) return
@@ -54,16 +68,19 @@ export function OnboardingDialog({ open }: { open: boolean }) {
         return
       }
 
-      // Best-effort — guild was created successfully so proceed regardless
-      try {
-        await authClient.updateUser({ onboardingCompleted: true })
-      } catch {
-        // Non-blocking: dialog will reappear next session but guild exists
-        setError("Guild created, but failed to save onboarding state.")
+      const createdGuildSlug = res.data?.slug ?? slug.trim()
+      await queryClient.invalidateQueries({ queryKey: ["guilds"] })
+
+      const firstChannelId = await getFirstChannelId(createdGuildSlug)
+      if (firstChannelId) {
+        navigate({
+          to: "/$guildSlug/$channelId",
+          params: { guildSlug: createdGuildSlug, channelId: firstChannelId },
+        })
+        return
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["guilds"] })
-      navigate({ to: "/$guildSlug", params: { guildSlug: slug.trim() } })
+      navigate({ to: "/$guildSlug", params: { guildSlug: createdGuildSlug } })
     } catch {
       setError("Something went wrong. Please try again.")
       setLoading(false)
