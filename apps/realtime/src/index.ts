@@ -2,7 +2,7 @@ import { createServer } from "node:http"
 import { auth, type Session } from "@repo/auth"
 import { db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
-import { Server } from "socket.io"
+import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
 import type {
   ClientToServerEvents,
@@ -24,6 +24,13 @@ type SocketData = {
   user: Session["user"]
   session: Session["session"]
 }
+
+type RealtimeSocket = Socket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>
 
 function toHeaders(
   handshakeHeaders: Record<string, string | string[] | undefined>
@@ -106,7 +113,7 @@ io.use(async (socket, next) => {
   }
 })
 
-io.on("connection", async (socket) => {
+async function initializeConnection(socket: RealtimeSocket) {
   try {
     const userPresenceRoom = userRoom(socket.data.user.id)
     await socket.join(userPresenceRoom)
@@ -134,9 +141,10 @@ io.on("connection", async (socket) => {
     })
   } catch {
     socket.disconnect(true)
-    return
   }
+}
 
+io.on("connection", (socket) => {
   socket.on("channel:join", async (payload, ack) => {
     try {
       const parsed = channelRoomPayloadSchema.parse(payload)
@@ -205,12 +213,14 @@ io.on("connection", async (socket) => {
         lastReadMessageId: parsed.lastReadMessageId,
       })
 
-      io.to(userRoom(socket.data.user.id)).emit("channel:read-state", state)
+      socket.to(userRoom(socket.data.user.id)).emit("channel:read-state", state)
       ack?.({ ok: true, state })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }
   })
+
+  void initializeConnection(socket)
 })
 
 httpServer.listen(realtimePort, () => {

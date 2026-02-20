@@ -20,6 +20,13 @@ import { apiClient } from "@/lib/api-client"
 
 type Step = "welcome" | "create" | "join"
 
+function normalizeSlugInput(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+}
+
 export function OnboardingDialog({ open }: { open: boolean }) {
   const [step, setStep] = useState<Step>("welcome")
   const [name, setName] = useState("")
@@ -54,14 +61,15 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !slug.trim()) return
+    const normalizedSlug = sluggify(slug)
+    if (!name.trim() || !normalizedSlug) return
     setError(null)
     setLoading(true)
 
     try {
       const res = await authClient.organization.create({
         name: name.trim(),
-        slug: slug.trim(),
+        slug: normalizedSlug,
       })
 
       if (res.error) {
@@ -69,7 +77,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
         return
       }
 
-      const createdGuildSlug = res.data?.slug ?? slug.trim()
+      const createdGuildSlug = res.data?.slug ?? normalizedSlug
       await queryClient.invalidateQueries({ queryKey: ["guilds"] })
 
       const firstChannelId = await getFirstChannelId(createdGuildSlug)
@@ -214,8 +222,11 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                         value={slug}
                         onChange={(e) => {
                           setSlugEdited(true)
-                          setSlug(sluggify(e.target.value))
+                          setSlug(normalizeSlugInput(e.target.value))
                         }}
+                        onBlur={() =>
+                          setSlug((currentSlug) => sluggify(currentSlug))
+                        }
                         disabled={loading}
                       />
                     </div>
@@ -226,7 +237,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={loading || !name.trim() || !slug.trim()}
+                    disabled={loading || !name.trim() || !sluggify(slug)}
                   >
                     {loading && (
                       <Loader2 className="mr-2 size-4 animate-spin" />

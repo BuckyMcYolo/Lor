@@ -1,4 +1,4 @@
-import { db, eq, schema } from "@repo/db"
+import { and, db, eq, inArray, schema } from "@repo/db"
 import type {
   MentionNotification,
   RealtimeMessage,
@@ -169,8 +169,61 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
       createdAt: schema.notificationEvent.createdAt,
     })
 
+  const expectedNotificationKey = (row: { userId: string; type: string }) =>
+    `${row.userId}:${row.type}`
+
+  const insertedKeys = new Set(
+    insertedNotifications.map((row) => expectedNotificationKey(row))
+  )
+  const missingUserIds = notificationRows
+    .filter((row) => !insertedKeys.has(expectedNotificationKey(row)))
+    .map((row) => row.userId)
+
+  let allNotifications = insertedNotifications
+
+  if (missingUserIds.length > 0) {
+    const existingNotifications = await db
+      .select({
+        id: schema.notificationEvent.id,
+        userId: schema.notificationEvent.userId,
+        type: schema.notificationEvent.type,
+        messageId: schema.notificationEvent.messageId,
+        channelId: schema.notificationEvent.channelId,
+        guildId: schema.notificationEvent.guildId,
+        createdAt: schema.notificationEvent.createdAt,
+      })
+      .from(schema.notificationEvent)
+      .where(
+        and(
+          eq(schema.notificationEvent.messageId, input.message.id),
+          inArray(schema.notificationEvent.userId, [...new Set(missingUserIds)])
+        )
+      )
+
+    const expectedKeys = new Set(
+      notificationRows.map((row) => expectedNotificationKey(row))
+    )
+    const mergedByKey = new Map<
+      string,
+      (typeof insertedNotifications)[number]
+    >()
+
+    for (const notification of insertedNotifications) {
+      mergedByKey.set(expectedNotificationKey(notification), notification)
+    }
+
+    for (const notification of existingNotifications) {
+      const key = expectedNotificationKey(notification)
+      if (expectedKeys.has(key) && !mergedByKey.has(key)) {
+        mergedByKey.set(key, notification)
+      }
+    }
+
+    allNotifications = [...mergedByKey.values()]
+  }
+
   const mentionNotifications: Array<UserTargetedPayload<MentionNotification>> =
-    insertedNotifications.map((notification) => ({
+    allNotifications.map((notification) => ({
       userId: notification.userId,
       payload: {
         id: notification.id,

@@ -1,9 +1,17 @@
 import { DateTime } from "luxon"
 
 function toDateTime(date: Date | string) {
-  return typeof date === "string"
-    ? DateTime.fromISO(date)
-    : DateTime.fromJSDate(date)
+  const dt =
+    typeof date === "string"
+      ? DateTime.fromISO(date)
+      : DateTime.fromJSDate(date)
+
+  if (!dt.isValid) {
+    const originalInput = typeof date === "string" ? date : date.toString()
+    throw new Error(`Invalid date input: ${originalInput}`)
+  }
+
+  return dt
 }
 
 /**
@@ -42,8 +50,8 @@ export function formatTime(date: Date | string): string {
  * Groups timestamps by day label ("Today", "Yesterday", "Jan 1, 2024").
  */
 export function getDayLabel(date: Date | string): string {
-  const dt = toDateTime(date)
-  const now = DateTime.now()
+  const dt = toDateTime(date).toLocal()
+  const now = DateTime.now().toLocal()
 
   if (dt.hasSame(now, "day")) return "Today"
   if (dt.hasSame(now.minus({ days: 1 }), "day")) return "Yesterday"

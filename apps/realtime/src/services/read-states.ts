@@ -1,4 +1,4 @@
-import { and, count, db, desc, eq, gt, ne, schema } from "@repo/db"
+import { and, count, db, desc, eq, gt, ne, schema, sql } from "@repo/db"
 import type { ChannelReadState } from "@/lib/events"
 import { assertUserCanAccessChannel } from "./channel-access"
 
@@ -66,11 +66,34 @@ export async function markChannelRead(
         schema.channelReadState.userId,
       ],
       set: {
-        lastReadMessageId,
-        lastReadAt,
+        lastReadAt: sql`GREATEST(${schema.channelReadState.lastReadAt}, excluded.last_read_at)`,
+        lastReadMessageId: sql`CASE
+          WHEN excluded.last_read_at >= ${schema.channelReadState.lastReadAt}
+          THEN excluded.last_read_message_id
+          ELSE ${schema.channelReadState.lastReadMessageId}
+        END`,
         updatedAt: new Date(),
       },
     })
+
+  const persistedState = await db
+    .select({
+      lastReadAt: schema.channelReadState.lastReadAt,
+      lastReadMessageId: schema.channelReadState.lastReadMessageId,
+    })
+    .from(schema.channelReadState)
+    .where(
+      and(
+        eq(schema.channelReadState.channelId, input.channelId),
+        eq(schema.channelReadState.userId, input.userId)
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!persistedState) {
+    throw new Error("Failed to persist read state")
+  }
 
   const [unreadCountRow, mentionCountRow] = await Promise.all([
     db
@@ -81,7 +104,7 @@ export async function markChannelRead(
       .where(
         and(
           eq(schema.message.channelId, input.channelId),
-          gt(schema.message.createdAt, lastReadAt),
+          gt(schema.message.createdAt, persistedState.lastReadAt),
           ne(schema.message.authorId, input.userId)
         )
       )
@@ -95,7 +118,7 @@ export async function markChannelRead(
         and(
           eq(schema.messageMention.channelId, input.channelId),
           eq(schema.messageMention.mentionedUserId, input.userId),
-          gt(schema.messageMention.createdAt, lastReadAt)
+          gt(schema.messageMention.createdAt, persistedState.lastReadAt)
         )
       )
       .then((rows) => rows[0]),
@@ -103,8 +126,8 @@ export async function markChannelRead(
 
   return {
     channelId: input.channelId,
-    lastReadMessageId,
-    lastReadAt: lastReadAt.toISOString(),
+    lastReadMessageId: persistedState.lastReadMessageId,
+    lastReadAt: persistedState.lastReadAt.toISOString(),
     unreadCount: Number(unreadCountRow?.count ?? 0),
     mentionCount: Number(mentionCountRow?.count ?? 0),
   }

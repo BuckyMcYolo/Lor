@@ -1,6 +1,6 @@
 import { db } from "@repo/db"
 import { channel, channelMember, message, user } from "@repo/db/schema"
-import { and, count, desc, eq, inArray, or } from "drizzle-orm"
+import { and, count, desc, eq, inArray, ne, or } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
@@ -119,7 +119,12 @@ export const listDMs: AppRouteHandler<ListDMsRoute> = async (c) => {
     })
     .from(channelMember)
     .innerJoin(user, eq(channelMember.userId, user.id))
-    .where(inArray(channelMember.channelId, dmChannelIds))
+    .where(
+      and(
+        inArray(channelMember.channelId, dmChannelIds),
+        ne(channelMember.userId, currentUser.id)
+      )
+    )
 
   const membersByChannel = new Map<
     string,
@@ -132,7 +137,6 @@ export const listDMs: AppRouteHandler<ListDMsRoute> = async (c) => {
     }[]
   >()
   for (const m of members) {
-    if (m.id === currentUser.id) continue
     const list = membersByChannel.get(m.channelId) ?? []
     list.push({
       id: m.id,
@@ -205,7 +209,6 @@ export const getDM: AppRouteHandler<GetDMRoute> = async (c) => {
   const [members, latestMessages] = await Promise.all([
     db
       .select({
-        channelId: channelMember.channelId,
         id: user.id,
         name: user.name,
         username: user.username,
@@ -214,7 +217,12 @@ export const getDM: AppRouteHandler<GetDMRoute> = async (c) => {
       })
       .from(channelMember)
       .innerJoin(user, eq(channelMember.userId, user.id))
-      .where(eq(channelMember.channelId, ch.id)),
+      .where(
+        and(
+          eq(channelMember.channelId, ch.id),
+          ne(channelMember.userId, currentUser.id)
+        )
+      ),
     db
       .select({
         channelId: message.channelId,
@@ -253,15 +261,13 @@ export const getDM: AppRouteHandler<GetDMRoute> = async (c) => {
   return c.json(
     {
       ...ch,
-      members: members
-        .filter((m) => m.id !== currentUser.id)
-        .map((m) => ({
-          id: m.id,
-          name: m.name,
-          username: m.username,
-          displayUsername: m.displayUsername,
-          image: m.image,
-        })),
+      members: members.map((m) => ({
+        id: m.id,
+        name: m.name,
+        username: m.username,
+        displayUsername: m.displayUsername,
+        image: m.image,
+      })),
       lastMessage,
     },
     HttpStatusCodes.OK

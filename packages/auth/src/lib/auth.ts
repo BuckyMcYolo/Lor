@@ -31,16 +31,19 @@ async function seedDefaultGuildChannels(guildId: string) {
   await db.transaction(async (tx) => {
     let topLevelPosition = 0
 
-    const uncategorizedRows = defaultGuildChannels.uncategorized.map((ch) => ({
-      name: ch.name,
-      type: ch.type,
-      guildId,
-      position: topLevelPosition++,
-    }))
+    const uncategorizedRows = defaultGuildChannels.uncategorized.map(
+      (ch, index) => ({
+        name: ch.name,
+        type: ch.type,
+        guildId,
+        position: topLevelPosition + index,
+      })
+    )
 
     if (uncategorizedRows.length > 0) {
       await tx.insert(schema.channel).values(uncategorizedRows)
     }
+    topLevelPosition += uncategorizedRows.length
 
     for (const categoryConfig of defaultGuildChannels.categories) {
       const createdCategory = await tx

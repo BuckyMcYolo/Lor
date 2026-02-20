@@ -26,13 +26,21 @@ type ErrorResult = { ok: false; error: string }
 
 export type JoinLeaveAck = (result: OkResult | ErrorResult) => void
 
+export type RealtimeMessageType =
+  | "default"
+  | "reply"
+  | "system_join"
+  | "system_leave"
+  | "system_pin"
+  | "channel_name_change"
+
 export type RealtimeMessage = {
   id: string
   channelId: string
   // message:send currently emits non-null content; null is reserved for
   // system/attachment-only message shapes from persisted history.
   content: string | null
-  type: string
+  type: RealtimeMessageType
   createdAt: string
   author: {
     id: string
