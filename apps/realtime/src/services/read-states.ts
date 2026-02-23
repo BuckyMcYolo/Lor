@@ -1,5 +1,5 @@
 import { and, count, db, desc, eq, gt, ne, schema, sql } from "@repo/db"
-import type { ChannelReadState } from "@/lib/events"
+import type { ChannelReadState } from "@repo/realtime-types"
 import { assertUserCanAccessChannel } from "./channel-access"
 
 type MarkChannelReadInput = {

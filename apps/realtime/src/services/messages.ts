@@ -1,5 +1,5 @@
 import { db, eq, schema } from "@repo/db"
-import type { RealtimeMessage, SendMessagePayload } from "@/lib/events"
+import type { RealtimeMessage, SendMessagePayload } from "@repo/realtime-types"
 import {
   type AccessibleChannel,
   assertUserCanAccessChannel,

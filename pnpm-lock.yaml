@@ -84,6 +84,9 @@ importers:
       '@repo/env':
         specifier: workspace:*
         version: link:../../packages/env
+      '@repo/realtime-types':
+        specifier: workspace:*
+        version: link:../../packages/realtime-types
       socket.io:
         specifier: ^4.8.1
         version: 4.8.3
@@ -125,7 +128,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@repo/utils':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../packages/utils
       '@tailwindcss/postcss':
         specifier: ^4.1.18
@@ -336,6 +339,16 @@ importers:
       dotenv:
         specifier: ^17.2.4
         version: 17.2.4
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+
+  packages/realtime-types:
+    dependencies:
       zod:
         specifier: ^4.3.6
         version: 4.3.6
