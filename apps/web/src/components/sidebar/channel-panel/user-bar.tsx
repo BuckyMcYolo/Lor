@@ -89,7 +89,6 @@ export function UserBar() {
 
   const handleOpenSettings = () => {
     // TODO: Navigate to settings page
-    // navigate({ to: "/settings" })
   }
 
   return (

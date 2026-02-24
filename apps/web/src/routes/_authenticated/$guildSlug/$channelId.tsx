@@ -63,7 +63,7 @@ function ChannelView() {
     return () => {
       socket.emit("channel:leave", { channelId })
     }
-  }, [socket?.connected, channelId])
+  }, [socket, channelId])
 
   // Listen for incoming messages
   useEffect(() => {

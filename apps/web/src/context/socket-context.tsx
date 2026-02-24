@@ -22,25 +22,27 @@ export function SocketProvider({
 
     const s = getSocket()
 
-    s.on("connect", () => {
+    const onConnect = () => {
       console.log("[socket] connected:", s.id)
-    })
-
-    s.on("disconnect", (reason) => {
+    }
+    const onDisconnect = (reason: string) => {
       console.log("[socket] disconnected:", reason)
-    })
-
-    s.on("connect_error", (err) => {
+    }
+    const onConnectError = (err: Error) => {
       console.error("[socket] connection error:", err.message)
-    })
+    }
+
+    s.on("connect", onConnect)
+    s.on("disconnect", onDisconnect)
+    s.on("connect_error", onConnectError)
 
     s.connect()
     setSocket(s)
 
     return () => {
-      s.off("connect")
-      s.off("disconnect")
-      s.off("connect_error")
+      s.off("connect", onConnect)
+      s.off("disconnect", onDisconnect)
+      s.off("connect_error", onConnectError)
       s.disconnect()
       setSocket(null)
     }

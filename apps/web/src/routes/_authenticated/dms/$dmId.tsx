@@ -56,7 +56,7 @@ function DMConversation() {
     return () => {
       socket.emit("channel:leave", { channelId: dmId })
     }
-  }, [socket?.connected, dmId])
+  }, [socket, dmId])
 
   // Listen for incoming messages
   useEffect(() => {

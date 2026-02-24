@@ -3,11 +3,10 @@ import { z } from "zod"
 /** 20 MB default — keep in sync with server.ts */
 const DEFAULT_MAX_FILE_UPLOAD_SIZE = 20 * 1024 * 1024
 
-/** Adds a protocol to a URL if missing. Defaults to http:// for localhost/loopback, https:// otherwise. */
+/** Adds a protocol to a URL if missing. Defaults to http:// for localhost/loopback, https:// otherwise. Preserves ws:// and wss:// schemes. */
 const addProtocol = (url: string) => {
   const trimmed = url.trim()
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://"))
-    return trimmed
+  if (/^(https?|wss?):\/\//i.test(trimmed)) return trimmed
   const isLocal =
     trimmed.startsWith("localhost") || trimmed.startsWith("127.0.0.1")
   return isLocal ? `http://${trimmed}` : `https://${trimmed}`
