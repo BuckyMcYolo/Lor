@@ -56,7 +56,7 @@ function ChannelView() {
 
   // Join/leave the channel room for real-time messages
   useEffect(() => {
-    if (!socket?.connected) return
+    if (!socket) return
 
     socket.emit("channel:join", { channelId })
 
