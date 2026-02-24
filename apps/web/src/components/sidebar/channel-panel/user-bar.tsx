@@ -8,8 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/dropdown-menu"
-import { ToggleGroup, ToggleGroupItem } from "@repo/ui/components/toggle-group"
-import { useNavigate } from "@tanstack/react-router"
+import { cn } from "@repo/ui/lib/utils"
 import {
   ChevronsUpDown,
   Laptop,
@@ -18,14 +17,65 @@ import {
   Settings,
   Sun,
 } from "lucide-react"
+import { LayoutGroup, motion } from "motion/react"
 import { useTheme } from "next-themes"
 import { UserAvatar } from "../../ui/user-avatar"
+
+const themes = [
+  { value: "light", icon: Sun, label: "Light" },
+  { value: "dark", icon: Moon, label: "Dark" },
+  { value: "system", icon: Laptop, label: "System" },
+] as const
+
+function ThemeSwitcher({
+  theme,
+  setTheme,
+}: {
+  theme: string | undefined
+  setTheme: (theme: string) => void
+}) {
+  return (
+    <LayoutGroup>
+      <div className="ml-auto flex items-center rounded-lg border border-border bg-background p-1 h-8">
+        {themes.map(({ value, icon: Icon, label }) => {
+          const isActive = theme === value
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTheme(value)}
+              className="relative flex h-6 w-6 items-center justify-center rounded-md cursor-pointer"
+              aria-pressed={isActive}
+              aria-label={`Switch to ${label} theme`}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="theme-switcher-pill"
+                  className="absolute inset-0 rounded-md bg-accent"
+                  transition={{
+                    type: "spring",
+                    stiffness: 500,
+                    damping: 30,
+                  }}
+                />
+              )}
+              <Icon
+                className={cn(
+                  "relative z-10 h-3.5 w-3.5 transition-colors",
+                  isActive ? "text-foreground" : "text-muted-foreground"
+                )}
+              />
+            </button>
+          )
+        })}
+      </div>
+    </LayoutGroup>
+  )
+}
 
 export function UserBar() {
   const { data: session } = authClient.useSession()
   const { setTheme, theme } = useTheme()
-  const navigate = useNavigate()
-
   const name = session?.user.name ?? "User"
   const email = session?.user.email ?? ""
 
@@ -39,7 +89,6 @@ export function UserBar() {
 
   const handleOpenSettings = () => {
     // TODO: Navigate to settings page
-    // navigate({ to: "/settings" })
   }
 
   return (
@@ -89,32 +138,7 @@ export function UserBar() {
               onSelect={(e) => e.preventDefault()}
             >
               Theme
-              <ToggleGroup
-                size="sm"
-                type="single"
-                className="ml-auto flex gap-1 items-center border border-border rounded-lg px-1 h-8"
-                value={theme}
-                onValueChange={(value) => value && setTheme(value)}
-              >
-                <ToggleGroupItem
-                  className="h-6 w-6 p-1.5 rounded-md"
-                  value="light"
-                >
-                  <Sun className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  className="h-6 w-6 p-1.5 rounded-md"
-                  value="dark"
-                >
-                  <Moon className="h-4 w-4" />
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  className="h-6 w-6 p-1.5 rounded-md"
-                  value="system"
-                >
-                  <Laptop className="h-4 w-4" />
-                </ToggleGroupItem>
-              </ToggleGroup>
+              <ThemeSwitcher theme={theme} setTheme={setTheme} />
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />

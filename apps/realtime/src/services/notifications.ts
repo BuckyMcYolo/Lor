@@ -3,7 +3,7 @@ import type {
   MentionNotification,
   RealtimeMessage,
   UnreadNotification,
-} from "@/lib/events"
+} from "@repo/realtime-types"
 import type { AccessibleChannel } from "./channel-access"
 
 type MessageFanoutInput = {

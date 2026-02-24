@@ -2,19 +2,21 @@ import { createServer } from "node:http"
 import { auth, type Session } from "@repo/auth"
 import { db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
-import { Server, type Socket } from "socket.io"
-import { toErrorMessage } from "@/lib/errors"
 import type {
   ClientToServerEvents,
   InterServerEvents,
   ServerToClientEvents,
-} from "@/lib/events"
+} from "@repo/realtime-types"
 import {
+  channelRoom,
   channelRoomPayloadSchema,
+  guildRoom,
   markChannelReadPayloadSchema,
   sendMessagePayloadSchema,
-} from "@/lib/events"
-import { channelRoom, guildRoom, userRoom } from "@/lib/rooms"
+  userRoom,
+} from "@repo/realtime-types"
+import { Server, type Socket } from "socket.io"
+import { toErrorMessage } from "@/lib/errors"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
 import { createMessage } from "@/services/messages"
 import { buildMessageFanout } from "@/services/notifications"
