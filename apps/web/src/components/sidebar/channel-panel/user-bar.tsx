@@ -9,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/dropdown-menu"
 import { cn } from "@repo/ui/lib/utils"
-// import { useNavigate } from "@tanstack/react-router"
 import {
   ChevronsUpDown,
   Laptop,
@@ -18,7 +17,7 @@ import {
   Settings,
   Sun,
 } from "lucide-react"
-import { motion } from "motion/react"
+import { LayoutGroup, motion } from "motion/react"
 import { useTheme } from "next-themes"
 import { UserAvatar } from "../../ui/user-avatar"
 
@@ -36,38 +35,41 @@ function ThemeSwitcher({
   setTheme: (theme: string) => void
 }) {
   return (
-    <div className="ml-auto flex items-center rounded-lg border border-border bg-background p-1 h-8">
-      {themes.map(({ value, icon: Icon, label }) => {
-        const isActive = theme === value
-        return (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setTheme(value)}
-            className="relative flex h-6 w-6 items-center justify-center rounded-md cursor-pointer"
-            aria-label={`Switch to ${label} theme`}
-          >
-            {isActive && (
-              <motion.div
-                layoutId="theme-switcher-pill"
-                className="absolute inset-0 rounded-md bg-accent"
-                transition={{
-                  type: "spring",
-                  stiffness: 500,
-                  damping: 30,
-                }}
-              />
-            )}
-            <Icon
-              className={cn(
-                "relative z-10 h-3.5 w-3.5 transition-colors",
-                isActive ? "text-foreground" : "text-muted-foreground"
+    <LayoutGroup>
+      <div className="ml-auto flex items-center rounded-lg border border-border bg-background p-1 h-8">
+        {themes.map(({ value, icon: Icon, label }) => {
+          const isActive = theme === value
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTheme(value)}
+              className="relative flex h-6 w-6 items-center justify-center rounded-md cursor-pointer"
+              aria-pressed={isActive}
+              aria-label={`Switch to ${label} theme`}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="theme-switcher-pill"
+                  className="absolute inset-0 rounded-md bg-accent"
+                  transition={{
+                    type: "spring",
+                    stiffness: 500,
+                    damping: 30,
+                  }}
+                />
               )}
-            />
-          </button>
-        )
-      })}
-    </div>
+              <Icon
+                className={cn(
+                  "relative z-10 h-3.5 w-3.5 transition-colors",
+                  isActive ? "text-foreground" : "text-muted-foreground"
+                )}
+              />
+            </button>
+          )
+        })}
+      </div>
+    </LayoutGroup>
   )
 }
 
