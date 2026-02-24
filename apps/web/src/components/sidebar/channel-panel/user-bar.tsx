@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/dropdown-menu"
 import { cn } from "@repo/ui/lib/utils"
-import { useNavigate } from "@tanstack/react-router"
+// import { useNavigate } from "@tanstack/react-router"
 import {
   ChevronsUpDown,
   Laptop,
@@ -74,8 +74,6 @@ function ThemeSwitcher({
 export function UserBar() {
   const { data: session } = authClient.useSession()
   const { setTheme, theme } = useTheme()
-  const navigate = useNavigate()
-
   const name = session?.user.name ?? "User"
   const email = session?.user.email ?? ""
 

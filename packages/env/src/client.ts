@@ -18,6 +18,7 @@ const clientSchema = z.object({
     .enum(["development", "staging", "production", "test"])
     .default("production"),
   NEXT_PUBLIC_API_URL: z.string().min(1).transform(addProtocol),
+  NEXT_PUBLIC_REALTIME_URL: z.string().min(1).transform(addProtocol),
   NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE: z.coerce
     .number()
     .default(DEFAULT_MAX_FILE_UPLOAD_SIZE),
@@ -26,6 +27,7 @@ const clientSchema = z.object({
 export const env = clientSchema.parse({
   NODE_ENV: process.env.NODE_ENV,
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
   NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE:
     process.env.NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE,
 })

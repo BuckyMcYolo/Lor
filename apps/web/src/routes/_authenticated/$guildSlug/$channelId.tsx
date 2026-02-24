@@ -1,9 +1,18 @@
-import { useQuery } from "@tanstack/react-query"
+import { authClient } from "@repo/auth/client"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
+import { useCallback, useEffect, useRef } from "react"
+import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { ChatHeader } from "@/components/chat/header"
 import { MessageInput } from "@/components/chat/message-input"
 import { MessageList } from "@/components/chat/message-list"
+import { useSocket } from "@/context/socket-context"
 import { apiClient } from "@/lib/api-client"
+import type { ListMessagesResponse } from "@/lib/api-types"
+import {
+  createOptimisticMessage,
+  realtimeMessageToMessage,
+} from "@/lib/realtime-adapter"
 
 export const Route = createFileRoute("/_authenticated/$guildSlug/$channelId")({
   component: ChannelView,
@@ -11,6 +20,11 @@ export const Route = createFileRoute("/_authenticated/$guildSlug/$channelId")({
 
 function ChannelView() {
   const { guildSlug, channelId } = Route.useParams()
+  const socket = useSocket()
+  const queryClient = useQueryClient()
+  const { data: session } = authClient.useSession()
+  // Track nonces for optimistic messages so we can replace them on confirm
+  const pendingNonces = useRef(new Set<string>())
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["channel", guildSlug, channelId],
@@ -25,12 +39,137 @@ function ChannelView() {
     },
   })
 
+  const { data: messagesData, isPending: messagesLoading } = useQuery({
+    queryKey: ["messages", channelId],
+    queryFn: async () => {
+      const res = await apiClient.v1.guilds[":guildSlug"].channels[
+        ":channelId"
+      ].messages.$get({
+        param: { guildSlug, channelId },
+        query: {},
+      })
+      if (!res.ok) throw new Error("Failed to fetch messages")
+      return res.json()
+    },
+    enabled: !!data,
+  })
+
+  // Join/leave the channel room for real-time messages
+  useEffect(() => {
+    if (!socket?.connected) return
+
+    socket.emit("channel:join", { channelId })
+
+    return () => {
+      socket.emit("channel:leave", { channelId })
+    }
+  }, [socket?.connected, channelId])
+
+  // Listen for incoming messages
+  useEffect(() => {
+    if (!socket) return
+
+    const handleMessageCreated = (
+      msg: Parameters<typeof realtimeMessageToMessage>[0]
+    ) => {
+      if (msg.channelId !== channelId) return
+
+      queryClient.setQueryData<ListMessagesResponse>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          // If this message was sent by us, replace the optimistic entry
+          if (msg.nonce && pendingNonces.current.has(msg.nonce)) {
+            pendingNonces.current.delete(msg.nonce)
+            return {
+              ...old,
+              data: old.data.map((m) =>
+                m.id === msg.nonce ? realtimeMessageToMessage(msg) : m
+              ),
+            }
+          }
+          // Otherwise it's from someone else — prepend if not already present
+          if (old.data.some((m) => m.id === msg.id)) return old
+          return {
+            ...old,
+            data: [realtimeMessageToMessage(msg), ...old.data],
+          }
+        }
+      )
+    }
+
+    socket.on("message:created", handleMessageCreated)
+    return () => {
+      socket.off("message:created", handleMessageCreated)
+    }
+  }, [socket, channelId, queryClient])
+
+  const handleSend = useCallback(
+    (content: string) => {
+      if (!socket?.connected || !session?.user) return
+
+      const nonce = crypto.randomUUID()
+      pendingNonces.current.add(nonce)
+
+      const author = {
+        id: session.user.id,
+        name: session.user.name,
+        username: session.user.username ?? null,
+        displayUsername: session.user.displayUsername ?? null,
+        image: session.user.image ?? null,
+      }
+
+      // Insert optimistic message immediately
+      queryClient.setQueryData<ListMessagesResponse>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            data: [
+              createOptimisticMessage(nonce, channelId, content, author),
+              ...old.data,
+            ],
+          }
+        }
+      )
+
+      socket.emit("message:send", { channelId, content, nonce }, (result) => {
+        if (!result.ok) {
+          console.error("[chat] send failed:", result.error)
+          // Remove the optimistic message on failure
+          pendingNonces.current.delete(nonce)
+          queryClient.setQueryData<ListMessagesResponse>(
+            ["messages", channelId],
+            (old) => {
+              if (!old) return old
+              return { ...old, data: old.data.filter((m) => m.id !== nonce) }
+            }
+          )
+          return
+        }
+
+        // Replace optimistic message with the confirmed one
+        pendingNonces.current.delete(nonce)
+        queryClient.setQueryData<ListMessagesResponse>(
+          ["messages", channelId],
+          (old) => {
+            if (!old) return old
+            return {
+              ...old,
+              data: old.data.map((m) =>
+                m.id === nonce ? realtimeMessageToMessage(result.message) : m
+              ),
+            }
+          }
+        )
+      })
+    },
+    [socket, channelId, queryClient, session]
+  )
+
   if (isPending) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <span className="text-sm text-muted-foreground">Loading...</span>
-      </div>
-    )
+    return <ChatSkeleton />
   }
 
   if (isError) {
@@ -60,8 +199,12 @@ function ChannelView() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <ChatHeader context={context} />
-      <MessageList context={context} messages={[]} />
-      <MessageInput context={context} onSend={() => {}} />
+      <MessageList
+        context={context}
+        messages={messagesData?.data ?? []}
+        isLoading={messagesLoading}
+      />
+      <MessageInput context={context} onSend={handleSend} />
     </div>
   )
 }

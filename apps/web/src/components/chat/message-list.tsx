@@ -1,4 +1,6 @@
+import { Skeleton } from "@repo/ui/components/skeleton"
 import { Hash, User, Users } from "lucide-react"
+import { useCallback, useEffect, useRef } from "react"
 import type { Message } from "@/lib/api-types"
 import type { ChatContext } from "./header"
 import { MessageItem } from "./message-item"
@@ -39,6 +41,16 @@ function EmptyState({ context }: { context: ChatContext }) {
   )
 }
 
+const MESSAGE_SKELETON_GROUPS = [
+  { key: "a", nameWidth: "5rem", lines: ["80%", "45%"] },
+  { key: "b", nameWidth: "6.5rem", lines: ["60%"] },
+  { key: "c", nameWidth: "4rem", lines: ["90%", "70%", "35%"] },
+  { key: "d", nameWidth: "5.5rem", lines: ["50%"] },
+  { key: "e", nameWidth: "7rem", lines: ["75%", "55%"] },
+  { key: "f", nameWidth: "4.5rem", lines: ["65%"] },
+  { key: "g", nameWidth: "6rem", lines: ["85%", "40%"] },
+]
+
 export function MessageList({
   context,
   messages,
@@ -46,16 +58,52 @@ export function MessageList({
   hasMore,
   onLoadMore,
 }: MessageListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const isNearBottom = useRef(true)
+  const prevMessageCount = useRef(messages.length)
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    // flex-col-reverse: scrollTop is 0 at bottom, negative when scrolled up
+    isNearBottom.current = Math.abs(el.scrollTop) < 150
+  }, [])
+
+  useEffect(() => {
+    // Always scroll on initial load (count went from 0 to N), otherwise only if near bottom
+    if (prevMessageCount.current === 0 || isNearBottom.current) {
+      scrollRef.current?.scrollTo({ top: 0 })
+    }
+    prevMessageCount.current = messages.length
+  }, [messages.length])
+
   if (isLoading) {
     return (
-      <output
-        className="flex flex-1 items-center justify-center"
-        aria-live="polite"
-      >
-        <span className="text-sm text-muted-foreground">
-          Loading messages...
-        </span>
-      </output>
+      <div className="flex flex-1 flex-col-reverse overflow-hidden py-4">
+        {MESSAGE_SKELETON_GROUPS.map((group) => (
+          <div key={group.key} className="px-4 py-0.5">
+            <div className="flex gap-3">
+              <Skeleton className="mt-0.5 size-10 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <Skeleton
+                    className="h-3.5 rounded"
+                    style={{ width: group.nameWidth }}
+                  />
+                  <Skeleton className="h-3 w-10 rounded" />
+                </div>
+                {group.lines.map((width, i) => (
+                  <Skeleton
+                    key={`${group.key}-${i}`}
+                    className="h-3.5 rounded"
+                    style={{ width }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     )
   }
 
@@ -64,7 +112,11 @@ export function MessageList({
   }
 
   return (
-    <div className="flex flex-1 flex-col-reverse overflow-y-auto py-4">
+    <div
+      ref={scrollRef}
+      onScroll={handleScroll}
+      className="flex flex-1 flex-col-reverse overflow-y-auto py-4"
+    >
       {messages.map((msg, i) => {
         const next = messages[i + 1]
         const showHeader = !next || next.authorId !== msg.authorId
