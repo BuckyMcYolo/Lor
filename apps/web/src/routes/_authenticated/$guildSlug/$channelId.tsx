@@ -6,6 +6,7 @@ import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { ChatHeader } from "@/components/chat/header"
 import { MessageInput } from "@/components/chat/message-input"
 import { MessageList } from "@/components/chat/message-list"
+import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
 import { apiClient } from "@/lib/api-client"
 import type { ListMessagesResponse } from "@/lib/api-types"
@@ -22,9 +23,21 @@ function ChannelView() {
   const { guildSlug, channelId } = Route.useParams()
   const socket = useSocket()
   const queryClient = useQueryClient()
+  const { setView, clearView } = useRightSidebar()
   const { data: session } = authClient.useSession()
   // Track nonces for optimistic messages so we can replace them on confirm
   const pendingNonces = useRef(new Set<string>())
+
+  useEffect(() => {
+    setView({
+      type: "guild-members",
+      guildSlug,
+      channelId,
+    })
+    return () => {
+      clearView()
+    }
+  }, [setView, clearView, guildSlug, channelId])
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["channel", guildSlug, channelId],

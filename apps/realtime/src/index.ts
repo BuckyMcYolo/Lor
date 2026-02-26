@@ -12,19 +12,31 @@ import {
   channelRoomPayloadSchema,
   guildRoom,
   markChannelReadPayloadSchema,
+  presenceSubscribePayloadSchema,
   sendMessagePayloadSchema,
   userRoom,
 } from "@repo/realtime-types"
+import { createAdapter } from "@socket.io/redis-adapter"
+import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
 import { createMessage } from "@/services/messages"
 import { buildMessageFanout } from "@/services/notifications"
+import {
+  listOnlineUserIds,
+  markUserConnected,
+  markUserDisconnected,
+} from "@/services/presence"
 import { markChannelRead } from "@/services/read-states"
 
 type SocketData = {
   user: Session["user"]
   session: Session["session"]
+  guildIds?: string[]
+  initialized?: boolean
+  initPromise?: Promise<boolean>
+  isAlive?: boolean
 }
 
 type RealtimeSocket = Socket<
@@ -62,6 +74,20 @@ const corsOrigins = (env.REALTIME_CORS_ORIGIN || defaultOrigins.join(","))
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean)
+
+const redisPubClient = createClient({ url: env.REDIS_URL })
+const redisSubClient = redisPubClient.duplicate()
+const redisPresenceClient = redisPubClient.duplicate()
+
+redisPubClient.on("error", (error) => {
+  console.error("[realtime] redis pub error:", error)
+})
+redisSubClient.on("error", (error) => {
+  console.error("[realtime] redis sub error:", error)
+})
+redisPresenceClient.on("error", (error) => {
+  console.error("[realtime] redis presence error:", error)
+})
 
 const httpServer = createServer((req, res) => {
   if (req.url === "/health") {
@@ -115,6 +141,7 @@ io.use(async (socket, next) => {
 
 async function initializeConnection(socket: RealtimeSocket) {
   try {
+    const initSocketId = socket.id
     const userPresenceRoom = userRoom(socket.data.user.id)
     await socket.join(userPresenceRoom)
 
@@ -125,11 +152,44 @@ async function initializeConnection(socket: RealtimeSocket) {
       .from(schema.guildMember)
       .where(eq(schema.guildMember.userId, socket.data.user.id))
 
-    const guildPresenceRooms = guildMembershipRows.map((row) =>
-      guildRoom(row.guildId)
-    )
+    const guildIds = guildMembershipRows.map((row) => row.guildId)
+    socket.data.guildIds = guildIds
+
+    const guildPresenceRooms = guildIds.map((guildId) => guildRoom(guildId))
     if (guildPresenceRooms.length > 0) {
       await socket.join(guildPresenceRooms)
+    }
+
+    const { becameOnline } = await markUserConnected(
+      redisPresenceClient,
+      socket.data.user.id,
+      initSocketId
+    )
+
+    const isCurrentSocketAlive =
+      socket.data.isAlive === true &&
+      socket.connected &&
+      socket.id === initSocketId
+
+    if (!isCurrentSocketAlive) {
+      if (becameOnline) {
+        await markUserDisconnected(
+          redisPresenceClient,
+          socket.data.user.id,
+          initSocketId
+        )
+      }
+      return false
+    }
+
+    if (becameOnline && isCurrentSocketAlive) {
+      for (const guildId of guildIds) {
+        io.to(guildRoom(guildId)).emit("presence:user:update", {
+          guildId,
+          userId: socket.data.user.id,
+          status: "online",
+        })
+      }
     }
 
     socket.emit("presence:ready", {
@@ -139,6 +199,8 @@ async function initializeConnection(socket: RealtimeSocket) {
         guilds: guildPresenceRooms,
       },
     })
+
+    return true
   } catch (error) {
     console.error(
       "initializeConnection failed (schema.guildMember lookup or socket.join):",
@@ -149,10 +211,62 @@ async function initializeConnection(socket: RealtimeSocket) {
       }
     )
     socket.disconnect(true)
+    return false
   }
 }
 
 io.on("connection", (socket) => {
+  socket.data.isAlive = true
+  socket.data.initialized = false
+  socket.data.initPromise = initializeConnection(socket).then((initialized) => {
+    socket.data.initialized = initialized
+    return initialized
+  })
+
+  socket.on("presence:subscribe", async (payload, ack) => {
+    try {
+      if (!socket.data.initialized) {
+        await socket.data.initPromise
+      }
+
+      if (!socket.data.initialized) {
+        ack?.({ ok: false, error: "Socket initialization incomplete" })
+        return
+      }
+
+      const parsed = presenceSubscribePayloadSchema.parse(payload)
+      const guildIds = socket.data.guildIds ?? []
+
+      if (!guildIds.includes(parsed.guildId)) {
+        ack?.({ ok: false, error: "Forbidden" })
+        return
+      }
+
+      const guildMemberRows = await db
+        .select({
+          userId: schema.guildMember.userId,
+        })
+        .from(schema.guildMember)
+        .where(eq(schema.guildMember.guildId, parsed.guildId))
+
+      const userIds = [...new Set(guildMemberRows.map((row) => row.userId))]
+      const onlineUserIds = await listOnlineUserIds(
+        redisPresenceClient,
+        userIds
+      )
+
+      ack?.({
+        ok: true,
+        snapshot: {
+          guildId: parsed.guildId,
+          onlineUserIds,
+        },
+      })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
   socket.on("channel:join", async (payload, ack) => {
     try {
       const parsed = channelRoomPayloadSchema.parse(payload)
@@ -228,10 +342,53 @@ io.on("connection", (socket) => {
     }
   })
 
-  void initializeConnection(socket)
+  socket.on("disconnect", () => {
+    socket.data.isAlive = false
+
+    void (async () => {
+      try {
+        const { becameOffline } = await markUserDisconnected(
+          redisPresenceClient,
+          socket.data.user.id,
+          socket.id
+        )
+
+        if (!becameOffline) return
+
+        for (const guildId of socket.data.guildIds ?? []) {
+          io.to(guildRoom(guildId)).emit("presence:user:update", {
+            guildId,
+            userId: socket.data.user.id,
+            status: "offline",
+          })
+        }
+      } catch (error) {
+        console.error("[realtime] disconnect presence cleanup failed:", {
+          socketId: socket.id,
+          userId: socket.data.user.id,
+          error,
+        })
+      }
+    })()
+  })
 })
 
-httpServer.listen(realtimePort, () => {
-  console.log(`Realtime server running on port ${realtimePort}`)
-  console.log(`Allowed origins: ${corsOrigins.join(", ")}`)
+async function bootstrap() {
+  await Promise.all([
+    redisPubClient.connect(),
+    redisSubClient.connect(),
+    redisPresenceClient.connect(),
+  ])
+
+  io.adapter(createAdapter(redisPubClient, redisSubClient))
+
+  httpServer.listen(realtimePort, () => {
+    console.log(`Realtime server running on port ${realtimePort}`)
+    console.log(`Allowed origins: ${corsOrigins.join(", ")}`)
+  })
+}
+
+bootstrap().catch((error) => {
+  console.error("[realtime] failed to start:", error)
+  process.exit(1)
 })
