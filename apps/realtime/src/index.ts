@@ -36,6 +36,7 @@ type SocketData = {
   guildIds?: string[]
   initialized?: boolean
   initPromise?: Promise<boolean>
+  isAlive?: boolean
 }
 
 type RealtimeSocket = Socket<
@@ -140,6 +141,7 @@ io.use(async (socket, next) => {
 
 async function initializeConnection(socket: RealtimeSocket) {
   try {
+    const initSocketId = socket.id
     const userPresenceRoom = userRoom(socket.data.user.id)
     await socket.join(userPresenceRoom)
 
@@ -161,10 +163,26 @@ async function initializeConnection(socket: RealtimeSocket) {
     const { becameOnline } = await markUserConnected(
       redisPresenceClient,
       socket.data.user.id,
-      socket.id
+      initSocketId
     )
 
-    if (becameOnline) {
+    const isCurrentSocketAlive =
+      socket.data.isAlive === true &&
+      socket.connected &&
+      socket.id === initSocketId
+
+    if (!isCurrentSocketAlive) {
+      if (becameOnline) {
+        await markUserDisconnected(
+          redisPresenceClient,
+          socket.data.user.id,
+          initSocketId
+        )
+      }
+      return false
+    }
+
+    if (becameOnline && isCurrentSocketAlive) {
       for (const guildId of guildIds) {
         io.to(guildRoom(guildId)).emit("presence:user:update", {
           guildId,
@@ -198,6 +216,7 @@ async function initializeConnection(socket: RealtimeSocket) {
 }
 
 io.on("connection", (socket) => {
+  socket.data.isAlive = true
   socket.data.initialized = false
   socket.data.initPromise = initializeConnection(socket).then((initialized) => {
     socket.data.initialized = initialized
@@ -324,6 +343,8 @@ io.on("connection", (socket) => {
   })
 
   socket.on("disconnect", () => {
+    socket.data.isAlive = false
+
     void (async () => {
       try {
         const { becameOffline } = await markUserDisconnected(
