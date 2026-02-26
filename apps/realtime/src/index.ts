@@ -199,6 +199,10 @@ async function initializeConnection(socket: RealtimeSocket) {
 
 io.on("connection", (socket) => {
   socket.data.initialized = false
+  socket.data.initPromise = initializeConnection(socket).then((initialized) => {
+    socket.data.initialized = initialized
+    return initialized
+  })
 
   socket.on("presence:subscribe", async (payload, ack) => {
     try {
@@ -345,11 +349,6 @@ io.on("connection", (socket) => {
         })
       }
     })()
-  })
-
-  socket.data.initPromise = initializeConnection(socket).then((initialized) => {
-    socket.data.initialized = initialized
-    return initialized
   })
 })
 
