@@ -15,12 +15,14 @@
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
+    "@repo/realtime-types": "workspace:*",
     "dotenv": "^17.2.4",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.11.9",
     "hono-pino": "^0.8.0",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
+    "redis": "^4.7.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

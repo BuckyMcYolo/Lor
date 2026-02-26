@@ -1,6 +1,11 @@
 import { z } from "zod"
 
 export type PresenceStatus = "online" | "offline" | "idle" | "dnd"
+export const PRESENCE_ONLINE_USERS_SET_KEY = "presence:online-users"
+
+export const presenceSubscribePayloadSchema = z.object({
+  guildId: z.string().uuid(),
+})
 
 export const channelRoomPayloadSchema = z.object({
   channelId: z.string().uuid(),
@@ -21,6 +26,9 @@ export type ChannelRoomPayload = z.infer<typeof channelRoomPayloadSchema>
 export type SendMessagePayload = z.infer<typeof sendMessagePayloadSchema>
 export type MarkChannelReadPayload = z.infer<
   typeof markChannelReadPayloadSchema
+>
+export type PresenceSubscribePayload = z.infer<
+  typeof presenceSubscribePayloadSchema
 >
 
 type OkResult = { ok: true }
@@ -70,6 +78,21 @@ export type MarkChannelReadAck = (
   result: { ok: true; state: ChannelReadState } | ErrorResult
 ) => void
 
+export type PresenceSnapshot = {
+  guildId: string
+  onlineUserIds: string[]
+}
+
+export type PresenceSubscribeAck = (
+  result: { ok: true; snapshot: PresenceSnapshot } | ErrorResult
+) => void
+
+export type PresenceUserUpdate = {
+  guildId: string
+  userId: string
+  status: PresenceStatus
+}
+
 export type UnreadNotification = {
   channelId: string
   guildId: string | null
@@ -87,6 +110,10 @@ export type MentionNotification = {
 }
 
 export interface ClientToServerEvents {
+  "presence:subscribe": (
+    payload: PresenceSubscribePayload,
+    ack?: PresenceSubscribeAck
+  ) => void
   "channel:join": (payload: ChannelRoomPayload, ack?: JoinLeaveAck) => void
   "channel:leave": (payload: ChannelRoomPayload, ack?: JoinLeaveAck) => void
   "message:send": (payload: SendMessagePayload, ack?: SendMessageAck) => void
@@ -104,6 +131,7 @@ export interface ServerToClientEvents {
       guilds: string[]
     }
   }) => void
+  "presence:user:update": (payload: PresenceUserUpdate) => void
   "message:created": (payload: RealtimeMessage) => void
   "notification:unread": (payload: UnreadNotification) => void
   "notification:mention": (payload: MentionNotification) => void

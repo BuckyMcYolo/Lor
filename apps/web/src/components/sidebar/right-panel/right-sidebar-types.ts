@@ -1,10 +1,7 @@
-import type { PresenceStatus } from "@repo/realtime-types"
-
 export type GuildMembersSidebarView = {
   type: "guild-members"
   guildSlug: string
   channelId: string
-  presenceByUserId?: Record<string, PresenceStatus>
 }
 
 export type ThreadSidebarView = {

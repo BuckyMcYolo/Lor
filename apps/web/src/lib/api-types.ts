@@ -46,3 +46,13 @@ export type ListDMMessagesResponse = InferResponseType<
   DMMessagesClient["$get"],
   200
 >
+
+// ── Guild Members ──────────────────────────────────────────
+
+type GuildMembersClient = Client["v1"]["guilds"][":guildSlug"]["members"]
+
+export type ListGuildMembersResponse = InferResponseType<
+  GuildMembersClient["$get"],
+  200
+>
+export type GuildMemberPresence = ListGuildMembersResponse["members"][number]

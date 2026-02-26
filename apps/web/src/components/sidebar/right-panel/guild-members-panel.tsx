@@ -1,65 +1,41 @@
-import type { ActiveGuild, ActiveGuildMember } from "@repo/auth"
-import { authClient } from "@repo/auth/client"
-import type { PresenceStatus } from "@repo/realtime-types"
+import type { PresenceUserUpdate } from "@repo/realtime-types"
 import { ScrollArea } from "@repo/ui/components/scroll-area"
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Users } from "lucide-react"
-import { useMemo } from "react"
-import { UserAvatar } from "../../ui/user-avatar"
+import { useEffect, useMemo } from "react"
+import { UserAvatar } from "@/components/ui/user-avatar"
+import { useSocket } from "@/context/socket-context"
+import { apiClient } from "@/lib/api-client"
+import type {
+  GuildMemberPresence,
+  ListGuildMembersResponse,
+} from "@/lib/api-types"
 import type { GuildMembersSidebarView } from "./right-sidebar-types"
 
-function mapGuildMembersToRows(
-  members: ActiveGuild["members"] | undefined,
-  sessionUserId: string | null,
-  presenceByUserId?: Record<string, PresenceStatus>
-) {
-  return (members ?? [])
-    .map((member: ActiveGuildMember) => {
-      const id = member.user?.id ?? member.userId ?? member.id
-      const fallbackName = member.user?.email ?? "Unknown member"
-      return {
-        id,
-        name: member.user?.name?.trim() || fallbackName,
-        image: member.user?.image ?? null,
-        role: member.role ?? "member",
-        status:
-          presenceByUserId?.[id] ??
-          (id === sessionUserId ? "online" : "offline"),
-      }
-    })
-    .sort((a, b) => a.name.localeCompare(b.name))
-}
-
-type GuildMemberRow = ReturnType<typeof mapGuildMembersToRows>[number]
-
-const statusStyles: Record<PresenceStatus, string> = {
+const statusStyles: Record<GuildMemberPresence["status"], string> = {
   online: "bg-emerald-500",
   offline: "bg-muted-foreground/40",
-  idle: "bg-amber-500",
-  dnd: "bg-rose-500",
 }
 
-const statusLabel: Record<PresenceStatus, string> = {
+const statusLabel: Record<GuildMemberPresence["status"], string> = {
   online: "Online",
   offline: "Offline",
-  idle: "Idle",
-  dnd: "Do Not Disturb",
 }
 
-function formatRole(role: string) {
+function formatRole(role: GuildMemberPresence["role"]) {
   if (!role) return "Member"
   return role.charAt(0).toUpperCase() + role.slice(1)
 }
 
-function MemberSkeleton() {
+function MembersSkeleton() {
   return (
     <div className="space-y-2 px-3 py-3">
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 6 }).map((_, index) => (
         <div
           // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
-          key={i}
+          key={index}
           className="flex items-center gap-2 rounded-md px-1.5 py-1.5"
         >
           <Skeleton className="size-8 rounded-full" />
@@ -73,7 +49,7 @@ function MemberSkeleton() {
   )
 }
 
-function MemberRow({ member }: { member: GuildMemberRow }) {
+function MemberRow({ member }: { member: GuildMemberPresence }) {
   return (
     <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-foreground/[0.04]">
       <div className="relative">
@@ -99,28 +75,99 @@ function MemberRow({ member }: { member: GuildMemberRow }) {
 }
 
 export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
-  const { data: session } = authClient.useSession()
+  const socket = useSocket()
+  const queryClient = useQueryClient()
+  const queryKey = useMemo(
+    () => ["guild-members", view.guildSlug] as const,
+    [view.guildSlug]
+  )
 
-  const { data: guild, isPending } = useQuery<ActiveGuild | null>({
-    queryKey: ["active-guild", view.guildSlug],
+  const { data, isPending, isError } = useQuery({
+    queryKey,
     queryFn: async () => {
-      const res = await authClient.organization.getFullOrganization()
-      return res.data ?? null
+      const res = await apiClient.v1.guilds[":guildSlug"].members.$get({
+        param: { guildSlug: view.guildSlug },
+      })
+      if (!res.ok) throw new Error("Failed to fetch guild members")
+      return res.json()
     },
   })
 
-  const members = useMemo(() => {
-    const sessionUserId = session?.user.id ?? null
-    return mapGuildMembersToRows(
-      guild?.members,
-      sessionUserId,
-      view.presenceByUserId
-    )
-  }, [guild?.members, session?.user.id, view.presenceByUserId])
+  useEffect(() => {
+    if (!socket || !data?.guildId) return
 
+    const applySnapshot = (onlineUserIds: string[]) => {
+      const onlineSet = new Set(onlineUserIds)
+      queryClient.setQueryData<ListGuildMembersResponse>(
+        queryKey,
+        (current) => {
+          if (!current) return current
+          return {
+            ...current,
+            members: current.members.map((member) => ({
+              ...member,
+              status: onlineSet.has(member.userId) ? "online" : "offline",
+            })),
+          }
+        }
+      )
+    }
+
+    const requestSnapshot = () => {
+      socket.emit("presence:subscribe", { guildId: data.guildId }, (result) => {
+        if (!result.ok) return
+        applySnapshot(result.snapshot.onlineUserIds)
+      })
+    }
+
+    const onPresenceReady = () => {
+      requestSnapshot()
+    }
+
+    const onConnect = () => {
+      requestSnapshot()
+    }
+
+    const onPresenceUpdate = (payload: PresenceUserUpdate) => {
+      if (payload.guildId !== data.guildId) return
+      const nextStatus: GuildMemberPresence["status"] =
+        payload.status === "offline" ? "offline" : "online"
+
+      queryClient.setQueryData<ListGuildMembersResponse>(
+        queryKey,
+        (current) => {
+          if (!current) return current
+          return {
+            ...current,
+            members: current.members.map((member) =>
+              member.userId === payload.userId
+                ? { ...member, status: nextStatus }
+                : member
+            ),
+          }
+        }
+      )
+    }
+
+    socket.on("presence:ready", onPresenceReady)
+    socket.on("connect", onConnect)
+    socket.on("presence:user:update", onPresenceUpdate)
+
+    if (socket.connected) {
+      requestSnapshot()
+    }
+
+    return () => {
+      socket.off("presence:ready", onPresenceReady)
+      socket.off("connect", onConnect)
+      socket.off("presence:user:update", onPresenceUpdate)
+    }
+  }, [socket, data?.guildId, queryClient, queryKey])
+
+  const members = data?.members ?? []
   const onlineMembers = members.filter((member) => member.status !== "offline")
   const offlineMembers = members.filter((member) => member.status === "offline")
-  const guildName = guild?.name?.trim() || "Guild"
+  const guildName = data?.guildName?.trim() || "Guild"
 
   return (
     <div className="flex h-full w-full flex-col bg-card">
@@ -130,12 +177,16 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
           <span className="text-sm font-semibold">{guildName} Members</span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {members.length} total • presence is currently mocked
+          {members.length} total members
         </p>
       </div>
 
       {isPending ? (
-        <MemberSkeleton />
+        <MembersSkeleton />
+      ) : isError ? (
+        <div className="px-4 py-3 text-sm text-muted-foreground">
+          Failed to load members.
+        </div>
       ) : (
         <ScrollArea className="flex-1 px-2 py-2">
           {members.length === 0 ? (
@@ -147,11 +198,11 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
               {onlineMembers.length > 0 && (
                 <section>
                   <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Online — {onlineMembers.length}
+                    Online - {onlineMembers.length}
                   </div>
                   <div className="space-y-0.5">
                     {onlineMembers.map((member) => (
-                      <MemberRow key={member.id} member={member} />
+                      <MemberRow key={member.userId} member={member} />
                     ))}
                   </div>
                 </section>
@@ -160,11 +211,11 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
               {offlineMembers.length > 0 && (
                 <section>
                   <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Offline — {offlineMembers.length}
+                    Offline - {offlineMembers.length}
                   </div>
                   <div className="space-y-0.5">
                     {offlineMembers.map((member) => (
-                      <MemberRow key={member.id} member={member} />
+                      <MemberRow key={member.userId} member={member} />
                     ))}
                   </div>
                 </section>
