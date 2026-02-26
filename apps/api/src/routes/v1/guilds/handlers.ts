@@ -4,18 +4,29 @@ import { asc } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { getRedisClient } from "@/lib/redis"
 import type { AppRouteHandler } from "@/lib/types/app-types"
-import type { ListGuildMembersRoute } from "./routes"
+import type { ListGuildMembersRoute } from "@/routes/v1/guilds/routes"
+
+const PRESENCE_MEMBERSHIP_CHUNK_SIZE = 250
 
 async function listOnlineUserIds(userIds: string[]) {
   if (userIds.length === 0) return new Set<string>()
 
   try {
     const redis = await getRedisClient()
-    const membership = await Promise.all(
-      userIds.map((userId) =>
-        redis.sIsMember(PRESENCE_ONLINE_USERS_SET_KEY, userId)
+    const membership: boolean[] = []
+
+    for (
+      let index = 0;
+      index < userIds.length;
+      index += PRESENCE_MEMBERSHIP_CHUNK_SIZE
+    ) {
+      const chunk = userIds.slice(index, index + PRESENCE_MEMBERSHIP_CHUNK_SIZE)
+      const chunkMembership = await redis.smIsMember(
+        PRESENCE_ONLINE_USERS_SET_KEY,
+        chunk
       )
-    )
+      membership.push(...chunkMembership)
+    }
 
     const onlineIds = userIds.filter((_, index) => membership[index] === true)
 

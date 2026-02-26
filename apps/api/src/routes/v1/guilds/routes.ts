@@ -4,6 +4,7 @@ import jsonContent from "@/lib/helpers/openapi/json-content"
 import {
   forbiddenSchema,
   internalServerErrorSchema,
+  notFoundSchema,
   unauthorizedSchema,
 } from "@/lib/helpers/openapi/schemas"
 import { guildAuthMiddleware } from "@/middleware/guild-auth"
@@ -27,6 +28,7 @@ export const listGuildMembers = createRoute({
     }),
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
     [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
   },
 })

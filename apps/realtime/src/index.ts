@@ -34,6 +34,8 @@ type SocketData = {
   user: Session["user"]
   session: Session["session"]
   guildIds?: string[]
+  initialized?: boolean
+  initPromise?: Promise<boolean>
 }
 
 type RealtimeSocket = Socket<
@@ -179,6 +181,8 @@ async function initializeConnection(socket: RealtimeSocket) {
         guilds: guildPresenceRooms,
       },
     })
+
+    return true
   } catch (error) {
     console.error(
       "initializeConnection failed (schema.guildMember lookup or socket.join):",
@@ -189,12 +193,24 @@ async function initializeConnection(socket: RealtimeSocket) {
       }
     )
     socket.disconnect(true)
+    return false
   }
 }
 
 io.on("connection", (socket) => {
+  socket.data.initialized = false
+
   socket.on("presence:subscribe", async (payload, ack) => {
     try {
+      if (!socket.data.initialized) {
+        await socket.data.initPromise
+      }
+
+      if (!socket.data.initialized) {
+        ack?.({ ok: false, error: "Socket initialization incomplete" })
+        return
+      }
+
       const parsed = presenceSubscribePayloadSchema.parse(payload)
       const guildIds = socket.data.guildIds ?? []
 
@@ -331,7 +347,10 @@ io.on("connection", (socket) => {
     })()
   })
 
-  void initializeConnection(socket)
+  socket.data.initPromise = initializeConnection(socket).then((initialized) => {
+    socket.data.initialized = initialized
+    return initialized
+  })
 })
 
 async function bootstrap() {

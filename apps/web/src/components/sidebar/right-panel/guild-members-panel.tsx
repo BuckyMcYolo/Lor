@@ -92,9 +92,10 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       return res.json()
     },
   })
+  const guildId = data?.guildId
 
   useEffect(() => {
-    if (!socket || !data?.guildId) return
+    if (!socket || !guildId) return
 
     const applySnapshot = (onlineUserIds: string[]) => {
       const onlineSet = new Set(onlineUserIds)
@@ -114,7 +115,9 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
     }
 
     const requestSnapshot = () => {
-      socket.emit("presence:subscribe", { guildId: data.guildId }, (result) => {
+      if (!guildId) return
+
+      socket.emit("presence:subscribe", { guildId }, (result) => {
         if (!result.ok) return
         applySnapshot(result.snapshot.onlineUserIds)
       })
@@ -129,7 +132,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
     }
 
     const onPresenceUpdate = (payload: PresenceUserUpdate) => {
-      if (payload.guildId !== data.guildId) return
+      if (!guildId || payload.guildId !== guildId) return
       const nextStatus: GuildMemberPresence["status"] =
         payload.status === "offline" ? "offline" : "online"
 
@@ -162,7 +165,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       socket.off("connect", onConnect)
       socket.off("presence:user:update", onPresenceUpdate)
     }
-  }, [socket, data?.guildId, queryClient, queryKey])
+  }, [socket, guildId, queryClient, queryKey])
 
   const members = data?.members ?? []
   const onlineMembers = members.filter((member) => member.status !== "offline")
