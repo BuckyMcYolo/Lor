@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+export type PresenceStatus = "online" | "offline" | "idle" | "dnd"
+
 export const channelRoomPayloadSchema = z.object({
   channelId: z.string().uuid(),
 })

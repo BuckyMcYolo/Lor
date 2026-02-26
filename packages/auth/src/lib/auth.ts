@@ -193,3 +193,5 @@ export const auth = betterAuth({
 })
 
 export type Session = typeof auth.$Infer.Session
+export type ActiveGuild = typeof auth.$Infer.ActiveOrganization
+export type ActiveGuildMember = ActiveGuild["members"][number]

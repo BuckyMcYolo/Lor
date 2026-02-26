@@ -1,11 +1,12 @@
 import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { ChatHeader } from "@/components/chat/header"
 import { MessageInput } from "@/components/chat/message-input"
 import { MessageList } from "@/components/chat/message-list"
+import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
 import { apiClient } from "@/lib/api-client"
 import type { ListMessagesResponse } from "@/lib/api-types"
@@ -22,9 +23,30 @@ function ChannelView() {
   const { guildSlug, channelId } = Route.useParams()
   const socket = useSocket()
   const queryClient = useQueryClient()
+  const { setView, clearView } = useRightSidebar()
   const { data: session } = authClient.useSession()
   // Track nonces for optimistic messages so we can replace them on confirm
   const pendingNonces = useRef(new Set<string>())
+  const rightSidebarView = useMemo(
+    () =>
+      ({
+        type: "guild-members" as const,
+        guildSlug,
+        channelId,
+      }) as const,
+    [guildSlug, channelId]
+  )
+
+  useEffect(() => {
+    setView(rightSidebarView)
+  }, [setView, rightSidebarView])
+
+  useEffect(
+    () => () => {
+      clearView()
+    },
+    [clearView]
+  )
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["channel", guildSlug, channelId],
