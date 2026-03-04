@@ -44,6 +44,14 @@ export type RealtimeMessageType =
   | "system_pin"
   | "channel_name_change"
 
+export type RealtimeMessageMention = {
+  id: string
+  name: string
+  username: string | null
+  displayUsername: string | null
+  image: string | null
+}
+
 export type RealtimeMessage = {
   id: string
   channelId: string
@@ -59,6 +67,7 @@ export type RealtimeMessage = {
     displayUsername: string | null
     image: string | null
   }
+  mentions: RealtimeMessageMention[]
   nonce?: string
 }
 

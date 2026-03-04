@@ -37,11 +37,7 @@ import {
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useState } from "react"
 import { apiClient } from "@/lib/api-client"
-import type {
-  CategoryWithChannels,
-  Channel,
-  ListChannelsResponse,
-} from "@/lib/api-types"
+import type { Channel, ListChannelsResponse } from "@/lib/api-types"
 
 const channelIcons = {
   text: Hash,
@@ -50,7 +46,6 @@ const channelIcons = {
   forum: MessageSquare,
 } as const
 
-type Category = CategoryWithChannels
 type ChannelData = ListChannelsResponse
 
 function ChannelIcon({ type }: { type: string }) {
@@ -542,7 +537,6 @@ function SortableChannelItem({
   }
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: dnd-kit requires a div here to avoid nested interactive elements
     // biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit requires a div here
     // biome-ignore lint/a11y/useKeyWithClickEvents: dnd-kit handles keyboard interactions
     <div

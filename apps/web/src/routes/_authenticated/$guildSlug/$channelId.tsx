@@ -1,10 +1,10 @@
 import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
+import { MessageInput } from "@/components/chat/composer/message-input"
 import { ChatHeader } from "@/components/chat/header"
-import { MessageInput } from "@/components/chat/message-input"
 import { MessageList } from "@/components/chat/message-list"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
@@ -67,6 +67,17 @@ function ChannelView() {
     enabled: !!data,
   })
 
+  const { data: guildMembersData } = useQuery({
+    queryKey: ["guild-members", guildSlug],
+    queryFn: async () => {
+      const res = await apiClient.v1.guilds[":guildSlug"].members.$get({
+        param: { guildSlug },
+      })
+      if (!res.ok) throw new Error("Failed to fetch guild members")
+      return res.json()
+    },
+  })
+
   // Join/leave the channel room for real-time messages
   useEffect(() => {
     if (!socket) return
@@ -118,7 +129,10 @@ function ChannelView() {
   }, [socket, channelId, queryClient])
 
   const handleSend = useCallback(
-    (content: string) => {
+    (
+      content: string,
+      options?: { mentions: ListMessagesResponse["data"][number]["mentions"] }
+    ) => {
       if (!socket?.connected || !session?.user) return
 
       const nonce = crypto.randomUUID()
@@ -140,7 +154,13 @@ function ChannelView() {
           return {
             ...old,
             data: [
-              createOptimisticMessage(nonce, channelId, content, author),
+              createOptimisticMessage(
+                nonce,
+                channelId,
+                content,
+                author,
+                options?.mentions ?? []
+              ),
               ...old.data,
             ],
           }
@@ -181,6 +201,19 @@ function ChannelView() {
     [socket, channelId, queryClient, session]
   )
 
+  const mentionCandidates = useMemo(
+    () =>
+      guildMembersData?.members.map((member) => ({
+        id: member.userId,
+        label: member.displayUsername ?? member.username ?? member.name,
+        name: member.name,
+        username: member.username,
+        displayUsername: member.displayUsername,
+        image: member.image,
+      })) ?? [],
+    [guildMembersData?.members]
+  )
+
   if (isPending) {
     return <ChatSkeleton />
   }
@@ -217,7 +250,12 @@ function ChannelView() {
         messages={messagesData?.data ?? []}
         isLoading={messagesLoading}
       />
-      <MessageInput context={context} onSend={handleSend} />
+      <MessageInput
+        context={context}
+        onSend={handleSend}
+        currentUserId={session?.user.id}
+        mentionCandidates={mentionCandidates}
+      />
     </div>
   )
 }

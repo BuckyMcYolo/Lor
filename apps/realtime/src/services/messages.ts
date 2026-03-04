@@ -83,6 +83,7 @@ export async function createMessage(input: CreateMessageInput) {
       displayUsername: messageWithAuthor.authorDisplayUsername,
       image: messageWithAuthor.authorImage,
     },
+    mentions: [],
   }
 
   if (input.payload.nonce) {

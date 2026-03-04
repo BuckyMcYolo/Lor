@@ -15,6 +15,7 @@ export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
     embeds: [],
     pinned: false,
     editedAt: null,
+    mentions: rm.mentions,
   }
 }
 
@@ -26,7 +27,8 @@ export function createOptimisticMessage(
   nonce: string,
   channelId: string,
   content: string,
-  author: MessageAuthor
+  author: MessageAuthor,
+  mentions: Message["mentions"] = []
 ): Message {
   return {
     id: nonce,
@@ -41,5 +43,6 @@ export function createOptimisticMessage(
     embeds: [],
     pinned: false,
     editedAt: null,
+    mentions,
   }
 }

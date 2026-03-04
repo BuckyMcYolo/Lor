@@ -1,6 +1,6 @@
 import { db } from "@repo/db"
-import { message, user } from "@repo/db/schema"
-import { count, desc, eq } from "drizzle-orm"
+import { message, messageMention, user } from "@repo/db/schema"
+import { and, count, desc, eq, inArray } from "drizzle-orm"
 
 export async function fetchMessagePage(
   channelId: string,
@@ -45,12 +45,62 @@ export async function fetchMessagePage(
 
   const itemsTotal = countResult[0]?.total ?? 0
   const totalPages = Math.ceil(itemsTotal / perPage)
+  const messageIds = messages.map((msg) => msg.id)
+
+  const mentionRows =
+    messageIds.length > 0
+      ? await db
+          .select({
+            messageId: messageMention.messageId,
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            displayUsername: user.displayUsername,
+            image: user.image,
+          })
+          .from(messageMention)
+          .innerJoin(user, eq(messageMention.mentionedUserId, user.id))
+          .where(
+            and(
+              inArray(messageMention.messageId, messageIds),
+              eq(messageMention.mentionType, "direct")
+            )
+          )
+      : []
+
+  const mentionsByMessageId = new Map<
+    string,
+    Array<{
+      id: string
+      name: string
+      username: string | null
+      displayUsername: string | null
+      image: string | null
+    }>
+  >()
+
+  for (const mentionRow of mentionRows) {
+    const existingMentions = mentionsByMessageId.get(mentionRow.messageId) ?? []
+    existingMentions.push({
+      id: mentionRow.id,
+      name: mentionRow.name,
+      username: mentionRow.username,
+      displayUsername: mentionRow.displayUsername,
+      image: mentionRow.image,
+    })
+    mentionsByMessageId.set(mentionRow.messageId, existingMentions)
+  }
+
+  const messagesWithMentions = messages.map((msg) => ({
+    ...msg,
+    mentions: mentionsByMessageId.get(msg.id) ?? [],
+  }))
 
   return {
     itemsTotal,
     currentPage: page,
     nextPage: page < totalPages ? page + 1 : null,
     prevPage: page > 1 ? page - 1 : null,
-    data: messages,
+    data: messagesWithMentions,
   }
 }

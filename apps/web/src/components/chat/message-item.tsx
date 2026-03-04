@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import { formatTime } from "@repo/utils/date"
 import type { Message } from "@/lib/api-types"
+import { MessageMarkdown } from "./message-markdown"
 
 interface MessageItemProps {
   message: Message
@@ -38,9 +39,10 @@ export function MessageItem({ message, showHeader }: MessageItemProps) {
             </span>
           </div>
         )}
-        <p className="break-words text-sm leading-snug text-foreground/90">
-          {message.content}
-        </p>
+        <MessageMarkdown
+          content={message.content}
+          mentions={message.mentions}
+        />
       </div>
     </div>
   )
