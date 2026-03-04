@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useCallback, useEffect, useRef } from "react"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
+import { MessageInput } from "@/components/chat/composer/message-input"
 import { ChatHeader } from "@/components/chat/header"
-import { MessageInput } from "@/components/chat/message-input"
 import { MessageList } from "@/components/chat/message-list"
 import { useSocket } from "@/context/socket-context"
 import { apiClient } from "@/lib/api-client"
@@ -96,7 +96,10 @@ function DMConversation() {
   }, [socket, dmId, queryClient])
 
   const handleSend = useCallback(
-    (content: string) => {
+    (
+      content: string,
+      options?: { mentions: ListDMMessagesResponse["data"][number]["mentions"] }
+    ) => {
       if (!socket?.connected || !session?.user) return
 
       const nonce = crypto.randomUUID()
@@ -117,7 +120,13 @@ function DMConversation() {
           return {
             ...old,
             data: [
-              createOptimisticMessage(nonce, dmId, content, author),
+              createOptimisticMessage(
+                nonce,
+                dmId,
+                content,
+                author,
+                options?.mentions ?? []
+              ),
               ...old.data,
             ],
           }
@@ -193,6 +202,18 @@ function DMConversation() {
           avatarUrl: dm.members[0]?.image ?? undefined,
         }
 
+  const mentionCandidates = dm.members.map((member) => ({
+    id: member.id,
+    label: member.displayUsername ?? member.username ?? member.name,
+    name: member.name,
+    username: member.username,
+    displayUsername: member.displayUsername,
+    image: member.image,
+    search: [member.name, member.username, member.displayUsername]
+      .filter((value): value is string => Boolean(value))
+      .join(" "),
+  }))
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <ChatHeader context={context} />
@@ -201,7 +222,12 @@ function DMConversation() {
         messages={messagesData?.data ?? []}
         isLoading={messagesLoading}
       />
-      <MessageInput context={context} onSend={handleSend} />
+      <MessageInput
+        context={context}
+        onSend={handleSend}
+        currentUserId={session?.user.id}
+        mentionCandidates={mentionCandidates}
+      />
     </div>
   )
 }

@@ -12,6 +12,7 @@ export const messageAuthorSchema = z.object({
 
 export const messageWithAuthorSchema = selectMessageSchema.extend({
   author: messageAuthorSchema,
+  mentions: z.array(messageAuthorSchema),
 })
 
 export const listMessagesQuerySchema = paginationQuerySchema

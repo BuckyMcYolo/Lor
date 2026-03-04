@@ -296,15 +296,20 @@ io.on("connection", (socket) => {
         payload: parsed,
       })
 
-      socket
-        .to(channelRoom(parsed.channelId))
-        .emit("message:created", createdMessage.message)
-
       const fanout = await buildMessageFanout({
         authorId: socket.data.user.id,
         channel: createdMessage.channel,
         message: createdMessage.message,
       })
+
+      const messageWithMentions = {
+        ...createdMessage.message,
+        mentions: fanout.messageMentions,
+      }
+
+      socket
+        .to(channelRoom(parsed.channelId))
+        .emit("message:created", messageWithMentions)
 
       for (const unreadNotification of fanout.unreadNotifications) {
         io.to(userRoom(unreadNotification.userId)).emit(
@@ -320,7 +325,7 @@ io.on("connection", (socket) => {
         )
       }
 
-      ack?.({ ok: true, message: createdMessage.message })
+      ack?.({ ok: true, message: messageWithMentions })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }

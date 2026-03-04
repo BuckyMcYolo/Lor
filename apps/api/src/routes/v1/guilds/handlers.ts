@@ -47,6 +47,8 @@ export const listGuildMembers: AppRouteHandler<ListGuildMembersRoute> = async (
       userId: schema.guildMember.userId,
       role: schema.guildMember.role,
       name: schema.user.name,
+      username: schema.user.username,
+      displayUsername: schema.user.displayUsername,
       image: schema.user.image,
     })
     .from(schema.guildMember)
@@ -65,6 +67,8 @@ export const listGuildMembers: AppRouteHandler<ListGuildMembersRoute> = async (
       members: memberRows.map((member) => ({
         userId: member.userId,
         name: member.name,
+        username: member.username,
+        displayUsername: member.displayUsername,
         image: member.image,
         role: member.role,
         status: onlineUserIds.has(member.userId)

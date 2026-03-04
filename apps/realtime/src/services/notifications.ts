@@ -2,6 +2,7 @@ import { and, db, eq, inArray, schema } from "@repo/db"
 import type {
   MentionNotification,
   RealtimeMessage,
+  RealtimeMessageMention,
   UnreadNotification,
 } from "@repo/realtime-types"
 import type { AccessibleChannel } from "./channel-access"
@@ -26,6 +27,8 @@ type NotificationInsertType = Extract<
 
 const USER_MENTION_REGEX =
   /<@([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})>/gi
+const MARKDOWN_USER_MENTION_REGEX =
+  /\[@[^\]]*?\bid="([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})"[^\]]*]/gi
 const EVERYONE_MENTION_REGEX = /(^|\s)@everyone\b/i
 const mentionNotificationTypes = ["direct_mention", "everyone_mention"] as const
 
@@ -33,6 +36,13 @@ function extractDirectMentionUserIds(content: string) {
   const userIds = new Set<string>()
 
   for (const match of content.matchAll(USER_MENTION_REGEX)) {
+    const userId = match[1]
+    if (userId) {
+      userIds.add(userId)
+    }
+  }
+
+  for (const match of content.matchAll(MARKDOWN_USER_MENTION_REGEX)) {
     const userId = match[1]
     if (userId) {
       userIds.add(userId)
@@ -129,9 +139,43 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
     messageContent: input.message.content ?? "",
   })
 
+  const mentionedUserIds = Array.from(mentionTypeByUserId.keys())
+  const mentionUsers =
+    mentionedUserIds.length > 0
+      ? await db
+          .select({
+            id: schema.user.id,
+            name: schema.user.name,
+            username: schema.user.username,
+            displayUsername: schema.user.displayUsername,
+            image: schema.user.image,
+          })
+          .from(schema.user)
+          .where(inArray(schema.user.id, mentionedUserIds))
+      : []
+
+  const mentionUserMap = new Map(mentionUsers.map((user) => [user.id, user]))
+  const messageMentions: RealtimeMessageMention[] = mentionedUserIds.flatMap(
+    (userId) => {
+      const mentionUser = mentionUserMap.get(userId)
+      if (!mentionUser) return []
+
+      return [
+        {
+          id: mentionUser.id,
+          name: mentionUser.name,
+          username: mentionUser.username,
+          displayUsername: mentionUser.displayUsername,
+          image: mentionUser.image,
+        },
+      ]
+    }
+  )
+
   if (mentionTypeByUserId.size === 0) {
     return {
       unreadNotifications,
+      messageMentions,
       mentionNotifications: [] as Array<
         UserTargetedPayload<MentionNotification>
       >,
@@ -255,6 +299,7 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
 
   return {
     unreadNotifications,
+    messageMentions,
     mentionNotifications,
   }
 }

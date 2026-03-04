@@ -6,6 +6,8 @@ export { guildSlugParamsSchema }
 export const guildMemberPresenceSchema = z.object({
   userId: z.string().uuid(),
   name: z.string(),
+  username: z.string().nullable(),
+  displayUsername: z.string().nullable(),
   image: z.string().nullable(),
   role: z.string(),
   status: z.enum(["online", "offline"]),
