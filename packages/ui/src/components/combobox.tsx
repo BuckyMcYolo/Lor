@@ -24,10 +24,16 @@ function ComboboxTrigger({
   children,
   ...props
 }: ComboboxPrimitive.Trigger.Props) {
+  const triggerAriaProps =
+    props["aria-label"] || props["aria-labelledby"] || children
+      ? {}
+      : { "aria-label": "Toggle options" }
+
   return (
     <ComboboxPrimitive.Trigger
       data-slot="combobox-trigger"
       className={cn("[&_svg:not([class*='size-'])]:size-4", className)}
+      {...triggerAriaProps}
       {...props}
     >
       {children}
@@ -40,11 +46,17 @@ function ComboboxTrigger({
 }
 
 function ComboboxClear({ className, ...props }: ComboboxPrimitive.Clear.Props) {
+  const clearAriaProps =
+    props["aria-label"] || props["aria-labelledby"]
+      ? {}
+      : { "aria-label": "Clear" }
+
   return (
     <ComboboxPrimitive.Clear
       data-slot="combobox-clear"
       render={<InputGroupButton variant="ghost" size="icon-xs" />}
       className={cn(className)}
+      {...clearAriaProps}
       {...props}
     >
       <XIcon className="pointer-events-none" />

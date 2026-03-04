@@ -254,6 +254,8 @@ export function MessageInput({
   )
 
   const handleSend = useCallback(() => {
+    if (!editor) return
+
     const markdown = toStoredMarkdown(editor.getMarkdown())
     const trimmed = markdown.trim()
     if (!trimmed || trimmed.length > MAX_MESSAGE_LENGTH || isSending) return
@@ -286,6 +288,10 @@ export function MessageInput({
   }, [editor, isSending, normalizedMentionCandidates, onSend])
 
   useEffect(() => {
+    if (!editor || !editor.view || !editor.view.dom) {
+      return
+    }
+
     const isMentionSuggestionOpen = () =>
       Boolean(document.querySelector("[data-mention-suggestion-open='true']"))
 
