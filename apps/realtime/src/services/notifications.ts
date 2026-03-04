@@ -139,7 +139,9 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
     messageContent: input.message.content ?? "",
   })
 
-  const mentionedUserIds = Array.from(mentionTypeByUserId.keys())
+  const mentionedUserIds = Array.from(mentionTypeByUserId.entries())
+    .filter(([, mentionType]) => mentionType === "direct")
+    .map(([userId]) => userId)
   const mentionUsers =
     mentionedUserIds.length > 0
       ? await db

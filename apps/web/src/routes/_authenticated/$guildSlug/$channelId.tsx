@@ -1,7 +1,7 @@
 import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { MessageInput } from "@/components/chat/composer/message-input"
 import { ChatHeader } from "@/components/chat/header"
@@ -201,6 +201,19 @@ function ChannelView() {
     [socket, channelId, queryClient, session]
   )
 
+  const mentionCandidates = useMemo(
+    () =>
+      guildMembersData?.members.map((member) => ({
+        id: member.userId,
+        label: member.displayUsername ?? member.username ?? member.name,
+        name: member.name,
+        username: member.username,
+        displayUsername: member.displayUsername,
+        image: member.image,
+      })) ?? [],
+    [guildMembersData?.members]
+  )
+
   if (isPending) {
     return <ChatSkeleton />
   }
@@ -228,16 +241,6 @@ function ChannelView() {
     name: data.name ?? channelId,
     topic: data.topic ?? undefined,
   }
-
-  const mentionCandidates =
-    guildMembersData?.members.map((member) => ({
-      id: member.userId,
-      label: member.displayUsername ?? member.username ?? member.name,
-      name: member.name,
-      username: member.username,
-      displayUsername: member.displayUsername,
-      image: member.image,
-    })) ?? []
 
   return (
     <div className="flex h-full flex-col overflow-hidden">

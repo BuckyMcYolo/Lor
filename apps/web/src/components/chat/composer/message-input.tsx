@@ -291,6 +291,9 @@ export function MessageInput({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Enter" && !event.shiftKey) {
+        if (event.isComposing) {
+          return
+        }
         if (isMentionSuggestionOpen()) {
           return
         }

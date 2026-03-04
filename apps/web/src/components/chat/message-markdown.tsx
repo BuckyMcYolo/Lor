@@ -17,7 +17,7 @@ const TIPTAP_MENTION_REGEX =
   /\[@[^\]]*?\bid="([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})"[^\]]*]/gi
 
 function escapeMarkdownText(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/]/g, "\\]")
+  return value.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/]/g, "\\]")
 }
 
 function getMentionLabel(mention: Message["mentions"][number]) {

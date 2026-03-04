@@ -1,6 +1,6 @@
 import { db } from "@repo/db"
 import { message, messageMention, user } from "@repo/db/schema"
-import { count, desc, eq, inArray } from "drizzle-orm"
+import { and, count, desc, eq, inArray } from "drizzle-orm"
 
 export async function fetchMessagePage(
   channelId: string,
@@ -60,7 +60,12 @@ export async function fetchMessagePage(
           })
           .from(messageMention)
           .innerJoin(user, eq(messageMention.mentionedUserId, user.id))
-          .where(inArray(messageMention.messageId, messageIds))
+          .where(
+            and(
+              inArray(messageMention.messageId, messageIds),
+              eq(messageMention.mentionType, "direct")
+            )
+          )
       : []
 
   const mentionsByMessageId = new Map<
