@@ -8,11 +8,14 @@ import { createLinkUnfurlProcessor } from "@/jobs/link-unfurl"
 
 function parseRedisUrl(url: string) {
   const parsed = new URL(url)
+  const dbIndex = Number.parseInt(parsed.pathname.slice(1), 10)
   return {
     host: parsed.hostname,
     port: Number(parsed.port) || 6379,
     password: parsed.password || undefined,
     username: parsed.username || undefined,
+    tls: parsed.protocol === "rediss:" ? {} : undefined,
+    db: Number.isFinite(dbIndex) ? dbIndex : 0,
   }
 }
 
@@ -43,6 +46,15 @@ async function bootstrap() {
 
   linkUnfurlWorker.on("failed", (job, error) => {
     console.error(`[worker] link-unfurl job ${job?.id} failed:`, error.message)
+  })
+
+  linkUnfurlWorker.on("error", (error) => {
+    console.error("[worker] link-unfurl worker error:", {
+      queue: LINK_UNFURL_QUEUE,
+      workerId: linkUnfurlWorker.id,
+      message: error.message,
+      stack: error.stack,
+    })
   })
 
   console.log("Worker started, processing queues:", LINK_UNFURL_QUEUE)

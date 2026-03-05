@@ -10,8 +10,6 @@ import type { Emitter } from "@socket.io/redis-emitter"
 import type { Job } from "bullmq"
 import ogs from "open-graph-scraper"
 
-const URL_REGEX = /https?:\/\/[^\s<>")\]]+/
-
 const OG_FETCH_TIMEOUT_MS = 5000
 
 const OG_PROXY_RULES: Array<{
@@ -26,17 +24,16 @@ const OG_PROXY_RULES: Array<{
   },
 ]
 
-function extractFirstUrl(content: string): string | null {
-  const match = URL_REGEX.exec(content)
-  return match ? (match[0] ?? null) : null
-}
-
 function matchProxyRule(originalUrl: string) {
   for (const rule of OG_PROXY_RULES) {
     if (rule.pattern.test(originalUrl)) {
-      const parsed = new URL(originalUrl)
-      parsed.hostname = rule.proxyHost
-      return { fetchUrl: parsed.toString(), siteName: rule.siteName }
+      try {
+        const parsed = new URL(originalUrl)
+        parsed.hostname = rule.proxyHost
+        return { fetchUrl: parsed.toString(), siteName: rule.siteName }
+      } catch {
+        return null
+      }
     }
   }
   return null
@@ -82,9 +79,9 @@ export function createLinkUnfurlProcessor(
   emitter: Emitter<ServerToClientEvents>
 ) {
   return async (job: Job<LinkUnfurlJobData>) => {
-    const { messageId, channelId, content } = job.data
+    const { messageId, channelId, urls } = job.data
 
-    const url = extractFirstUrl(content)
+    const url = urls[0]
     if (!url) return
 
     const embed = await fetchOgEmbed(url)
@@ -92,10 +89,13 @@ export function createLinkUnfurlProcessor(
 
     const embeds = [embed]
 
-    await db
+    const [updated] = await db
       .update(schema.message)
       .set({ embeds })
       .where(eq(schema.message.id, messageId))
+      .returning({ id: schema.message.id })
+
+    if (!updated) return
 
     const payload: RealtimeMessageEmbedsUpdated = {
       channelId,

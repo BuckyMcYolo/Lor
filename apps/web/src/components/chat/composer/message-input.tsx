@@ -109,7 +109,7 @@ function toStoredMarkdown(markdown: string) {
       // Strip ++…++ wrappers the Markdown extension generates for unrecognised marks (e.g. Link)
       // TipTap outputs either ++[url](url)++ or ++bareUrl++
       .replace(/\+\+\[([^\]]+)\]\([^)]+\)\+\+/g, "$1")
-      .replace(/\+\+([^+]+)\+\+/g, "$1")
+      .replace(/\+\+([\s\S]+?)\+\+/g, "$1")
       .replace(TIPTAP_MARKDOWN_MENTION_REGEX, (_match, mentionId: string) => {
         if (mentionId.toLowerCase() === EVERYONE_MENTION_ID) {
           return "@everyone"

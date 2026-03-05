@@ -10,7 +10,7 @@ interface EmbedCardProps {
 }
 
 export function EmbedCard({ embed, className }: EmbedCardProps) {
-  const hasMeta = embed.title || embed.description || embed.siteName
+  const hasMeta = Boolean(embed.title || embed.description)
 
   return (
     <div
@@ -48,19 +48,20 @@ export function EmbedCard({ embed, className }: EmbedCardProps) {
           </a>
         )}
       </div>
-      {embed.thumbnail && hasMeta && (
-        <div className="px-3 pb-3">
-          <img
-            src={embed.thumbnail}
-            alt={embed.title ?? "Link preview"}
-            className="w-full rounded object-cover"
-            loading="lazy"
-            onError={(e) => {
-              e.currentTarget.style.display = "none"
-            }}
-          />
-        </div>
-      )}
+      {embed.thumbnail &&
+        (embed.title || embed.description || embed.siteName) && (
+          <div className="px-3 pb-3">
+            <img
+              src={embed.thumbnail}
+              alt={embed.title ?? "Link preview"}
+              className="w-full rounded object-cover"
+              loading="lazy"
+              onError={(e) => {
+                e.currentTarget.style.display = "none"
+              }}
+            />
+          </div>
+        )}
       {embed.siteName && (
         <div className="flex items-center gap-1.5 border-t border-border/50 px-3 py-2">
           <span className="text-xs text-muted-foreground">

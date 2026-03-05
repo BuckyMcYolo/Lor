@@ -332,12 +332,15 @@ io.on("connection", (socket) => {
       ack?.({ ok: true, message: messageWithMentions })
 
       // Enqueue link unfurl job if the message contains a URL
-      if (/https?:\/\//.test(parsed.content)) {
+      const urlMatches = parsed.content.match(
+        /https?:\/\/[^\s<>")\]]+[^\s<>")\].,!?:;'"]/g
+      )
+      if (urlMatches && urlMatches.length > 0) {
         void linkUnfurlQueue
           .add("unfurl", {
             messageId: createdMessage.message.id,
             channelId: parsed.channelId,
-            content: parsed.content,
+            urls: urlMatches,
           })
           .catch((err) => {
             console.error("[realtime] failed to enqueue link-unfurl:", err)
@@ -418,11 +421,14 @@ io.on("connection", (socket) => {
 
 function parseRedisUrl(url: string) {
   const parsed = new URL(url)
+  const dbIndex = Number.parseInt(parsed.pathname.slice(1), 10)
   return {
     host: parsed.hostname,
     port: Number(parsed.port) || 6379,
     password: parsed.password || undefined,
     username: parsed.username || undefined,
+    tls: parsed.protocol === "rediss:" ? {} : undefined,
+    db: Number.isFinite(dbIndex) ? dbIndex : 0,
   }
 }
 
@@ -430,6 +436,10 @@ const linkUnfurlQueue = new Queue<LinkUnfurlJobData>(LINK_UNFURL_QUEUE, {
   connection: {
     ...parseRedisUrl(env.REDIS_URL),
     maxRetriesPerRequest: null,
+  },
+  defaultJobOptions: {
+    removeOnComplete: { age: 3600, count: 1000 },
+    removeOnFail: { age: 86400, count: 5000 },
   },
 })
 

@@ -16,12 +16,14 @@ export const messageReactionSchema = z.object({
   reactedByCurrentUser: z.boolean(),
 })
 
+const httpsUrlSchema = z.string().regex(/^https?:\/\//i)
+
 export const messageEmbedSchema = z.object({
   type: z.enum(["link", "image", "video", "rich"]),
-  url: z.string(),
+  url: httpsUrlSchema,
   title: z.string().optional(),
   description: z.string().optional(),
-  thumbnail: z.string().optional(),
+  thumbnail: httpsUrlSchema.optional(),
   siteName: z.string().optional(),
 })
 
