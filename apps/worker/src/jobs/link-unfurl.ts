@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises"
 import { db, eq, schema } from "@repo/db"
 import type { Embed } from "@repo/db/schema"
 import type {
@@ -11,6 +12,32 @@ import type { Job } from "bullmq"
 import ogs from "open-graph-scraper"
 
 const OG_FETCH_TIMEOUT_MS = 5000
+
+const PRIVATE_IP_REGEX =
+  /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|0\.|169\.254\.|::1|fc|fd|fe80)/i
+
+async function isSafeUrl(urlString: string): Promise<boolean> {
+  try {
+    const parsed = new URL(urlString)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
+      return false
+
+    const hostname = parsed.hostname
+    if (
+      hostname === "localhost" ||
+      hostname === "[::1]" ||
+      PRIVATE_IP_REGEX.test(hostname)
+    )
+      return false
+
+    const { address } = await lookup(hostname)
+    if (PRIVATE_IP_REGEX.test(address)) return false
+
+    return true
+  } catch {
+    return false
+  }
+}
 
 const OG_PROXY_RULES: Array<{
   pattern: RegExp
@@ -42,6 +69,8 @@ function matchProxyRule(originalUrl: string) {
 async function fetchOgEmbed(url: string): Promise<Embed | null> {
   const proxy = matchProxyRule(url)
   const fetchUrl = proxy?.fetchUrl ?? url
+
+  if (!(await isSafeUrl(fetchUrl))) return null
 
   try {
     const { error, result } = await ogs({

@@ -332,8 +332,9 @@ io.on("connection", (socket) => {
       ack?.({ ok: true, message: messageWithMentions })
 
       // Enqueue link unfurl job if the message contains a URL
-      const urlMatches = parsed.content.match(
-        /https?:\/\/[^\s<>")\]]+[^\s<>")\].,!?:;'"]/g
+      const rawUrlMatches = parsed.content.match(/https?:\/\/[^\s<>"]+/g)
+      const urlMatches = rawUrlMatches?.map((u) =>
+        u.replace(/[.,!?:;'")\]]+$/, "")
       )
       if (urlMatches && urlMatches.length > 0) {
         void linkUnfurlQueue
