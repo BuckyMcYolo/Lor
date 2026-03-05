@@ -7,10 +7,27 @@ import {
 import { cn } from "@repo/ui/lib/utils"
 import Mention, { type MentionOptions } from "@tiptap/extension-mention"
 import { Markdown } from "@tiptap/markdown"
-import { EditorContent, ReactRenderer, useEditor } from "@tiptap/react"
+import {
+  EditorContent,
+  ReactRenderer,
+  useEditor,
+  useEditorState,
+} from "@tiptap/react"
+import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import type { SuggestionProps } from "@tiptap/suggestion"
-import { FileUp, ImagePlus, Link2, Plus, Send, Smile } from "lucide-react"
+import {
+  Bold,
+  Code,
+  FileUp,
+  ImagePlus,
+  Italic,
+  Link2,
+  Plus,
+  Send,
+  Smile,
+  Strikethrough,
+} from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Message } from "@/lib/api-types"
 import type { ChatContext } from "../header"
@@ -240,7 +257,7 @@ export function MessageInput({
       editorProps: {
         attributes: {
           class:
-            "min-h-[24px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-foreground/90 outline-none",
+            "min-h-[24px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6 text-foreground/90 outline-none [&_code]:rounded-[4px] [&_code]:border [&_code]:border-border/70 [&_code]:bg-primary/10 [&_code]:px-0.75 [&_code]:py-0.25 [&_code]:font-mono [&_code]:text-[0.92em] [&_code]:text-foreground",
         },
       },
       onCreate: ({ editor: tiptapEditor }) => {
@@ -322,6 +339,38 @@ export function MessageInput({
     trimmedValue.length <= MAX_MESSAGE_LENGTH &&
     !isSending
   const isEmpty = trimmedValue.length === 0
+  const markState = useEditorState({
+    editor,
+    selector: ({ editor: tiptapEditor }) => {
+      if (!tiptapEditor) {
+        return {
+          isBoldActive: false,
+          isCodeActive: false,
+          isItalicActive: false,
+          isStrikeActive: false,
+        }
+      }
+
+      return {
+        isBoldActive: tiptapEditor.isActive("bold"),
+        isCodeActive: tiptapEditor.isActive("code"),
+        isItalicActive: tiptapEditor.isActive("italic"),
+        isStrikeActive: tiptapEditor.isActive("strike"),
+      }
+    },
+  })
+  const isBoldActive = markState?.isBoldActive ?? false
+  const isCodeActive = markState?.isCodeActive ?? false
+  const isItalicActive = markState?.isItalicActive ?? false
+  const isStrikeActive = markState?.isStrikeActive ?? false
+
+  const getMarkButtonClassName = (isActive: boolean) =>
+    cn(
+      "size-7 border border-transparent text-muted-foreground",
+      "hover:text-foreground",
+      isActive &&
+        "border-primary/30 bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary"
+    )
 
   return (
     <div className="shrink-0 px-4 pb-3">
@@ -376,6 +425,125 @@ export function MessageInput({
             <span className="pointer-events-none absolute left-0 top-0 text-sm text-muted-foreground">
               {placeholder}
             </span>
+          )}
+          {editor && (
+            <BubbleMenu
+              editor={editor}
+              appendTo={() => document.body}
+              shouldShow={({ editor: tiptapEditor, state, from, to }) => {
+                if (!tiptapEditor.isEditable) return false
+                if (state.selection.empty || from === to) return false
+                if (tiptapEditor.isActive("codeBlock")) return false
+                return state.doc.textBetween(from, to).trim().length > 0
+              }}
+              getReferencedVirtualElement={() => {
+                const { selection } = editor.state
+                if (selection.empty) return null
+
+                const { left, right, top, bottom } = editor.view.coordsAtPos(
+                  selection.head
+                )
+
+                return {
+                  getBoundingClientRect: () =>
+                    new DOMRect(
+                      left,
+                      top,
+                      Math.max(1, right - left),
+                      Math.max(1, bottom - top)
+                    ),
+                }
+              }}
+              options={{
+                strategy: "fixed",
+                placement: "top",
+                offset: 8,
+                flip: true,
+                shift: true,
+              }}
+              className="z-50 flex items-center gap-1 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+            >
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className={getMarkButtonClassName(isBoldActive)}
+                aria-label="Bold"
+                aria-pressed={isBoldActive}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={() => {
+                  editor.chain().focus().toggleBold().run()
+                }}
+                disabled={!editor.can().chain().focus().toggleBold().run()}
+              >
+                <Bold
+                  className="size-3.5"
+                  strokeWidth={isBoldActive ? 2.5 : 2}
+                />
+              </Button>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className={getMarkButtonClassName(isItalicActive)}
+                aria-label="Italic"
+                aria-pressed={isItalicActive}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={() => {
+                  editor.chain().focus().toggleItalic().run()
+                }}
+                disabled={!editor.can().chain().focus().toggleItalic().run()}
+              >
+                <Italic
+                  className="size-3.5"
+                  strokeWidth={isItalicActive ? 2.5 : 2}
+                />
+              </Button>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className={getMarkButtonClassName(isCodeActive)}
+                aria-label="Inline code"
+                aria-pressed={isCodeActive}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={() => {
+                  editor.chain().focus().toggleCode().run()
+                }}
+                disabled={!editor.can().chain().focus().toggleCode().run()}
+              >
+                <Code
+                  className="size-3.5"
+                  strokeWidth={isCodeActive ? 2.5 : 2}
+                />
+              </Button>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className={getMarkButtonClassName(isStrikeActive)}
+                aria-label="Strikethrough"
+                aria-pressed={isStrikeActive}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={() => {
+                  editor.chain().focus().toggleStrike().run()
+                }}
+                disabled={!editor.can().chain().focus().toggleStrike().run()}
+              >
+                <Strikethrough
+                  className="size-3.5"
+                  strokeWidth={isStrikeActive ? 2.5 : 2}
+                />
+              </Button>
+            </BubbleMenu>
           )}
           <EditorContent editor={editor} className="flex-1" />
         </div>

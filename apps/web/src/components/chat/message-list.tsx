@@ -115,7 +115,7 @@ export function MessageList({
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="flex flex-1 flex-col-reverse overflow-y-auto py-4"
+      className="flex flex-1 select-text flex-col-reverse overflow-y-auto py-4"
     >
       {messages.map((msg, i) => {
         const next = messages[i + 1]
