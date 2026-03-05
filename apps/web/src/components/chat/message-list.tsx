@@ -10,6 +10,8 @@ import { MessageItem } from "./message-item"
 interface MessageListProps {
   context: ChatContext
   messages: Message[]
+  currentUserId?: string
+  onReact?: (messageId: string, emoji: string) => void
   isLoading?: boolean
   hasMore?: boolean
   onLoadMore?: () => void
@@ -57,6 +59,8 @@ const MESSAGE_GROUP_WINDOW_MINUTES = 5
 export function MessageList({
   context,
   messages,
+  currentUserId,
+  onReact,
   isLoading,
   hasMore,
   onLoadMore,
@@ -137,7 +141,12 @@ export function MessageList({
         return (
           <div key={msg.id}>
             {isDateBoundary && <DateDivider date={msg.createdAt} />}
-            <MessageItem message={msg} showHeader={showHeader} />
+            <MessageItem
+              message={msg}
+              showHeader={showHeader}
+              currentUserId={currentUserId}
+              onReact={onReact}
+            />
           </div>
         )
       })}

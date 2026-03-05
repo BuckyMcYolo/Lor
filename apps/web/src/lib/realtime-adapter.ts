@@ -1,4 +1,7 @@
-import type { RealtimeMessage } from "@repo/realtime-types"
+import type {
+  RealtimeMessage,
+  RealtimeMessageReactionUpdated,
+} from "@repo/realtime-types"
 import type { Message, MessageAuthor } from "./api-types"
 
 export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
@@ -16,6 +19,112 @@ export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
     pinned: false,
     editedAt: null,
     mentions: rm.mentions,
+    reactions: rm.reactions,
+  }
+}
+
+export function applyReactionUpdateToMessage(
+  message: Message,
+  update: RealtimeMessageReactionUpdated,
+  currentUserId?: string
+): Message {
+  if (message.id !== update.messageId) {
+    return message
+  }
+
+  const existingReactions = message.reactions ?? []
+  const reactionIndex = existingReactions.findIndex(
+    (reaction) => reaction.emoji === update.emoji
+  )
+  const nextReactions = [...existingReactions]
+
+  if (update.count <= 0) {
+    if (reactionIndex === -1) {
+      return message
+    }
+
+    nextReactions.splice(reactionIndex, 1)
+    return {
+      ...message,
+      reactions: nextReactions,
+    }
+  }
+
+  const reactedByCurrentUser =
+    currentUserId && update.actorUserId === currentUserId
+      ? update.reactedByActor
+      : ((reactionIndex >= 0 ? nextReactions[reactionIndex] : undefined)
+          ?.reactedByCurrentUser ?? false)
+
+  const nextReaction = {
+    emoji: update.emoji,
+    count: update.count,
+    reactedByCurrentUser,
+  }
+
+  if (reactionIndex === -1) {
+    nextReactions.push(nextReaction)
+  } else {
+    nextReactions[reactionIndex] = nextReaction
+  }
+
+  return {
+    ...message,
+    reactions: nextReactions,
+  }
+}
+
+/**
+ * Optimistically toggles a reaction for the current user on a single message.
+ * This mirrors server toggle behavior for immediate UI feedback.
+ */
+export function toggleReactionOptimistically(
+  message: Message,
+  emoji: string
+): Message {
+  const existingReactions = message.reactions ?? []
+  const reactionIndex = existingReactions.findIndex(
+    (reaction) => reaction.emoji === emoji
+  )
+
+  if (reactionIndex === -1) {
+    return {
+      ...message,
+      reactions: [
+        ...existingReactions,
+        { emoji, count: 1, reactedByCurrentUser: true },
+      ],
+    }
+  }
+
+  const nextReactions = [...existingReactions]
+  const currentReaction = nextReactions[reactionIndex]
+  if (!currentReaction) {
+    return message
+  }
+
+  if (currentReaction.reactedByCurrentUser) {
+    const nextCount = currentReaction.count - 1
+    if (nextCount <= 0) {
+      nextReactions.splice(reactionIndex, 1)
+    } else {
+      nextReactions[reactionIndex] = {
+        ...currentReaction,
+        count: nextCount,
+        reactedByCurrentUser: false,
+      }
+    }
+  } else {
+    nextReactions[reactionIndex] = {
+      ...currentReaction,
+      count: currentReaction.count + 1,
+      reactedByCurrentUser: true,
+    }
+  }
+
+  return {
+    ...message,
+    reactions: nextReactions,
   }
 }
 
@@ -44,5 +153,6 @@ export function createOptimisticMessage(
     pinned: false,
     editedAt: null,
     mentions,
+    reactions: [],
   }
 }

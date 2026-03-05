@@ -1,5 +1,10 @@
-import { db, eq, schema } from "@repo/db"
-import type { RealtimeMessage, SendMessagePayload } from "@repo/realtime-types"
+import { and, count, db, eq, schema } from "@repo/db"
+import type {
+  RealtimeMessage,
+  RealtimeMessageReactionUpdated,
+  SendMessagePayload,
+  ToggleMessageReactionPayload,
+} from "@repo/realtime-types"
 import {
   type AccessibleChannel,
   assertUserCanAccessChannel,
@@ -10,8 +15,18 @@ type CreateMessageInput = {
   payload: SendMessagePayload
 }
 
+type ToggleMessageReactionInput = {
+  userId: string
+  payload: ToggleMessageReactionPayload
+}
+
 export type CreateMessageResult = {
   message: RealtimeMessage
+  channel: AccessibleChannel
+}
+
+export type ToggleMessageReactionResult = {
+  update: RealtimeMessageReactionUpdated
   channel: AccessibleChannel
 }
 
@@ -84,6 +99,7 @@ export async function createMessage(input: CreateMessageInput) {
       image: messageWithAuthor.authorImage,
     },
     mentions: [],
+    reactions: [],
   }
 
   if (input.payload.nonce) {
@@ -94,4 +110,82 @@ export async function createMessage(input: CreateMessageInput) {
     message: createdMessage,
     channel: channelRecord,
   } satisfies CreateMessageResult
+}
+
+export async function toggleMessageReaction(input: ToggleMessageReactionInput) {
+  const channelRecord = await assertUserCanAccessChannel(
+    input.userId,
+    input.payload.channelId
+  )
+
+  const messageRecord = await db
+    .select({
+      id: schema.message.id,
+    })
+    .from(schema.message)
+    .where(
+      and(
+        eq(schema.message.id, input.payload.messageId),
+        eq(schema.message.channelId, input.payload.channelId)
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!messageRecord) {
+    throw new Error("Message not found")
+  }
+
+  const nextReactionState = await db.transaction(async (tx) => {
+    const existingReaction = await tx
+      .select({ id: schema.messageReaction.id })
+      .from(schema.messageReaction)
+      .where(
+        and(
+          eq(schema.messageReaction.messageId, input.payload.messageId),
+          eq(schema.messageReaction.userId, input.userId),
+          eq(schema.messageReaction.emoji, input.payload.emoji)
+        )
+      )
+      .limit(1)
+      .then((rows) => rows[0])
+
+    if (existingReaction) {
+      await tx
+        .delete(schema.messageReaction)
+        .where(eq(schema.messageReaction.id, existingReaction.id))
+      return false
+    }
+
+    await tx.insert(schema.messageReaction).values({
+      messageId: input.payload.messageId,
+      userId: input.userId,
+      emoji: input.payload.emoji,
+    })
+    return true
+  })
+
+  const reactionCount = await db
+    .select({ total: count() })
+    .from(schema.messageReaction)
+    .where(
+      and(
+        eq(schema.messageReaction.messageId, input.payload.messageId),
+        eq(schema.messageReaction.emoji, input.payload.emoji)
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0]?.total ?? 0)
+
+  return {
+    update: {
+      channelId: input.payload.channelId,
+      messageId: input.payload.messageId,
+      emoji: input.payload.emoji,
+      count: reactionCount,
+      actorUserId: input.userId,
+      reactedByActor: nextReactionState,
+    },
+    channel: channelRecord,
+  } satisfies ToggleMessageReactionResult
 }

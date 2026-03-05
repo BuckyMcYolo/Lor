@@ -1,19 +1,17 @@
 import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo } from "react"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { MessageInput } from "@/components/chat/composer/message-input"
 import { ChatHeader } from "@/components/chat/header"
 import { MessageList } from "@/components/chat/message-list"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
+import { useMessageReactions } from "@/hooks/use-message-reactions"
+import { useMessageSending } from "@/hooks/use-message-sending"
 import { apiClient } from "@/lib/api-client"
 import type { ListMessagesResponse } from "@/lib/api-types"
-import {
-  createOptimisticMessage,
-  realtimeMessageToMessage,
-} from "@/lib/realtime-adapter"
 
 export const Route = createFileRoute("/_authenticated/$guildSlug/$channelId")({
   component: ChannelView,
@@ -25,8 +23,7 @@ function ChannelView() {
   const queryClient = useQueryClient()
   const { setView, clearView } = useRightSidebar()
   const { data: session } = authClient.useSession()
-  // Track nonces for optimistic messages so we can replace them on confirm
-  const pendingNonces = useRef(new Set<string>())
+  const currentUserId = session?.user.id
 
   useEffect(() => {
     setView({
@@ -89,117 +86,19 @@ function ChannelView() {
     }
   }, [socket, channelId])
 
-  // Listen for incoming messages
-  useEffect(() => {
-    if (!socket) return
+  const { handleReact } = useMessageReactions<ListMessagesResponse>({
+    socket,
+    queryClient,
+    channelId,
+    currentUserId,
+  })
 
-    const handleMessageCreated = (
-      msg: Parameters<typeof realtimeMessageToMessage>[0]
-    ) => {
-      if (msg.channelId !== channelId) return
-
-      queryClient.setQueryData<ListMessagesResponse>(
-        ["messages", channelId],
-        (old) => {
-          if (!old) return old
-          // If this message was sent by us, replace the optimistic entry
-          if (msg.nonce && pendingNonces.current.has(msg.nonce)) {
-            pendingNonces.current.delete(msg.nonce)
-            return {
-              ...old,
-              data: old.data.map((m) =>
-                m.id === msg.nonce ? realtimeMessageToMessage(msg) : m
-              ),
-            }
-          }
-          // Otherwise it's from someone else — prepend if not already present
-          if (old.data.some((m) => m.id === msg.id)) return old
-          return {
-            ...old,
-            data: [realtimeMessageToMessage(msg), ...old.data],
-          }
-        }
-      )
-    }
-
-    socket.on("message:created", handleMessageCreated)
-    return () => {
-      socket.off("message:created", handleMessageCreated)
-    }
-  }, [socket, channelId, queryClient])
-
-  const handleSend = useCallback(
-    (
-      content: string,
-      options?: { mentions: ListMessagesResponse["data"][number]["mentions"] }
-    ) => {
-      if (!socket?.connected || !session?.user) return
-
-      const nonce = crypto.randomUUID()
-      pendingNonces.current.add(nonce)
-
-      const author = {
-        id: session.user.id,
-        name: session.user.name,
-        username: session.user.username ?? null,
-        displayUsername: session.user.displayUsername ?? null,
-        image: session.user.image ?? null,
-      }
-
-      // Insert optimistic message immediately
-      queryClient.setQueryData<ListMessagesResponse>(
-        ["messages", channelId],
-        (old) => {
-          if (!old) return old
-          return {
-            ...old,
-            data: [
-              createOptimisticMessage(
-                nonce,
-                channelId,
-                content,
-                author,
-                options?.mentions ?? []
-              ),
-              ...old.data,
-            ],
-          }
-        }
-      )
-
-      socket.emit("message:send", { channelId, content, nonce }, (result) => {
-        if (!result.ok) {
-          console.error("[chat] send failed:", result.error)
-          // Remove the optimistic message on failure
-          pendingNonces.current.delete(nonce)
-          queryClient.setQueryData<ListMessagesResponse>(
-            ["messages", channelId],
-            (old) => {
-              if (!old) return old
-              return { ...old, data: old.data.filter((m) => m.id !== nonce) }
-            }
-          )
-          return
-        }
-
-        // Replace optimistic message with the confirmed one
-        pendingNonces.current.delete(nonce)
-        queryClient.setQueryData<ListMessagesResponse>(
-          ["messages", channelId],
-          (old) => {
-            if (!old) return old
-            return {
-              ...old,
-              data: old.data.map((m) =>
-                m.id === nonce ? realtimeMessageToMessage(result.message) : m
-              ),
-            }
-          }
-        )
-      })
-    },
-    [socket, channelId, queryClient, session]
-  )
+  const { handleSend } = useMessageSending<ListMessagesResponse>({
+    socket,
+    queryClient,
+    channelId,
+    currentUser: session?.user,
+  })
 
   const mentionCandidates = useMemo(
     () => [
@@ -255,12 +154,14 @@ function ChannelView() {
       <MessageList
         context={context}
         messages={messagesData?.data ?? []}
+        currentUserId={currentUserId}
+        onReact={handleReact}
         isLoading={messagesLoading}
       />
       <MessageInput
         context={context}
         onSend={handleSend}
-        currentUserId={session?.user.id}
+        currentUserId={currentUserId}
         mentionCandidates={mentionCandidates}
       />
     </div>

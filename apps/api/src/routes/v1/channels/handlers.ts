@@ -138,6 +138,7 @@ export const listChannelMessages: AppRouteHandler<
   ListChannelMessagesRoute
 > = async (c) => {
   const guild = c.var.guild
+  const currentUser = c.var.user
   const { channelId } = c.req.valid("param")
   const { page, perPage } = c.req.valid("query")
 
@@ -157,7 +158,7 @@ export const listChannelMessages: AppRouteHandler<
   }
 
   return c.json(
-    await fetchMessagePage(channelId, page, perPage),
+    await fetchMessagePage(channelId, page, perPage, currentUser.id),
     HttpStatusCodes.OK
   )
 }

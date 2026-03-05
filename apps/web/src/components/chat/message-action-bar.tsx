@@ -12,22 +12,38 @@ import {
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
 import { MessageSquarePlus, MoreHorizontal } from "lucide-react"
+import { useEffect, useState } from "react"
 import { EmojiReactionPicker } from "./emoji-reaction-picker"
 
 interface MessageActionBarProps {
   onReact?: (emoji: string) => void
   onReply?: () => void
   onCopyText?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+  canManageMessage?: boolean
+  onOverlayOpenChange?: (open: boolean) => void
 }
 
 export function MessageActionBar({
   onReact,
   onReply,
   onCopyText,
+  onEdit,
+  onDelete,
+  canManageMessage = false,
+  onOverlayOpenChange,
 }: MessageActionBarProps) {
+  const [isEmojiOpen, setIsEmojiOpen] = useState(false)
+  const [isMoreOpen, setIsMoreOpen] = useState(false)
+
+  useEffect(() => {
+    onOverlayOpenChange?.(isEmojiOpen || isMoreOpen)
+  }, [isEmojiOpen, isMoreOpen, onOverlayOpenChange])
+
   return (
     <div className="flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5 shadow-sm">
-      <EmojiReactionPicker onSelect={onReact} />
+      <EmojiReactionPicker onSelect={onReact} onOpenChange={setIsEmojiOpen} />
 
       <Tooltip>
         <TooltipTrigger asChild>
@@ -45,7 +61,7 @@ export function MessageActionBar({
         <TooltipContent side="top">Reply</TooltipContent>
       </Tooltip>
 
-      <DropdownMenu>
+      <DropdownMenu open={isMoreOpen} onOpenChange={setIsMoreOpen}>
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
@@ -64,9 +80,18 @@ export function MessageActionBar({
         </Tooltip>
 
         <DropdownMenuContent side="top" align="end">
+          {canManageMessage && (
+            <>
+              <DropdownMenuItem onSelect={onEdit} disabled={!onEdit}>
+                Edit message
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onDelete} disabled={!onDelete}>
+                Delete message
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem onSelect={onCopyText}>Copy text</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>More actions soon</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

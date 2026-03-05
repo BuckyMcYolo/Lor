@@ -1,11 +1,12 @@
 import { db } from "@repo/db"
-import { message, messageMention, user } from "@repo/db/schema"
+import { message, messageMention, messageReaction, user } from "@repo/db/schema"
 import { and, count, desc, eq, inArray } from "drizzle-orm"
 
 export async function fetchMessagePage(
   channelId: string,
   page: number,
-  perPage: number
+  perPage: number,
+  currentUserId: string
 ) {
   const offset = (page - 1) * perPage
 
@@ -68,6 +69,18 @@ export async function fetchMessagePage(
           )
       : []
 
+  const reactionRows =
+    messageIds.length > 0
+      ? await db
+          .select({
+            messageId: messageReaction.messageId,
+            emoji: messageReaction.emoji,
+            userId: messageReaction.userId,
+          })
+          .from(messageReaction)
+          .where(inArray(messageReaction.messageId, messageIds))
+      : []
+
   const mentionsByMessageId = new Map<
     string,
     Array<{
@@ -77,6 +90,17 @@ export async function fetchMessagePage(
       displayUsername: string | null
       image: string | null
     }>
+  >()
+  const reactionsByMessageId = new Map<
+    string,
+    Map<
+      string,
+      {
+        emoji: string
+        count: number
+        reactedByCurrentUser: boolean
+      }
+    >
   >()
 
   for (const mentionRow of mentionRows) {
@@ -91,9 +115,28 @@ export async function fetchMessagePage(
     mentionsByMessageId.set(mentionRow.messageId, existingMentions)
   }
 
+  for (const reactionRow of reactionRows) {
+    const reactionsByEmoji =
+      reactionsByMessageId.get(reactionRow.messageId) ?? new Map()
+    const existingReaction = reactionsByEmoji.get(reactionRow.emoji) ?? {
+      emoji: reactionRow.emoji,
+      count: 0,
+      reactedByCurrentUser: false,
+    }
+
+    existingReaction.count += 1
+    if (reactionRow.userId === currentUserId) {
+      existingReaction.reactedByCurrentUser = true
+    }
+
+    reactionsByEmoji.set(reactionRow.emoji, existingReaction)
+    reactionsByMessageId.set(reactionRow.messageId, reactionsByEmoji)
+  }
+
   const messagesWithMentions = messages.map((msg) => ({
     ...msg,
     mentions: mentionsByMessageId.get(msg.id) ?? [],
+    reactions: Array.from(reactionsByMessageId.get(msg.id)?.values() ?? []),
   }))
 
   return {

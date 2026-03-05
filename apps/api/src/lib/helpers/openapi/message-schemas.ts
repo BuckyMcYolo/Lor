@@ -10,9 +10,16 @@ export const messageAuthorSchema = z.object({
   image: z.string().nullable(),
 })
 
+export const messageReactionSchema = z.object({
+  emoji: z.string(),
+  count: z.number().int().nonnegative(),
+  reactedByCurrentUser: z.boolean(),
+})
+
 export const messageWithAuthorSchema = selectMessageSchema.extend({
   author: messageAuthorSchema,
   mentions: z.array(messageAuthorSchema),
+  reactions: z.array(messageReactionSchema),
 })
 
 export const listMessagesQuerySchema = paginationQuerySchema
