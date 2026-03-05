@@ -165,15 +165,15 @@ function toRenderableMarkdown(
   )
 
   return normalizedContent
+    .replace(
+      EVERYONE_MENTION_REGEX,
+      (_match, prefix: string) => `${prefix}[@everyone](mention:everyone)`
+    )
     .replace(USER_MENTION_TOKEN_REGEX, (_match, userId: string) => {
       const mention = mentionById.get(userId)
       const label = mention ? getMentionLabel(mention) : "unknown-user"
       return `[@${escapeMarkdownText(label)}](mention:${userId})`
     })
-    .replace(
-      EVERYONE_MENTION_REGEX,
-      (_match, prefix: string) => `${prefix}[@everyone](mention:everyone)`
-    )
 }
 
 interface MessageMarkdownProps {
