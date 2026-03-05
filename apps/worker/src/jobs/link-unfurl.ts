@@ -82,6 +82,7 @@ async function fetchOgEmbed(url: string): Promise<Embed | null> {
         headers: {
           "user-agent": "Townhall/1.0 OGBot",
         },
+        redirect: "error",
       },
     })
 
@@ -111,14 +112,11 @@ export function createLinkUnfurlProcessor(
 ) {
   return async (job: Job<LinkUnfurlJobData>) => {
     const { messageId, channelId, urls } = job.data
+    if (urls.length === 0) return
 
-    const url = urls[0]
-    if (!url) return
-
-    const embed = await fetchOgEmbed(url)
-    if (!embed) return
-
-    const embeds = [embed]
+    const results = await Promise.all(urls.map(fetchOgEmbed))
+    const embeds = results.filter((e): e is Embed => e !== null)
+    if (embeds.length === 0) return
 
     const [updated] = await db
       .update(schema.message)
