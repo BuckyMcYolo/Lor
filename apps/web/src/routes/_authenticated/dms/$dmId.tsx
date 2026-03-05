@@ -1,18 +1,16 @@
 import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useCallback, useEffect, useRef } from "react"
+import { useEffect } from "react"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { MessageInput } from "@/components/chat/composer/message-input"
 import { ChatHeader } from "@/components/chat/header"
 import { MessageList } from "@/components/chat/message-list"
 import { useSocket } from "@/context/socket-context"
+import { useMessageReactions } from "@/hooks/use-message-reactions"
+import { useMessageSending } from "@/hooks/use-message-sending"
 import { apiClient } from "@/lib/api-client"
 import type { ListDMMessagesResponse } from "@/lib/api-types"
-import {
-  createOptimisticMessage,
-  realtimeMessageToMessage,
-} from "@/lib/realtime-adapter"
 
 export const Route = createFileRoute("/_authenticated/dms/$dmId")({
   component: DMConversation,
@@ -23,7 +21,7 @@ function DMConversation() {
   const socket = useSocket()
   const queryClient = useQueryClient()
   const { data: session } = authClient.useSession()
-  const pendingNonces = useRef(new Set<string>())
+  const currentUserId = session?.user.id
 
   const { data: dm, isPending } = useQuery({
     queryKey: ["dms", dmId],
@@ -58,116 +56,19 @@ function DMConversation() {
     }
   }, [socket, dmId])
 
-  // Listen for incoming messages
-  useEffect(() => {
-    if (!socket) return
+  const { handleReact } = useMessageReactions<ListDMMessagesResponse>({
+    socket,
+    queryClient,
+    channelId: dmId,
+    currentUserId,
+  })
 
-    const handleMessageCreated = (
-      msg: Parameters<typeof realtimeMessageToMessage>[0]
-    ) => {
-      if (msg.channelId !== dmId) return
-
-      queryClient.setQueryData<ListDMMessagesResponse>(
-        ["messages", dmId],
-        (old) => {
-          if (!old) return old
-          if (msg.nonce && pendingNonces.current.has(msg.nonce)) {
-            pendingNonces.current.delete(msg.nonce)
-            return {
-              ...old,
-              data: old.data.map((m) =>
-                m.id === msg.nonce ? realtimeMessageToMessage(msg) : m
-              ),
-            }
-          }
-          if (old.data.some((m) => m.id === msg.id)) return old
-          return {
-            ...old,
-            data: [realtimeMessageToMessage(msg), ...old.data],
-          }
-        }
-      )
-    }
-
-    socket.on("message:created", handleMessageCreated)
-    return () => {
-      socket.off("message:created", handleMessageCreated)
-    }
-  }, [socket, dmId, queryClient])
-
-  const handleSend = useCallback(
-    (
-      content: string,
-      options?: { mentions: ListDMMessagesResponse["data"][number]["mentions"] }
-    ) => {
-      if (!socket?.connected || !session?.user) return
-
-      const nonce = crypto.randomUUID()
-      pendingNonces.current.add(nonce)
-
-      const author = {
-        id: session.user.id,
-        name: session.user.name,
-        username: session.user.username ?? null,
-        displayUsername: session.user.displayUsername ?? null,
-        image: session.user.image ?? null,
-      }
-
-      queryClient.setQueryData<ListDMMessagesResponse>(
-        ["messages", dmId],
-        (old) => {
-          if (!old) return old
-          return {
-            ...old,
-            data: [
-              createOptimisticMessage(
-                nonce,
-                dmId,
-                content,
-                author,
-                options?.mentions ?? []
-              ),
-              ...old.data,
-            ],
-          }
-        }
-      )
-
-      socket.emit(
-        "message:send",
-        { channelId: dmId, content, nonce },
-        (result) => {
-          if (!result.ok) {
-            console.error("[chat] send failed:", result.error)
-            pendingNonces.current.delete(nonce)
-            queryClient.setQueryData<ListDMMessagesResponse>(
-              ["messages", dmId],
-              (old) => {
-                if (!old) return old
-                return { ...old, data: old.data.filter((m) => m.id !== nonce) }
-              }
-            )
-            return
-          }
-
-          pendingNonces.current.delete(nonce)
-          queryClient.setQueryData<ListDMMessagesResponse>(
-            ["messages", dmId],
-            (old) => {
-              if (!old) return old
-              return {
-                ...old,
-                data: old.data.map((m) =>
-                  m.id === nonce ? realtimeMessageToMessage(result.message) : m
-                ),
-              }
-            }
-          )
-        }
-      )
-    },
-    [socket, dmId, queryClient, session]
-  )
+  const { handleSend } = useMessageSending<ListDMMessagesResponse>({
+    socket,
+    queryClient,
+    channelId: dmId,
+    currentUser: session?.user,
+  })
 
   if (isPending) {
     return <ChatSkeleton />
@@ -220,12 +121,14 @@ function DMConversation() {
       <MessageList
         context={context}
         messages={messagesData?.data ?? []}
+        currentUserId={currentUserId}
+        onReact={handleReact}
         isLoading={messagesLoading}
       />
       <MessageInput
         context={context}
         onSend={handleSend}
-        currentUserId={session?.user.id}
+        currentUserId={currentUserId}
         mentionCandidates={mentionCandidates}
       />
     </div>

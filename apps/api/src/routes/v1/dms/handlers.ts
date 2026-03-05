@@ -292,7 +292,7 @@ export const listDMMessages: AppRouteHandler<ListDMMessagesRoute> = async (
   }
 
   return c.json(
-    await fetchMessagePage(ch.id, page, perPage),
+    await fetchMessagePage(ch.id, page, perPage, currentUser.id),
     HttpStatusCodes.OK
   )
 }

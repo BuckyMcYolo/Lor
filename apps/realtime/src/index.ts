@@ -14,6 +14,7 @@ import {
   markChannelReadPayloadSchema,
   presenceSubscribePayloadSchema,
   sendMessagePayloadSchema,
+  toggleMessageReactionPayloadSchema,
   userRoom,
 } from "@repo/realtime-types"
 import { createAdapter } from "@socket.io/redis-adapter"
@@ -21,7 +22,7 @@ import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
-import { createMessage } from "@/services/messages"
+import { createMessage, toggleMessageReaction } from "@/services/messages"
 import { buildMessageFanout } from "@/services/notifications"
 import {
   listOnlineUserIds,
@@ -326,6 +327,27 @@ io.on("connection", (socket) => {
       }
 
       ack?.({ ok: true, message: messageWithMentions })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("message:reaction:toggle", async (payload, ack) => {
+    try {
+      const parsed = toggleMessageReactionPayloadSchema.parse(payload)
+      const reactionUpdate = await toggleMessageReaction({
+        userId: socket.data.user.id,
+        payload: parsed,
+      })
+
+      socket
+        .to(channelRoom(parsed.channelId))
+        .emit("message:reaction:updated", reactionUpdate.update)
+
+      ack?.({
+        ok: true,
+        update: reactionUpdate.update,
+      })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }
