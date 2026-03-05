@@ -47,6 +47,43 @@ export function formatTime(date: Date | string): string {
 }
 
 /**
+ * Returns absolute difference between two timestamps in minutes.
+ */
+export function differenceInMinutes(
+  date1: Date | string,
+  date2: Date | string
+): number {
+  const dt1 = toDateTime(date1)
+  const dt2 = toDateTime(date2)
+
+  return Math.abs(dt1.diff(dt2, "minutes").minutes)
+}
+
+/**
+ * Check if two dates are on the same local day.
+ */
+export function isSameDay(date1: Date | string, date2: Date | string): boolean {
+  const dt1 = toDateTime(date1).toLocal()
+  const dt2 = toDateTime(date2).toLocal()
+
+  return dt1.hasSame(dt2, "day")
+}
+
+/**
+ * Formats a date label for message list dividers.
+ * Returns values like "Today", "Yesterday", or "Monday, December 20, 2024".
+ */
+export function formatDateDivider(date: Date | string): string {
+  const dt = toDateTime(date).toLocal()
+  const now = DateTime.now().toLocal()
+
+  if (dt.hasSame(now, "day")) return "Today"
+  if (dt.hasSame(now.minus({ days: 1 }), "day")) return "Yesterday"
+
+  return dt.toFormat("cccc, LLLL d, yyyy")
+}
+
+/**
  * Groups timestamps by day label ("Today", "Yesterday", "Jan 1, 2024").
  */
 export function getDayLabel(date: Date | string): string {
