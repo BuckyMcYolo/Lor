@@ -27,6 +27,7 @@ const USER_MENTION_TOKEN_REGEX =
   /<@([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})>/gi
 const TIPTAP_MENTION_REGEX =
   /\[@[^\]]*?\bid="([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})"[^\]]*]/gi
+const EVERYONE_MENTION_REGEX = /(^|\s)@everyone\b/gi
 const LANGUAGE_CLASS_REGEX = /language-([a-z0-9-]+)/i
 
 function getTextContent(node: ReactNode): string {
@@ -163,14 +164,16 @@ function toRenderableMarkdown(
     (_match, userId: string) => `<@${userId}>`
   )
 
-  return normalizedContent.replace(
-    USER_MENTION_TOKEN_REGEX,
-    (_match, userId: string) => {
+  return normalizedContent
+    .replace(USER_MENTION_TOKEN_REGEX, (_match, userId: string) => {
       const mention = mentionById.get(userId)
       const label = mention ? getMentionLabel(mention) : "unknown-user"
       return `[@${escapeMarkdownText(label)}](mention:${userId})`
-    }
-  )
+    })
+    .replace(
+      EVERYONE_MENTION_REGEX,
+      (_match, prefix: string) => `${prefix}[@everyone](mention:everyone)`
+    )
 }
 
 interface MessageMarkdownProps {
@@ -220,6 +223,14 @@ export function MessageMarkdown({
           a: ({ href, children }) => {
             if (href?.startsWith("mention:")) {
               const mentionId = href.slice("mention:".length)
+              if (mentionId === "everyone") {
+                return (
+                  <span className="inline-flex cursor-default rounded bg-primary/15 px-1 py-0.5 font-medium text-primary">
+                    {children}
+                  </span>
+                )
+              }
+
               const mention = mentionById.get(mentionId)
               const displayName = mention
                 ? getMentionLabel(mention)

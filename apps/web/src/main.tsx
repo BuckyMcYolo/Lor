@@ -1,3 +1,4 @@
+import { TooltipProvider } from "@repo/ui/components/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { createRouter, RouterProvider } from "@tanstack/react-router"
@@ -36,7 +37,9 @@ createRoot(rootElement).render(
         enableSystem
         disableTransitionOnChange
       >
-        <RouterProvider router={router} />
+        <TooltipProvider>
+          <RouterProvider router={router} />
+        </TooltipProvider>
       </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-right" />
     </QueryClientProvider>

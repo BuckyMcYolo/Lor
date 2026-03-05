@@ -51,11 +51,8 @@ export const SlashCommandList = forwardRef<
   )
 
   useEffect(() => {
-    setSelectedIndex((currentIndex) => {
-      if (items.length === 0) return 0
-      return Math.min(currentIndex, items.length - 1)
-    })
-  }, [items.length])
+    setSelectedIndex(0)
+  }, [items])
 
   useImperativeHandle(
     ref,

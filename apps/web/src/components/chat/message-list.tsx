@@ -1,7 +1,9 @@
 import { Skeleton } from "@repo/ui/components/skeleton"
+import { differenceInMinutes, isSameDay } from "@repo/utils/date"
 import { Hash, User, Users } from "lucide-react"
 import { useCallback, useEffect, useRef } from "react"
 import type { Message } from "@/lib/api-types"
+import { DateDivider } from "./date-divider"
 import type { ChatContext } from "./header"
 import { MessageItem } from "./message-item"
 
@@ -50,6 +52,7 @@ const MESSAGE_SKELETON_GROUPS = [
   { key: "f", nameWidth: "4.5rem", lines: ["65%"] },
   { key: "g", nameWidth: "6rem", lines: ["85%", "40%"] },
 ]
+const MESSAGE_GROUP_WINDOW_MINUTES = 5
 
 export function MessageList({
   context,
@@ -119,9 +122,23 @@ export function MessageList({
     >
       {messages.map((msg, i) => {
         const next = messages[i + 1]
-        const showHeader = !next || next.authorId !== msg.authorId
+        const isDateBoundary =
+          !next || !isSameDay(msg.createdAt, next.createdAt)
+        const isWithinGroupWindow =
+          !!next &&
+          differenceInMinutes(msg.createdAt, next.createdAt) <=
+            MESSAGE_GROUP_WINDOW_MINUTES
+        const showHeader =
+          isDateBoundary ||
+          !next ||
+          next.authorId !== msg.authorId ||
+          !isWithinGroupWindow
+
         return (
-          <MessageItem key={msg.id} message={msg} showHeader={showHeader} />
+          <div key={msg.id}>
+            {isDateBoundary && <DateDivider date={msg.createdAt} />}
+            <MessageItem message={msg} showHeader={showHeader} />
+          </div>
         )
       })}
       {hasMore && (

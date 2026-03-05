@@ -202,15 +202,22 @@ function ChannelView() {
   )
 
   const mentionCandidates = useMemo(
-    () =>
-      guildMembersData?.members.map((member) => ({
+    () => [
+      {
+        id: "everyone",
+        label: "everyone",
+        name: "everyone",
+        search: "everyone all members",
+      },
+      ...(guildMembersData?.members.map((member) => ({
         id: member.userId,
         label: member.displayUsername ?? member.username ?? member.name,
         name: member.name,
         username: member.username,
         displayUsername: member.displayUsername,
         image: member.image,
-      })) ?? [],
+      })) ?? []),
+    ],
     [guildMembersData?.members]
   )
 

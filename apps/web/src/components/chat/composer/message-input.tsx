@@ -18,6 +18,7 @@ import {
 import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import Suggestion, {
+  type SuggestionKeyDownProps,
   type SuggestionOptions,
   type SuggestionProps,
 } from "@tiptap/suggestion"
@@ -33,7 +34,14 @@ import {
   Smile,
   Strikethrough,
 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  type ComponentType,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import type { Message } from "@/lib/api-types"
 import type { ChatContext } from "../header"
 import {
@@ -55,6 +63,9 @@ const MAX_MESSAGE_LENGTH = 2000
 const POPUP_HORIZONTAL_PADDING = 8
 const POPUP_VERTICAL_PADDING = 8
 const POPUP_GAP = 6
+const SUGGESTION_MENU_SELECTOR =
+  "[data-suggestion-open='true'], [data-mention-suggestion-open='true'], [data-slash-suggestion-open='true'], [data-slash-command-open='true']"
+const EVERYONE_MENTION_ID = "everyone"
 const SLASH_COMMAND_PLUGIN_KEY = new PluginKey("slash-command")
 const TIPTAP_MARKDOWN_MENTION_REGEX = /\[@[^\]]*?\bid="([^"]+)"[^\]]*]/g
 const STORED_MENTION_REGEX =
@@ -93,7 +104,13 @@ interface MessageInputProps {
 function toStoredMarkdown(markdown: string) {
   return markdown
     .replace(/\u00A0/g, " ")
-    .replace(TIPTAP_MARKDOWN_MENTION_REGEX, "<@$1>")
+    .replace(TIPTAP_MARKDOWN_MENTION_REGEX, (_match, mentionId: string) => {
+      if (mentionId.toLowerCase() === EVERYONE_MENTION_ID) {
+        return "@everyone"
+      }
+
+      return `<@${mentionId}>`
+    })
 }
 
 function extractMentionIds(content: string) {
@@ -107,6 +124,116 @@ function extractMentionIds(content: string) {
   }
 
   return Array.from(mentionIds)
+}
+
+interface SuggestionPopupListRef {
+  onKeyDown: (props: SuggestionKeyDownProps) => boolean
+}
+
+interface SuggestionPopupManagerOptions<
+  TItem,
+  TListRef extends SuggestionPopupListRef,
+  TListProps extends { items: TItem[]; command: (item: TItem) => void },
+> {
+  rendererComponent: ComponentType<TListProps>
+  popupClassName: string
+  popupDataAttribute: string
+  popupFallbackWidth: number
+  popupFallbackHeight: number
+}
+
+function createSuggestionPopupManager<
+  TItem,
+  TListRef extends SuggestionPopupListRef,
+  TListProps extends { items: TItem[]; command: (item: TItem) => void },
+>({
+  rendererComponent,
+  popupClassName,
+  popupDataAttribute,
+  popupFallbackWidth,
+  popupFallbackHeight,
+}: SuggestionPopupManagerOptions<TItem, TListRef, TListProps>) {
+  let popup: HTMLDivElement | null = null
+  let currentProps: SuggestionProps<TItem, TItem> | null = null
+  let reactRenderer: ReactRenderer<TListRef, TListProps> | null = null
+
+  const positionPopup = () => {
+    const clientRect = currentProps?.clientRect?.()
+    if (!popup || !clientRect) return
+
+    const popupWidth = popup.offsetWidth || popupFallbackWidth
+    const popupHeight = popup.offsetHeight || popupFallbackHeight
+    const maxLeft = Math.max(
+      POPUP_HORIZONTAL_PADDING,
+      window.innerWidth - popupWidth - POPUP_HORIZONTAL_PADDING
+    )
+    const left = Math.min(
+      Math.max(POPUP_HORIZONTAL_PADDING, clientRect.left),
+      maxLeft
+    )
+    const top = Math.max(
+      POPUP_VERTICAL_PADDING,
+      clientRect.top - popupHeight - POPUP_GAP
+    )
+
+    popup.style.left = `${left}px`
+    popup.style.top = `${top}px`
+  }
+
+  const cleanup = () => {
+    window.removeEventListener("resize", positionPopup)
+    window.removeEventListener("scroll", positionPopup, true)
+    reactRenderer?.destroy()
+    reactRenderer = null
+    popup?.remove()
+    popup = null
+    currentProps = null
+  }
+
+  return {
+    onStart: (props: SuggestionProps<TItem, TItem>) => {
+      cleanup()
+      currentProps = props
+
+      popup = document.createElement("div")
+      popup.className = popupClassName
+      popup.dataset[popupDataAttribute] = "true"
+      popup.dataset.suggestionOpen = "true"
+      document.body.append(popup)
+
+      reactRenderer = new ReactRenderer(rendererComponent, {
+        editor: props.editor,
+        props: {
+          items: props.items,
+          command: props.command,
+        } as TListProps,
+      })
+
+      popup.append(reactRenderer.element)
+      window.addEventListener("resize", positionPopup)
+      window.addEventListener("scroll", positionPopup, true)
+      positionPopup()
+    },
+    onUpdate: (props: SuggestionProps<TItem, TItem>) => {
+      currentProps = props
+      reactRenderer?.updateProps({
+        items: props.items,
+        command: props.command,
+      } as TListProps)
+      positionPopup()
+    },
+    onKeyDown: (props: SuggestionKeyDownProps) => {
+      if (props.event.key === "Escape") {
+        props.event.preventDefault()
+        cleanup()
+        return true
+      }
+
+      const suggestionList = reactRenderer?.ref as TListRef | null
+      return suggestionList?.onKeyDown(props) ?? false
+    },
+    onExit: cleanup,
+  }
 }
 
 function createMentionSuggestion(
@@ -126,94 +253,18 @@ function createMentionSuggestion(
       return results.slice(0, MAX_MENTION_RESULTS)
     },
     render: () => {
-      let popup: HTMLDivElement | null = null
-      let currentProps: SuggestionProps<
+      return createSuggestionPopupManager<
         MentionCandidate,
-        MentionCandidate
-      > | null = null
-      let reactRenderer: ReactRenderer<
         MentionSuggestionListRef,
         MentionSuggestionListProps
-      > | null = null
-
-      const positionPopup = () => {
-        const clientRect = currentProps?.clientRect?.()
-        if (!popup || !clientRect) return
-
-        const popupWidth = popup.offsetWidth || 240
-        const popupHeight = popup.offsetHeight || 240
-        const maxLeft = Math.max(
-          POPUP_HORIZONTAL_PADDING,
-          window.innerWidth - popupWidth - POPUP_HORIZONTAL_PADDING
-        )
-        const left = Math.min(
-          Math.max(POPUP_HORIZONTAL_PADDING, clientRect.left),
-          maxLeft
-        )
-        const top = Math.max(
-          POPUP_VERTICAL_PADDING,
-          clientRect.top - popupHeight - POPUP_GAP
-        )
-
-        popup.style.left = `${left}px`
-        popup.style.top = `${top}px`
-      }
-
-      const cleanup = () => {
-        window.removeEventListener("resize", positionPopup)
-        window.removeEventListener("scroll", positionPopup, true)
-        reactRenderer?.destroy()
-        reactRenderer = null
-        popup?.remove()
-        popup = null
-        currentProps = null
-      }
-
-      return {
-        onStart: (props) => {
-          cleanup()
-          currentProps = props
-
-          popup = document.createElement("div")
-          popup.className =
-            "fixed z-50 w-60 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md"
-          popup.dataset.mentionSuggestionOpen = "true"
-          document.body.append(popup)
-
-          reactRenderer = new ReactRenderer(MentionSuggestionList, {
-            editor: props.editor,
-            props: {
-              items: props.items,
-              command: props.command,
-            },
-          })
-
-          popup.append(reactRenderer.element)
-          window.addEventListener("resize", positionPopup)
-          window.addEventListener("scroll", positionPopup, true)
-          positionPopup()
-        },
-        onUpdate: (props) => {
-          currentProps = props
-          reactRenderer?.updateProps({
-            items: props.items,
-            command: props.command,
-          })
-          positionPopup()
-        },
-        onKeyDown: (props) => {
-          if (props.event.key === "Escape") {
-            props.event.preventDefault()
-            cleanup()
-            return true
-          }
-
-          const suggestionList =
-            reactRenderer?.ref as MentionSuggestionListRef | null
-          return suggestionList?.onKeyDown(props) ?? false
-        },
-        onExit: cleanup,
-      }
+      >({
+        rendererComponent: MentionSuggestionList,
+        popupClassName:
+          "fixed z-50 w-60 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+        popupDataAttribute: "mentionSuggestionOpen",
+        popupFallbackWidth: 240,
+        popupFallbackHeight: 240,
+      })
     },
   }
 }
@@ -255,93 +306,18 @@ function createSlashCommandSuggestion(): Omit<
       return !editor.isActive("codeBlock")
     },
     render: () => {
-      let popup: HTMLDivElement | null = null
-      let currentProps: SuggestionProps<
+      return createSuggestionPopupManager<
         SlashCommandItem,
-        SlashCommandItem
-      > | null = null
-      let reactRenderer: ReactRenderer<
         SlashCommandListRef,
         SlashCommandListProps
-      > | null = null
-
-      const positionPopup = () => {
-        const clientRect = currentProps?.clientRect?.()
-        if (!popup || !clientRect) return
-
-        const popupWidth = popup.offsetWidth || 288
-        const popupHeight = popup.offsetHeight || 240
-        const maxLeft = Math.max(
-          POPUP_HORIZONTAL_PADDING,
-          window.innerWidth - popupWidth - POPUP_HORIZONTAL_PADDING
-        )
-        const left = Math.min(
-          Math.max(POPUP_HORIZONTAL_PADDING, clientRect.left),
-          maxLeft
-        )
-        const top = Math.max(
-          POPUP_VERTICAL_PADDING,
-          clientRect.top - popupHeight - POPUP_GAP
-        )
-
-        popup.style.left = `${left}px`
-        popup.style.top = `${top}px`
-      }
-
-      const cleanup = () => {
-        window.removeEventListener("resize", positionPopup)
-        window.removeEventListener("scroll", positionPopup, true)
-        reactRenderer?.destroy()
-        reactRenderer = null
-        popup?.remove()
-        popup = null
-        currentProps = null
-      }
-
-      return {
-        onStart: (props) => {
-          cleanup()
-          currentProps = props
-
-          popup = document.createElement("div")
-          popup.className =
-            "fixed z-50 w-72 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md"
-          popup.dataset.slashCommandOpen = "true"
-          document.body.append(popup)
-
-          reactRenderer = new ReactRenderer(SlashCommandList, {
-            editor: props.editor,
-            props: {
-              items: props.items,
-              command: props.command,
-            },
-          })
-
-          popup.append(reactRenderer.element)
-          window.addEventListener("resize", positionPopup)
-          window.addEventListener("scroll", positionPopup, true)
-          positionPopup()
-        },
-        onUpdate: (props) => {
-          currentProps = props
-          reactRenderer?.updateProps({
-            items: props.items,
-            command: props.command,
-          })
-          positionPopup()
-        },
-        onKeyDown: (props) => {
-          if (props.event.key === "Escape") {
-            props.event.preventDefault()
-            cleanup()
-            return true
-          }
-
-          const commandList = reactRenderer?.ref as SlashCommandListRef | null
-          return commandList?.onKeyDown(props) ?? false
-        },
-        onExit: cleanup,
-      }
+      >({
+        rendererComponent: SlashCommandList,
+        popupClassName:
+          "fixed z-50 w-72 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+        popupDataAttribute: "slashSuggestionOpen",
+        popupFallbackWidth: 288,
+        popupFallbackHeight: 240,
+      })
     },
   }
 }
@@ -571,7 +547,7 @@ export function MessageInput({
     }
 
     const isSuggestionMenuOpen = () =>
-      Boolean(document.querySelector("[data-mention-suggestion-open='true']"))
+      Boolean(document.querySelector(SUGGESTION_MENU_SELECTOR))
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Enter" && !event.shiftKey) {
