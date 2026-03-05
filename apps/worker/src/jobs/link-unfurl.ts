@@ -30,8 +30,10 @@ async function isSafeUrl(urlString: string): Promise<boolean> {
     )
       return false
 
-    const { address } = await lookup(hostname)
-    if (PRIVATE_IP_REGEX.test(address)) return false
+    const addresses = await lookup(hostname, { all: true })
+    for (const { address } of addresses) {
+      if (PRIVATE_IP_REGEX.test(address)) return false
+    }
 
     return true
   } catch {
