@@ -17,7 +17,10 @@ import {
   toggleMessageReactionPayloadSchema,
   userRoom,
 } from "@repo/realtime-types"
+import type { LinkUnfurlJobData } from "@repo/realtime-types/queues"
+import { LINK_UNFURL_QUEUE } from "@repo/realtime-types/queues"
 import { createAdapter } from "@socket.io/redis-adapter"
+import { Queue } from "bullmq"
 import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
@@ -327,6 +330,19 @@ io.on("connection", (socket) => {
       }
 
       ack?.({ ok: true, message: messageWithMentions })
+
+      // Enqueue link unfurl job if the message contains a URL
+      if (/https?:\/\//.test(parsed.content)) {
+        void linkUnfurlQueue
+          .add("unfurl", {
+            messageId: createdMessage.message.id,
+            channelId: parsed.channelId,
+            content: parsed.content,
+          })
+          .catch((err) => {
+            console.error("[realtime] failed to enqueue link-unfurl:", err)
+          })
+      }
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }
@@ -398,6 +414,23 @@ io.on("connection", (socket) => {
       }
     })()
   })
+})
+
+function parseRedisUrl(url: string) {
+  const parsed = new URL(url)
+  return {
+    host: parsed.hostname,
+    port: Number(parsed.port) || 6379,
+    password: parsed.password || undefined,
+    username: parsed.username || undefined,
+  }
+}
+
+const linkUnfurlQueue = new Queue<LinkUnfurlJobData>(LINK_UNFURL_QUEUE, {
+  connection: {
+    ...parseRedisUrl(env.REDIS_URL),
+    maxRetriesPerRequest: null,
+  },
 })
 
 async function bootstrap() {

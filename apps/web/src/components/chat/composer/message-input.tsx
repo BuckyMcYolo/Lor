@@ -5,6 +5,7 @@ import {
   PopoverTrigger,
 } from "@repo/ui/components/popover"
 import { cn } from "@repo/ui/lib/utils"
+import Link from "@tiptap/extension-link"
 import Mention, { type MentionOptions } from "@tiptap/extension-mention"
 import { Markdown } from "@tiptap/markdown"
 import { PluginKey } from "@tiptap/pm/state"
@@ -102,15 +103,21 @@ interface MessageInputProps {
 }
 
 function toStoredMarkdown(markdown: string) {
-  return markdown
-    .replace(/\u00A0/g, " ")
-    .replace(TIPTAP_MARKDOWN_MENTION_REGEX, (_match, mentionId: string) => {
-      if (mentionId.toLowerCase() === EVERYONE_MENTION_ID) {
-        return "@everyone"
-      }
+  return (
+    markdown
+      .replace(/\u00A0/g, " ")
+      // Strip ++…++ wrappers the Markdown extension generates for unrecognised marks (e.g. Link)
+      // TipTap outputs either ++[url](url)++ or ++bareUrl++
+      .replace(/\+\+\[([^\]]+)\]\([^)]+\)\+\+/g, "$1")
+      .replace(/\+\+([^+]+)\+\+/g, "$1")
+      .replace(TIPTAP_MARKDOWN_MENTION_REGEX, (_match, mentionId: string) => {
+        if (mentionId.toLowerCase() === EVERYONE_MENTION_ID) {
+          return "@everyone"
+        }
 
-      return `<@${mentionId}>`
-    })
+        return `<@${mentionId}>`
+      })
+  )
 }
 
 function extractMentionIds(content: string) {
@@ -480,6 +487,17 @@ export function MessageInput({
           horizontalRule: false,
         }),
         Markdown,
+        Link.configure({
+          openOnClick: false,
+          autolink: true,
+          linkOnPaste: true,
+          HTMLAttributes: {
+            class:
+              "text-primary underline-offset-2 hover:underline cursor-pointer",
+            rel: "noreferrer noopener",
+            target: "_blank",
+          },
+        }),
         Mention.configure({
           HTMLAttributes: {
             class: "rounded bg-primary/15 px-1 py-0.5 font-medium text-primary",
@@ -509,7 +527,8 @@ export function MessageInput({
   const handleSend = useCallback(() => {
     if (!editor) return
 
-    const markdown = toStoredMarkdown(editor.getMarkdown())
+    const rawMarkdown = editor.getMarkdown()
+    const markdown = toStoredMarkdown(rawMarkdown)
     const trimmed = markdown.trim()
     if (!trimmed || trimmed.length > MAX_MESSAGE_LENGTH || isSending) return
 

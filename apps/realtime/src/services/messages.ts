@@ -100,6 +100,7 @@ export async function createMessage(input: CreateMessageInput) {
     },
     mentions: [],
     reactions: [],
+    embeds: [],
   }
 
   if (input.payload.nonce) {

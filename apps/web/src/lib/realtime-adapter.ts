@@ -15,7 +15,7 @@ export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
     author: rm.author,
     referencedMessageId: null,
     attachments: [],
-    embeds: [],
+    embeds: rm.embeds ?? [],
     pinned: false,
     editedAt: null,
     mentions: rm.mentions,

@@ -16,10 +16,20 @@ export const messageReactionSchema = z.object({
   reactedByCurrentUser: z.boolean(),
 })
 
+export const messageEmbedSchema = z.object({
+  type: z.enum(["link", "image", "video", "rich"]),
+  url: z.string(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  thumbnail: z.string().optional(),
+  siteName: z.string().optional(),
+})
+
 export const messageWithAuthorSchema = selectMessageSchema.extend({
   author: messageAuthorSchema,
   mentions: z.array(messageAuthorSchema),
   reactions: z.array(messageReactionSchema),
+  embeds: z.array(messageEmbedSchema),
 })
 
 export const listMessagesQuerySchema = paginationQuerySchema

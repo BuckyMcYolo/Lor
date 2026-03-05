@@ -105,4 +105,5 @@ export type Embed = {
   title?: string
   description?: string
   thumbnail?: string
+  siteName?: string
 }

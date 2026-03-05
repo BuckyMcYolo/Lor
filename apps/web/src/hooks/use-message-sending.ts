@@ -1,3 +1,4 @@
+import type { RealtimeMessageEmbedsUpdated } from "@repo/realtime-types"
 import type { QueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useRef } from "react"
 import type { Message } from "@/lib/api-types"
@@ -80,6 +81,25 @@ export function useMessageSending<TData extends MessagesQueryData>({
     socket.on("message:created", handleMessageCreated)
     return () => {
       socket.off("message:created", handleMessageCreated)
+    }
+  }, [socket, channelId, updateMessagesInCache])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleEmbedsUpdated = (update: RealtimeMessageEmbedsUpdated) => {
+      if (update.channelId !== channelId) return
+
+      updateMessagesInCache((messages) =>
+        messages.map((m) =>
+          m.id === update.messageId ? { ...m, embeds: update.embeds } : m
+        )
+      )
+    }
+
+    socket.on("message:embeds:updated", handleEmbedsUpdated)
+    return () => {
+      socket.off("message:embeds:updated", handleEmbedsUpdated)
     }
   }, [socket, channelId, updateMessagesInCache])
 

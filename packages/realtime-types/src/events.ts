@@ -67,6 +67,15 @@ export type RealtimeMessageReaction = {
   reactedByCurrentUser: boolean
 }
 
+export type RealtimeEmbed = {
+  type: "link" | "image" | "video" | "rich"
+  url: string
+  title?: string
+  description?: string
+  thumbnail?: string
+  siteName?: string
+}
+
 export type RealtimeMessage = {
   id: string
   channelId: string
@@ -84,7 +93,14 @@ export type RealtimeMessage = {
   }
   mentions: RealtimeMessageMention[]
   reactions: RealtimeMessageReaction[]
+  embeds: RealtimeEmbed[]
   nonce?: string
+}
+
+export type RealtimeMessageEmbedsUpdated = {
+  channelId: string
+  messageId: string
+  embeds: RealtimeEmbed[]
 }
 
 export type RealtimeMessageReactionUpdated = {
@@ -176,6 +192,7 @@ export interface ServerToClientEvents {
   "presence:user:update": (payload: PresenceUserUpdate) => void
   "message:created": (payload: RealtimeMessage) => void
   "message:reaction:updated": (payload: RealtimeMessageReactionUpdated) => void
+  "message:embeds:updated": (payload: RealtimeMessageEmbedsUpdated) => void
   "notification:unread": (payload: UnreadNotification) => void
   "notification:mention": (payload: MentionNotification) => void
   "channel:read-state": (payload: ChannelReadState) => void
