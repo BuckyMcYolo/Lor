@@ -132,7 +132,6 @@ interface SuggestionPopupListRef {
 
 interface SuggestionPopupManagerOptions<
   TItem,
-  TListRef extends SuggestionPopupListRef,
   TListProps extends { items: TItem[]; command: (item: TItem) => void },
 > {
   rendererComponent: ComponentType<TListProps>
@@ -152,7 +151,7 @@ function createSuggestionPopupManager<
   popupDataAttribute,
   popupFallbackWidth,
   popupFallbackHeight,
-}: SuggestionPopupManagerOptions<TItem, TListRef, TListProps>) {
+}: SuggestionPopupManagerOptions<TItem, TListProps>) {
   let popup: HTMLDivElement | null = null
   let currentProps: SuggestionProps<TItem, TItem> | null = null
   let reactRenderer: ReactRenderer<TListRef, TListProps> | null = null
