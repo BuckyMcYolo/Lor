@@ -135,6 +135,7 @@ export async function fetchMessagePage(
 
   const messagesWithMentions = messages.map((msg) => ({
     ...msg,
+    embeds: msg.embeds ?? [],
     mentions: mentionsByMessageId.get(msg.id) ?? [],
     reactions: Array.from(reactionsByMessageId.get(msg.id)?.values() ?? []),
   }))

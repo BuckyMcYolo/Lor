@@ -17,7 +17,10 @@ import {
   toggleMessageReactionPayloadSchema,
   userRoom,
 } from "@repo/realtime-types"
+import type { LinkUnfurlJobData } from "@repo/realtime-types/queues"
+import { LINK_UNFURL_QUEUE } from "@repo/realtime-types/queues"
 import { createAdapter } from "@socket.io/redis-adapter"
+import { Queue } from "bullmq"
 import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
@@ -327,6 +330,23 @@ io.on("connection", (socket) => {
       }
 
       ack?.({ ok: true, message: messageWithMentions })
+
+      // Enqueue link unfurl job if the message contains a URL
+      const rawUrlMatches = parsed.content.match(/https?:\/\/[^\s<>"]+/g)
+      const urlMatches = rawUrlMatches?.map((u) =>
+        u.replace(/[.,!?:;'")\]]+$/, "")
+      )
+      if (urlMatches && urlMatches.length > 0) {
+        void linkUnfurlQueue
+          .add("unfurl", {
+            messageId: createdMessage.message.id,
+            channelId: parsed.channelId,
+            urls: urlMatches,
+          })
+          .catch((err) => {
+            console.error("[realtime] failed to enqueue link-unfurl:", err)
+          })
+      }
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }
@@ -398,6 +418,30 @@ io.on("connection", (socket) => {
       }
     })()
   })
+})
+
+function parseRedisUrl(url: string) {
+  const parsed = new URL(url)
+  const dbIndex = Number.parseInt(parsed.pathname.slice(1), 10)
+  return {
+    host: parsed.hostname,
+    port: Number(parsed.port) || 6379,
+    password: parsed.password || undefined,
+    username: parsed.username || undefined,
+    tls: parsed.protocol === "rediss:" ? {} : undefined,
+    db: Number.isFinite(dbIndex) ? dbIndex : 0,
+  }
+}
+
+const linkUnfurlQueue = new Queue<LinkUnfurlJobData>(LINK_UNFURL_QUEUE, {
+  connection: {
+    ...parseRedisUrl(env.REDIS_URL),
+    maxRetriesPerRequest: null,
+  },
+  defaultJobOptions: {
+    removeOnComplete: { age: 3600, count: 1000 },
+    removeOnFail: { age: 86400, count: 5000 },
+  },
 })
 
 async function bootstrap() {

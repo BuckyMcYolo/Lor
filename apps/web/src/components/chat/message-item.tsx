@@ -3,6 +3,7 @@ import { cn } from "@repo/ui/lib/utils"
 import { formatTime } from "@repo/utils/date"
 import { useCallback, useState } from "react"
 import type { Message } from "@/lib/api-types"
+import { EmbedCard } from "./embed-card"
 import { MessageActionBar } from "./message-action-bar"
 import { MessageMarkdown } from "./message-markdown"
 
@@ -89,6 +90,13 @@ export function MessageItem({
           content={message.content}
           mentions={message.mentions}
         />
+        {message.embeds.length > 0 && (
+          <div className="flex flex-col gap-1">
+            {message.embeds.map((embed, index) => (
+              <EmbedCard key={`${embed.url}-${index}`} embed={embed} />
+            ))}
+          </div>
+        )}
         {message.reactions.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {message.reactions.map((reaction) => (

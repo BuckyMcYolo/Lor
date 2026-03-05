@@ -16,10 +16,22 @@ export const messageReactionSchema = z.object({
   reactedByCurrentUser: z.boolean(),
 })
 
+const httpsUrlSchema = z.string().regex(/^https?:\/\//i)
+
+export const messageEmbedSchema = z.object({
+  type: z.enum(["link", "image", "video", "rich"]),
+  url: httpsUrlSchema,
+  title: z.string().optional(),
+  description: z.string().optional(),
+  thumbnail: httpsUrlSchema.optional(),
+  siteName: z.string().optional(),
+})
+
 export const messageWithAuthorSchema = selectMessageSchema.extend({
   author: messageAuthorSchema,
   mentions: z.array(messageAuthorSchema),
   reactions: z.array(messageReactionSchema),
+  embeds: z.array(messageEmbedSchema),
 })
 
 export const listMessagesQuerySchema = paginationQuerySchema
