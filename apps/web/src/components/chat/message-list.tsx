@@ -1,7 +1,8 @@
 import { Skeleton } from "@repo/ui/components/skeleton"
+import { cn } from "@repo/ui/lib/utils"
 import { differenceInMinutes, isSameDay } from "@repo/utils/date"
 import { Hash, User, Users } from "lucide-react"
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { Message } from "@/lib/api-types"
 import { DateDivider } from "./date-divider"
 import type { ChatContext } from "./header"
@@ -70,12 +71,29 @@ export function MessageList({
   const scrollRef = useRef<HTMLDivElement>(null)
   const isNearBottom = useRef(true)
   const prevMessageCount = useRef(messages.length)
+  const [stickyDate, setStickyDate] = useState<string | null>(null)
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
     if (!el) return
     // flex-col-reverse: scrollTop is 0 at bottom, negative when scrolled up
     isNearBottom.current = Math.abs(el.scrollTop) < 150
+
+    // Determine which date divider has scrolled past the top
+    const containerTop = el.getBoundingClientRect().top
+    const dividers = el.querySelectorAll("[data-date-divider]")
+    let topDate: string | null = null
+
+    for (const divider of dividers) {
+      const rect = divider.getBoundingClientRect()
+      // If the divider's bottom is above the container top, it's scrolled past
+      if (rect.bottom < containerTop + 8) {
+        topDate = (divider as HTMLElement).dataset.dateDivider ?? null
+        break // first in DOM = visually lowest in flex-col-reverse = just scrolled past
+      }
+    }
+
+    setStickyDate(topDate)
   }, [])
 
   useEffect(() => {
@@ -121,51 +139,61 @@ export function MessageList({
   }
 
   return (
-    <div
-      ref={scrollRef}
-      onScroll={handleScroll}
-      data-message-scroll
-      className="flex flex-1 select-text flex-col-reverse overflow-y-auto py-4"
-    >
-      {messages.map((msg, i) => {
-        const next = messages[i + 1]
-        const isDateBoundary =
-          !next || !isSameDay(msg.createdAt, next.createdAt)
-        const isWithinGroupWindow =
-          !!next &&
-          differenceInMinutes(msg.createdAt, next.createdAt) <=
-            MESSAGE_GROUP_WINDOW_MINUTES
-        const showHeader =
-          isDateBoundary ||
-          !next ||
-          next.authorId !== msg.authorId ||
-          !isWithinGroupWindow ||
-          msg.type === "reply"
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div
+        className={cn(
+          "pointer-events-none absolute top-2 left-1/2 z-30 -translate-x-1/2 rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground shadow-sm transition-all duration-300 ease-out",
+          stickyDate ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+        )}
+      >
+        {stickyDate}
+      </div>
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        data-message-scroll
+        className="flex flex-1 select-text flex-col-reverse overflow-y-auto py-4"
+      >
+        {messages.map((msg, i) => {
+          const next = messages[i + 1]
+          const isDateBoundary =
+            !next || !isSameDay(msg.createdAt, next.createdAt)
+          const isWithinGroupWindow =
+            !!next &&
+            differenceInMinutes(msg.createdAt, next.createdAt) <=
+              MESSAGE_GROUP_WINDOW_MINUTES
+          const showHeader =
+            isDateBoundary ||
+            !next ||
+            next.authorId !== msg.authorId ||
+            !isWithinGroupWindow ||
+            msg.type === "reply"
 
-        return (
-          <div key={msg.id}>
-            {isDateBoundary && <DateDivider date={msg.createdAt} />}
-            <MessageItem
-              message={msg}
-              showHeader={showHeader}
-              currentUserId={currentUserId}
-              onReact={onReact}
-              onReply={onReply}
-            />
+          return (
+            <div key={msg.id}>
+              {isDateBoundary && <DateDivider date={msg.createdAt} />}
+              <MessageItem
+                message={msg}
+                showHeader={showHeader}
+                currentUserId={currentUserId}
+                onReact={onReact}
+                onReply={onReply}
+              />
+            </div>
+          )
+        })}
+        {hasMore && (
+          <div className="flex justify-center py-2">
+            <button
+              type="button"
+              onClick={onLoadMore}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Load more
+            </button>
           </div>
-        )
-      })}
-      {hasMore && (
-        <div className="flex justify-center py-2">
-          <button
-            type="button"
-            onClick={onLoadMore}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Load more
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
