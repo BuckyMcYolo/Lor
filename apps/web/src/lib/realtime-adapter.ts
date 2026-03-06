@@ -13,7 +13,8 @@ export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
     type: rm.type,
     createdAt: rm.createdAt,
     author: rm.author,
-    referencedMessageId: null,
+    referencedMessageId: rm.referencedMessage?.id ?? null,
+    referencedMessage: rm.referencedMessage ?? null,
     attachments: [],
     embeds: rm.embeds ?? [],
     pinned: false,
@@ -137,17 +138,19 @@ export function createOptimisticMessage(
   channelId: string,
   content: string,
   author: MessageAuthor,
-  mentions: Message["mentions"] = []
+  mentions: Message["mentions"] = [],
+  referencedMessage?: Message["referencedMessage"]
 ): Message {
   return {
     id: nonce,
     channelId,
     authorId: author.id,
     content,
-    type: "default",
+    type: referencedMessage ? "reply" : "default",
     createdAt: new Date().toISOString(),
     author,
-    referencedMessageId: null,
+    referencedMessageId: referencedMessage?.id ?? null,
+    referencedMessage: referencedMessage ?? null,
     attachments: [],
     embeds: [],
     pinned: false,

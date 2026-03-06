@@ -15,6 +15,7 @@ export const sendMessagePayloadSchema = z.object({
   channelId: z.string().uuid(),
   content: z.string().trim().min(1).max(2000),
   nonce: z.string().max(100).optional(),
+  referencedMessageId: z.string().uuid().optional(),
 })
 
 export const toggleMessageReactionPayloadSchema = z.object({
@@ -76,6 +77,18 @@ export type RealtimeEmbed = {
   siteName?: string
 }
 
+export type RealtimeReferencedMessage = {
+  id: string
+  content: string | null
+  author: {
+    id: string
+    name: string
+    username: string | null
+    displayUsername: string | null
+    image: string | null
+  }
+}
+
 export type RealtimeMessage = {
   id: string
   channelId: string
@@ -94,6 +107,7 @@ export type RealtimeMessage = {
   mentions: RealtimeMessageMention[]
   reactions: RealtimeMessageReaction[]
   embeds: RealtimeEmbed[]
+  referencedMessage: RealtimeReferencedMessage | null
   nonce?: string
 }
 

@@ -12,6 +12,7 @@ interface MessageListProps {
   messages: Message[]
   currentUserId?: string
   onReact?: (messageId: string, emoji: string) => void
+  onReply?: (message: Message) => void
   isLoading?: boolean
   hasMore?: boolean
   onLoadMore?: () => void
@@ -61,6 +62,7 @@ export function MessageList({
   messages,
   currentUserId,
   onReact,
+  onReply,
   isLoading,
   hasMore,
   onLoadMore,
@@ -122,6 +124,7 @@ export function MessageList({
     <div
       ref={scrollRef}
       onScroll={handleScroll}
+      data-message-scroll
       className="flex flex-1 select-text flex-col-reverse overflow-y-auto py-4"
     >
       {messages.map((msg, i) => {
@@ -136,7 +139,8 @@ export function MessageList({
           isDateBoundary ||
           !next ||
           next.authorId !== msg.authorId ||
-          !isWithinGroupWindow
+          !isWithinGroupWindow ||
+          msg.type === "reply"
 
         return (
           <div key={msg.id}>
@@ -146,6 +150,7 @@ export function MessageList({
               showHeader={showHeader}
               currentUserId={currentUserId}
               onReact={onReact}
+              onReply={onReply}
             />
           </div>
         )

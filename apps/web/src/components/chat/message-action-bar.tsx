@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
-import { MessageSquarePlus, MoreHorizontal } from "lucide-react"
+import { MoreHorizontal, Reply } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EmojiReactionPicker } from "./emoji-reaction-picker"
 
@@ -55,7 +55,7 @@ export function MessageActionBar({
             onClick={onReply}
             aria-label="Reply"
           >
-            <MessageSquarePlus className="size-4" />
+            <Reply className="size-4" />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top">Reply</TooltipContent>

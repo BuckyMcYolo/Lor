@@ -104,7 +104,13 @@ export function useMessageSending<TData extends MessagesQueryData>({
   }, [socket, channelId, updateMessagesInCache])
 
   const handleSend = useCallback(
-    (content: string, options?: { mentions: Message["mentions"] }) => {
+    (
+      content: string,
+      options?: {
+        mentions: Message["mentions"]
+        referencedMessage?: Message["referencedMessage"]
+      }
+    ) => {
       if (!socket?.connected || !currentUser) return
 
       const nonce = crypto.randomUUID()
@@ -124,30 +130,36 @@ export function useMessageSending<TData extends MessagesQueryData>({
           channelId,
           content,
           author,
-          options?.mentions ?? []
+          options?.mentions ?? [],
+          options?.referencedMessage ?? undefined
         ),
         ...messages,
       ])
 
-      socket.emit("message:send", { channelId, content, nonce }, (result) => {
-        if (!result.ok) {
-          console.error("[chat] send failed:", result.error)
+      const referencedMessageId = options?.referencedMessage?.id
+      socket.emit(
+        "message:send",
+        { channelId, content, nonce, referencedMessageId },
+        (result) => {
+          if (!result.ok) {
+            console.error("[chat] send failed:", result.error)
+            pendingNonces.current.delete(nonce)
+            updateMessagesInCache((messages) =>
+              messages.filter((message) => message.id !== nonce)
+            )
+            return
+          }
+
           pendingNonces.current.delete(nonce)
           updateMessagesInCache((messages) =>
-            messages.filter((message) => message.id !== nonce)
+            messages.map((message) =>
+              message.id === nonce
+                ? realtimeMessageToMessage(result.message)
+                : message
+            )
           )
-          return
         }
-
-        pendingNonces.current.delete(nonce)
-        updateMessagesInCache((messages) =>
-          messages.map((message) =>
-            message.id === nonce
-              ? realtimeMessageToMessage(result.message)
-              : message
-          )
-        )
-      })
+      )
     },
     [socket, currentUser, channelId, updateMessagesInCache]
   )

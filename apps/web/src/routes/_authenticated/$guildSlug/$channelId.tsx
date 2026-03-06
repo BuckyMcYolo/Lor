@@ -10,6 +10,7 @@ import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-
 import { useSocket } from "@/context/socket-context"
 import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
+import { useReplyState } from "@/hooks/use-reply-state"
 import { apiClient } from "@/lib/api-client"
 import type { ListMessagesResponse } from "@/lib/api-types"
 
@@ -100,6 +101,8 @@ function ChannelView() {
     currentUser: session?.user,
   })
 
+  const { replyingTo, setReplyingTo, clearReply } = useReplyState()
+
   const mentionCandidates = useMemo(
     () => [
       {
@@ -156,6 +159,7 @@ function ChannelView() {
         messages={messagesData?.data ?? []}
         currentUserId={currentUserId}
         onReact={handleReact}
+        onReply={setReplyingTo}
         isLoading={messagesLoading}
       />
       <MessageInput
@@ -163,6 +167,8 @@ function ChannelView() {
         onSend={handleSend}
         currentUserId={currentUserId}
         mentionCandidates={mentionCandidates}
+        replyingTo={replyingTo}
+        onCancelReply={clearReply}
       />
     </div>
   )

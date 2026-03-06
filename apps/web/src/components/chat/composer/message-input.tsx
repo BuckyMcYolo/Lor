@@ -34,6 +34,7 @@ import {
   Send,
   Smile,
   Strikethrough,
+  X,
 } from "lucide-react"
 import {
   type ComponentType,
@@ -96,10 +97,18 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
 
 interface MessageInputProps {
   context: ChatContext
-  onSend: (content: string, options?: { mentions: Message["mentions"] }) => void
+  onSend: (
+    content: string,
+    options?: {
+      mentions: Message["mentions"]
+      referencedMessage?: Message["referencedMessage"]
+    }
+  ) => void
   isSending?: boolean
   currentUserId?: string
   mentionCandidates?: MentionCandidate[]
+  replyingTo?: Message | null
+  onCancelReply?: () => void
 }
 
 function toStoredMarkdown(markdown: string) {
@@ -428,6 +437,8 @@ export function MessageInput({
   isSending,
   currentUserId,
   mentionCandidates = [],
+  replyingTo,
+  onCancelReply,
 }: MessageInputProps) {
   const [plainText, setPlainText] = useState("")
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false)
@@ -553,11 +564,34 @@ export function MessageInput({
       }
     )
 
-    onSend(trimmed, { mentions })
+    onSend(trimmed, {
+      mentions,
+      referencedMessage: replyingTo
+        ? {
+            id: replyingTo.id,
+            content: replyingTo.content,
+            author: replyingTo.author,
+          }
+        : undefined,
+    })
     editor.commands.clearContent(true)
     editor.commands.focus("end")
     setPlainText("")
-  }, [editor, isSending, normalizedMentionCandidates, onSend])
+    onCancelReply?.()
+  }, [
+    editor,
+    isSending,
+    normalizedMentionCandidates,
+    onSend,
+    replyingTo,
+    onCancelReply,
+  ])
+
+  useEffect(() => {
+    if (replyingTo && editor) {
+      editor.commands.focus("end")
+    }
+  }, [replyingTo, editor])
 
   useEffect(() => {
     if (!editor || !editor.view || !editor.view.dom) {
@@ -659,7 +693,30 @@ export function MessageInput({
 
   return (
     <div className="shrink-0 px-4 pb-3">
-      <div className="flex items-center gap-2 rounded-lg border border-input bg-muted/40 px-3 py-2">
+      {replyingTo && (
+        <div className="flex items-center gap-2 rounded-t-lg border border-b-0 border-input bg-muted/60 px-3 py-1.5 text-sm">
+          <span className="truncate text-muted-foreground">
+            Replying to{" "}
+            <span className="font-semibold text-foreground">
+              {replyingTo.author.displayUsername ?? replyingTo.author.name}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="ml-auto shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Cancel reply"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+      <div
+        className={cn(
+          "flex items-center gap-2 border border-input bg-muted/40 px-3 py-2",
+          replyingTo ? "rounded-b-lg" : "rounded-lg"
+        )}
+      >
         <Popover
           open={isAttachmentMenuOpen}
           onOpenChange={setIsAttachmentMenuOpen}
