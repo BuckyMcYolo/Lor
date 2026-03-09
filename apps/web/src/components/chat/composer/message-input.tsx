@@ -44,6 +44,7 @@ import {
 } from "react"
 import type { PendingAttachment } from "@/hooks/use-file-upload"
 import type { Message } from "@/lib/api-types"
+import { extractMentionIds, toStoredMarkdown } from "@/lib/editor-utils"
 import type { ChatContext } from "../header"
 import { AttachmentPreview } from "./attachment-preview"
 import {
@@ -65,13 +66,9 @@ const MAX_MESSAGE_LENGTH = 2000
 const POPUP_HORIZONTAL_PADDING = 8
 const POPUP_VERTICAL_PADDING = 8
 const POPUP_GAP = 6
-const SUGGESTION_MENU_SELECTOR =
+export const SUGGESTION_MENU_SELECTOR =
   "[data-suggestion-open='true'], [data-mention-suggestion-open='true'], [data-slash-suggestion-open='true'], [data-slash-command-open='true']"
-const EVERYONE_MENTION_ID = "everyone"
 const SLASH_COMMAND_PLUGIN_KEY = new PluginKey("slash-command")
-const TIPTAP_MARKDOWN_MENTION_REGEX = /\[@[^\]]*?\bid="([^"]+)"[^\]]*]/g
-const STORED_MENTION_REGEX =
-  /<@([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})>/gi
 const DEFAULT_CODE_BLOCK_LANGUAGE = "plaintext"
 const CODE_BLOCK_LANGUAGE_OPTIONS = [
   { value: "plaintext", label: "Plain Text" },
@@ -111,37 +108,6 @@ interface MessageInputProps {
   clearAttachments: () => void
   getUploadedAttachments: () => NonNullable<Message["attachments"]>
   isUploading: boolean
-}
-
-function toStoredMarkdown(markdown: string) {
-  return (
-    markdown
-      .replace(/\u00A0/g, " ")
-      // Strip ++…++ wrappers the Markdown extension generates for unrecognised marks (e.g. Link)
-      // TipTap outputs either ++[url](url)++ or ++bareUrl++
-      .replace(/\+\+\[([^\]]+)\]\([^)]+\)\+\+/g, "$1")
-      .replace(/\+\+([\s\S]+?)\+\+/g, "$1")
-      .replace(TIPTAP_MARKDOWN_MENTION_REGEX, (_match, mentionId: string) => {
-        if (mentionId.toLowerCase() === EVERYONE_MENTION_ID) {
-          return "@everyone"
-        }
-
-        return `<@${mentionId}>`
-      })
-  )
-}
-
-function extractMentionIds(content: string) {
-  const mentionIds = new Set<string>()
-
-  for (const match of content.matchAll(STORED_MENTION_REGEX)) {
-    const mentionId = match[1]
-    if (mentionId) {
-      mentionIds.add(mentionId)
-    }
-  }
-
-  return Array.from(mentionIds)
 }
 
 interface SuggestionPopupListRef {
@@ -253,7 +219,7 @@ function createSuggestionPopupManager<
   }
 }
 
-function createMentionSuggestion(
+export function createMentionSuggestion(
   getMentionCandidates: () => MentionCandidate[]
 ): MentionOptions<MentionCandidate>["suggestion"] {
   return {

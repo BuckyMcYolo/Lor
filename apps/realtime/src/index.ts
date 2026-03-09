@@ -11,6 +11,7 @@ import {
   channelRoom,
   channelRoomPayloadSchema,
   deleteMessagePayloadSchema,
+  editMessagePayloadSchema,
   guildRoom,
   markChannelReadPayloadSchema,
   presenceSubscribePayloadSchema,
@@ -29,6 +30,7 @@ import { assertUserCanAccessChannel } from "@/services/channel-access"
 import {
   createMessage,
   deleteMessage,
+  editMessage,
   toggleMessageReaction,
 } from "@/services/messages"
 import { buildMessageFanout } from "@/services/notifications"
@@ -369,6 +371,27 @@ io.on("connection", (socket) => {
       socket.to(channelRoom(parsed.channelId)).emit("message:deleted", {
         channelId: result.channelId,
         messageId: result.messageId,
+      })
+
+      ack?.({ ok: true })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("message:edit", async (payload, ack) => {
+    try {
+      const parsed = editMessagePayloadSchema.parse(payload)
+      const result = await editMessage({
+        userId: socket.data.user.id,
+        payload: parsed,
+      })
+
+      socket.to(channelRoom(parsed.channelId)).emit("message:updated", {
+        channelId: result.channelId,
+        messageId: result.messageId,
+        content: result.content,
+        editedAt: result.editedAt,
       })
 
       ack?.({ ok: true })

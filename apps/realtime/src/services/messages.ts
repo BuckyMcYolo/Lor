@@ -1,6 +1,7 @@
 import { and, count, db, eq, schema } from "@repo/db"
 import type {
   DeleteMessagePayload,
+  EditMessagePayload,
   RealtimeMessage,
   RealtimeMessageReactionUpdated,
   SendMessagePayload,
@@ -19,6 +20,11 @@ type CreateMessageInput = {
 type DeleteMessageInput = {
   userId: string
   payload: DeleteMessagePayload
+}
+
+type EditMessageInput = {
+  userId: string
+  payload: EditMessagePayload
 }
 
 type ToggleMessageReactionInput = {
@@ -223,6 +229,61 @@ export async function deleteMessage(
   return {
     channelId: input.payload.channelId,
     messageId: input.payload.messageId,
+    channel: channelRecord,
+  }
+}
+
+export type EditMessageResult = {
+  channelId: string
+  messageId: string
+  content: string
+  editedAt: string
+  channel: AccessibleChannel
+}
+
+export async function editMessage(
+  input: EditMessageInput
+): Promise<EditMessageResult> {
+  const channelRecord = await assertUserCanAccessChannel(
+    input.userId,
+    input.payload.channelId
+  )
+
+  const messageRecord = await db
+    .select({
+      id: schema.message.id,
+      authorId: schema.message.authorId,
+    })
+    .from(schema.message)
+    .where(
+      and(
+        eq(schema.message.id, input.payload.messageId),
+        eq(schema.message.channelId, input.payload.channelId)
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!messageRecord) {
+    throw new Error("Message not found")
+  }
+
+  if (messageRecord.authorId !== input.userId) {
+    throw new Error("You can only edit your own messages")
+  }
+
+  const editedAt = new Date()
+
+  await db
+    .update(schema.message)
+    .set({ content: input.payload.content, editedAt })
+    .where(eq(schema.message.id, input.payload.messageId))
+
+  return {
+    channelId: input.payload.channelId,
+    messageId: input.payload.messageId,
+    content: input.payload.content,
+    editedAt: editedAt.toISOString(),
     channel: channelRecord,
   }
 }

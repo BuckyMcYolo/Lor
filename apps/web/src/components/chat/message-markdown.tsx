@@ -180,12 +180,14 @@ interface MessageMarkdownProps {
   content: string | null
   mentions: Message["mentions"]
   className?: string
+  editedAt?: string | null
 }
 
 export function MessageMarkdown({
   content,
   mentions,
   className,
+  editedAt,
 }: MessageMarkdownProps) {
   const mentionById = useMemo(
     () => new Map(mentions.map((mention) => [mention.id, mention])),
@@ -206,6 +208,7 @@ export function MessageMarkdown({
       className={cn(
         "break-words text-sm leading-snug text-foreground/90",
         "[&_p]:my-0 [&_a]:break-words [&_code]:rounded-[4px] [&_code]:border [&_code]:border-border/70 [&_code]:bg-primary/10 [&_code]:px-0.75 [&_code]:py-0.25 [&_code]:font-mono [&_code]:text-[0.92em] [&_code]:text-foreground [&_pre_code]:rounded-none [&_pre_code]:border-0 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code.hljs]:bg-transparent [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
+        editedAt && "[&>p:last-of-type]:inline",
         className
       )}
     >
@@ -297,6 +300,11 @@ export function MessageMarkdown({
       >
         {markdown}
       </ReactMarkdown>
+      {editedAt && (
+        <span className="ml-1 text-[10px] leading-snug text-muted-foreground/50">
+          (edited)
+        </span>
+      )}
     </div>
   )
 }
