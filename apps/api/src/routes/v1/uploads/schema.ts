@@ -7,6 +7,7 @@ export const ALLOWED_MIME_TYPES = [
   "image/webp",
   "image/svg+xml",
   "video/mp4",
+  "video/quicktime",
   "video/webm",
   "audio/mpeg",
   "audio/ogg",

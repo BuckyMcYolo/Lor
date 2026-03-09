@@ -21,7 +21,7 @@
 
 ## Phase 1 — Core UX Gaps
 
-- [ ] File/image attachment uploads (R2)
+- [x] File/image attachment uploads (R2)
 - [ ] Message deletion
 - [ ] Message editing UI
 - [ ] User profiles (bio, custom status, avatar upload)

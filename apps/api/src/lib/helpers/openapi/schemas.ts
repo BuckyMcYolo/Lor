@@ -37,6 +37,13 @@ export const forbiddenSchema = jsonContent({
   description: "Forbidden",
 })
 
+export const payloadTooLargeSchema = jsonContent({
+  schema: errorSchema.openapi({
+    example: { success: false, message: "File too large" },
+  }),
+  description: "Payload too large",
+})
+
 export const notFoundSchema = jsonContent({
   schema: errorSchema.openapi({
     example: { success: false, message: "Not found" },

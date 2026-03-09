@@ -90,16 +90,17 @@ function AttachmentLightbox({
   }, [images.length])
 
   useEffect(() => {
-    if (!open || !hasMultiple) return
+    if (!open) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") goNext()
-      if (e.key === "ArrowLeft") goPrev()
+      if (e.key === "Escape") onOpenChange(false)
+      if (hasMultiple && e.key === "ArrowRight") goNext()
+      if (hasMultiple && e.key === "ArrowLeft") goPrev()
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [open, hasMultiple, goNext, goPrev])
+  }, [open, hasMultiple, goNext, goPrev, onOpenChange])
 
   if (!current || !open) return null
 

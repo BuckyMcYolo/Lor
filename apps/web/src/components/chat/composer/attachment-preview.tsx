@@ -29,6 +29,7 @@ export function AttachmentPreview({
           <button
             type="button"
             onClick={() => onRemove(attachment.id)}
+            aria-label={`Remove ${attachment.filename}`}
             className="absolute -right-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-foreground text-background hover:bg-foreground/80"
           >
             <X className="size-3" />

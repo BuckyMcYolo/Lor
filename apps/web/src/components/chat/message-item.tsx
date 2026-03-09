@@ -109,8 +109,7 @@ export function MessageItem({
   const author = message.author
   const [isActionBarPinned, setIsActionBarPinned] = useState(false)
   const isOwnMessage = !!currentUserId && currentUserId === message.authorId
-  const isReply =
-    message.type === "reply" && message.referencedMessageId !== null
+  const isReply = message.type === "reply"
 
   const handleCopyText = useCallback(() => {
     if (!message.content) return
@@ -152,7 +151,7 @@ export function MessageItem({
           onOverlayOpenChange={setIsActionBarPinned}
         />
       </div>
-      {isReply && showHeader && (
+      {isReply && (
         <ReplyPreview referencedMessage={message.referencedMessage} />
       )}
       <div className="flex gap-3">

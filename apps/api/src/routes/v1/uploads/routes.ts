@@ -4,6 +4,7 @@ import jsonContent from "@/lib/helpers/openapi/json-content"
 import {
   forbiddenSchema,
   internalServerErrorSchema,
+  payloadTooLargeSchema,
   unauthorizedSchema,
 } from "@/lib/helpers/openapi/schemas"
 import { sessionAuthMiddleware } from "@/middleware/session-auth"
@@ -30,6 +31,7 @@ export const presign = createRoute({
     }),
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
     [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.REQUEST_TOO_LONG]: payloadTooLargeSchema,
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
   },
 })

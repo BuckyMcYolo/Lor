@@ -42,7 +42,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { useFileUpload } from "@/hooks/use-file-upload"
+import type { PendingAttachment } from "@/hooks/use-file-upload"
 import type { Message } from "@/lib/api-types"
 import type { ChatContext } from "../header"
 import { AttachmentPreview } from "./attachment-preview"
@@ -92,7 +92,6 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
 
 interface MessageInputProps {
   context: ChatContext
-  channelId: string
   onSend: (
     content: string,
     options?: {
@@ -106,6 +105,12 @@ interface MessageInputProps {
   mentionCandidates?: MentionCandidate[]
   replyingTo?: Message | null
   onCancelReply?: () => void
+  pendingAttachments: PendingAttachment[]
+  addFiles: (files: File[]) => Promise<void>
+  removeAttachment: (id: string) => void
+  clearAttachments: () => void
+  getUploadedAttachments: () => NonNullable<Message["attachments"]>
+  isUploading: boolean
 }
 
 function toStoredMarkdown(markdown: string) {
@@ -430,26 +435,23 @@ function getActiveCodeBlockPos(editor: {
 
 export function MessageInput({
   context,
-  channelId,
   onSend,
   isSending,
   currentUserId,
   mentionCandidates = [],
   replyingTo,
   onCancelReply,
+  pendingAttachments,
+  addFiles,
+  removeAttachment,
+  clearAttachments,
+  getUploadedAttachments,
+  isUploading,
 }: MessageInputProps) {
   const [plainText, setPlainText] = useState("")
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false)
   const mentionCandidatesRef = useRef<MentionCandidate[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const {
-    attachments: pendingAttachments,
-    addFiles,
-    removeAttachment,
-    clearAttachments,
-    getUploadedAttachments,
-    isUploading,
-  } = useFileUpload(channelId)
 
   const placeholder =
     context.type === "channel"
@@ -720,17 +722,6 @@ export function MessageInput({
     [addFiles]
   )
 
-  const handleDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault()
-      const files = Array.from(event.dataTransfer.files)
-      if (files.length > 0) {
-        void addFiles(files)
-      }
-    },
-    [addFiles]
-  )
-
   const handlePaste = useCallback(
     (event: React.ClipboardEvent) => {
       const files = Array.from(event.clipboardData.files)
@@ -769,14 +760,12 @@ export function MessageInput({
           </button>
         </div>
       )}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: drop/paste zone, not an interactive control */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: paste zone, not an interactive control */}
       <div
         className={cn(
           "border border-input bg-muted/40",
           replyingTo ? "rounded-b-lg" : "rounded-lg"
         )}
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
         onPaste={handlePaste}
       >
         <AttachmentPreview

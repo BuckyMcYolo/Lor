@@ -36,9 +36,28 @@ export async function createMessage(input: CreateMessageInput) {
     input.payload.channelId
   )
 
-  const hasReply = !!input.payload.referencedMessageId
+  let hasReply = !!input.payload.referencedMessageId
 
   const messageWithAuthor = await db.transaction(async (tx) => {
+    // Verify the referenced message exists in the same channel
+    if (hasReply && input.payload.referencedMessageId) {
+      const refExists = await tx
+        .select({ id: schema.message.id })
+        .from(schema.message)
+        .where(
+          and(
+            eq(schema.message.id, input.payload.referencedMessageId),
+            eq(schema.message.channelId, input.payload.channelId)
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (!refExists) {
+        hasReply = false
+      }
+    }
+
     const insertedMessage = await tx
       .insert(schema.message)
       .values({
@@ -46,7 +65,9 @@ export async function createMessage(input: CreateMessageInput) {
         authorId: input.userId,
         content: input.payload.content ?? null,
         type: hasReply ? "reply" : "default",
-        referencedMessageId: input.payload.referencedMessageId ?? null,
+        referencedMessageId: hasReply
+          ? (input.payload.referencedMessageId ?? null)
+          : null,
         attachments: input.payload.attachments ?? [],
       })
       .returning({

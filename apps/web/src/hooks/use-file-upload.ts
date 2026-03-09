@@ -1,5 +1,6 @@
 import { env } from "@repo/env/client"
 import { useCallback, useState } from "react"
+import { toast } from "sonner"
 import { apiClient } from "@/lib/api-client"
 import type { Message } from "@/lib/api-types"
 
@@ -12,6 +13,7 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/webp",
   "image/svg+xml",
   "video/mp4",
+  "video/quicktime",
   "video/webm",
   "audio/mpeg",
   "audio/ogg",
@@ -84,42 +86,62 @@ export function useFileUpload(channelId: string) {
 
   const addFiles = useCallback(
     async (files: File[]) => {
-      const remaining = MAX_ATTACHMENTS - attachments.length
-      const toAdd = files.slice(0, remaining)
+      // Validate files first (before touching state)
+      const maxSize = env.NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE
+      const maxMB = Math.round(maxSize / 1024 / 1024)
+      const validated: File[] = []
+      for (const f of files) {
+        if (!ALLOWED_MIME_TYPES.has(f.type)) {
+          toast.error("Unsupported file type", { description: f.name })
+        } else if (f.size > maxSize) {
+          toast.error(`File exceeds ${maxMB}MB limit`, { description: f.name })
+        } else {
+          validated.push(f)
+        }
+      }
 
-      const newAttachments: PendingAttachment[] = await Promise.all(
-        toAdd
-          .filter(
-            (f) =>
-              f.size <= env.NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE &&
-              ALLOWED_MIME_TYPES.has(f.type)
-          )
-          .map(async (file) => {
-            const dims = await getImageDimensions(file)
-            const previewUrl = file.type.startsWith("image/")
-              ? URL.createObjectURL(file)
-              : undefined
-            return {
-              id: crypto.randomUUID(),
-              file,
-              filename: file.name,
-              contentType: file.type,
-              size: file.size,
-              width: dims?.width,
-              height: dims?.height,
-              status: "uploading" as const,
-              previewUrl,
-            }
-          })
+      if (validated.length === 0) return
+
+      // Build PendingAttachment objects for validated files
+      const prepared: PendingAttachment[] = await Promise.all(
+        validated.map(async (file) => {
+          const dims = await getImageDimensions(file)
+          const previewUrl = file.type.startsWith("image/")
+            ? URL.createObjectURL(file)
+            : undefined
+          return {
+            id: crypto.randomUUID(),
+            file,
+            filename: file.name,
+            contentType: file.type,
+            size: file.size,
+            width: dims?.width,
+            height: dims?.height,
+            status: "uploading" as const,
+            previewUrl,
+          }
+        })
       )
 
-      if (newAttachments.length === 0) return
+      // Atomically check remaining slots and append
+      let accepted: PendingAttachment[] = []
+      setAttachments((prev) => {
+        const remaining = MAX_ATTACHMENTS - prev.length
+        accepted = prepared.slice(0, remaining)
+        if (prepared.length > remaining) {
+          toast.error(
+            `You can only attach up to ${MAX_ATTACHMENTS} files per message`
+          )
+        }
+        if (accepted.length === 0) return prev
+        return [...prev, ...accepted]
+      })
 
-      setAttachments((prev) => [...prev, ...newAttachments])
+      if (accepted.length === 0) return
 
       // Upload each file immediately in parallel
       await Promise.all(
-        newAttachments.map(async (attachment) => {
+        accepted.map(async (attachment) => {
           try {
             const result = await uploadFile(channelId, attachment)
             if (result) {
@@ -149,7 +171,7 @@ export function useFileUpload(channelId: string) {
         })
       )
     },
-    [attachments.length, channelId]
+    [channelId]
   )
 
   const removeAttachment = useCallback((id: string) => {

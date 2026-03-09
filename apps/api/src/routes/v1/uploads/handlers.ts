@@ -19,7 +19,7 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
   if (size > env.MAX_FILE_UPLOAD_SIZE) {
     return c.json(
       { success: false, message: "File too large" },
-      HttpStatusCodes.FORBIDDEN
+      HttpStatusCodes.REQUEST_TOO_LONG
     )
   }
 
@@ -58,10 +58,10 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
         HttpStatusCodes.FORBIDDEN
       )
     }
-  }
-
-  // DM/group DM — verify channel membership
-  if (DM_CHANNEL_TYPES.includes(ch.type as (typeof DM_CHANNEL_TYPES)[number])) {
+  } else if (
+    DM_CHANNEL_TYPES.includes(ch.type as (typeof DM_CHANNEL_TYPES)[number])
+  ) {
+    // DM/group DM — verify channel membership
     const member = await db
       .select({ id: channelMember.id })
       .from(channelMember)
@@ -80,6 +80,12 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
         HttpStatusCodes.FORBIDDEN
       )
     }
+  } else {
+    // Unknown channel type with no guild — reject
+    return c.json(
+      { success: false, message: "Forbidden" },
+      HttpStatusCodes.FORBIDDEN
+    )
   }
 
   const fileId = crypto.randomUUID()
