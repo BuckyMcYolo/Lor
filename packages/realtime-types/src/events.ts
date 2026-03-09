@@ -71,13 +71,15 @@ export type RealtimeMessageType =
   | "system_pin"
   | "channel_name_change"
 
-export type RealtimeMessageMention = {
+export type RealtimeAuthor = {
   id: string
   name: string
   username: string | null
   displayUsername: string | null
   image: string | null
 }
+
+export type RealtimeMessageMention = RealtimeAuthor
 
 export type RealtimeMessageReaction = {
   emoji: string
@@ -106,13 +108,7 @@ export type RealtimeEmbed = {
 export type RealtimeReferencedMessage = {
   id: string
   content: string | null
-  author: {
-    id: string
-    name: string
-    username: string | null
-    displayUsername: string | null
-    image: string | null
-  }
+  author: RealtimeAuthor
 }
 
 export type RealtimeMessage = {
@@ -123,13 +119,7 @@ export type RealtimeMessage = {
   content: string | null
   type: RealtimeMessageType
   createdAt: string
-  author: {
-    id: string
-    name: string
-    username: string | null
-    displayUsername: string | null
-    image: string | null
-  }
+  author: RealtimeAuthor
   mentions: RealtimeMessageMention[]
   reactions: RealtimeMessageReaction[]
   attachments: RealtimeAttachment[]

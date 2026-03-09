@@ -1,28 +1,14 @@
 import { env } from "@repo/env/client"
+import {
+  ALLOWED_MIME_TYPES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+} from "@repo/realtime-types/uploads"
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api-client"
 import type { Message } from "@/lib/api-types"
 
-const MAX_ATTACHMENTS = 10
-
-const ALLOWED_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "application/pdf",
-  "text/plain",
-  "application/zip",
-  "application/x-tar",
-])
+const ALLOWED_MIME_TYPES_SET = new Set<string>(ALLOWED_MIME_TYPES)
 
 export type PendingAttachment = {
   id: string
@@ -91,7 +77,7 @@ export function useFileUpload(channelId: string) {
       const maxMB = Math.round(maxSize / 1024 / 1024)
       const validated: File[] = []
       for (const f of files) {
-        if (!ALLOWED_MIME_TYPES.has(f.type)) {
+        if (!ALLOWED_MIME_TYPES_SET.has(f.type)) {
           toast.error("Unsupported file type", { description: f.name })
         } else if (f.size > maxSize) {
           toast.error(`File exceeds ${maxMB}MB limit`, { description: f.name })
@@ -126,11 +112,11 @@ export function useFileUpload(channelId: string) {
       // Atomically check remaining slots and append
       let accepted: PendingAttachment[] = []
       setAttachments((prev) => {
-        const remaining = MAX_ATTACHMENTS - prev.length
+        const remaining = MAX_ATTACHMENTS_PER_MESSAGE - prev.length
         accepted = prepared.slice(0, remaining)
         if (prepared.length > remaining) {
           toast.error(
-            `You can only attach up to ${MAX_ATTACHMENTS} files per message`
+            `You can only attach up to ${MAX_ATTACHMENTS_PER_MESSAGE} files per message`
           )
         }
         if (accepted.length === 0) return prev

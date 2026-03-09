@@ -76,6 +76,11 @@ function DMConversation() {
 
   const { replyingTo, setReplyingTo, clearReply } = useReplyState()
 
+  // Clear reply state when switching DMs
+  useEffect(() => {
+    clearReply()
+  }, [dmId, clearReply])
+
   const fileUpload = useFileUpload(dmId)
 
   const onDrop = useCallback(

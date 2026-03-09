@@ -1,24 +1,10 @@
 import { z } from "@hono/zod-openapi"
+import {
+  ALLOWED_MIME_TYPES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+} from "@repo/realtime-types/uploads"
 
-export const ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
-  "audio/mpeg",
-  "audio/ogg",
-  "audio/wav",
-  "application/pdf",
-  "text/plain",
-  "application/zip",
-  "application/x-tar",
-] as const
-
-export const MAX_ATTACHMENTS_PER_MESSAGE = 10
+export { ALLOWED_MIME_TYPES, MAX_ATTACHMENTS_PER_MESSAGE }
 export const PRESIGNED_URL_EXPIRY_SECONDS = 300
 
 export const presignRequestSchema = z.object({
