@@ -10,6 +10,8 @@ import type {
 import {
   channelRoom,
   channelRoomPayloadSchema,
+  deleteMessagePayloadSchema,
+  editMessagePayloadSchema,
   guildRoom,
   markChannelReadPayloadSchema,
   presenceSubscribePayloadSchema,
@@ -25,7 +27,12 @@ import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
-import { createMessage, toggleMessageReaction } from "@/services/messages"
+import {
+  createMessage,
+  deleteMessage,
+  editMessage,
+  toggleMessageReaction,
+} from "@/services/messages"
 import { buildMessageFanout } from "@/services/notifications"
 import {
   listOnlineUserIds,
@@ -348,6 +355,46 @@ io.on("connection", (socket) => {
             console.error("[realtime] failed to enqueue link-unfurl:", err)
           })
       }
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("message:delete", async (payload, ack) => {
+    try {
+      const parsed = deleteMessagePayloadSchema.parse(payload)
+      const result = await deleteMessage({
+        userId: socket.data.user.id,
+        payload: parsed,
+      })
+
+      socket.to(channelRoom(parsed.channelId)).emit("message:deleted", {
+        channelId: result.channelId,
+        messageId: result.messageId,
+      })
+
+      ack?.({ ok: true })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("message:edit", async (payload, ack) => {
+    try {
+      const parsed = editMessagePayloadSchema.parse(payload)
+      const result = await editMessage({
+        userId: socket.data.user.id,
+        payload: parsed,
+      })
+
+      socket.to(channelRoom(parsed.channelId)).emit("message:updated", {
+        channelId: result.channelId,
+        messageId: result.messageId,
+        content: result.content,
+        editedAt: result.editedAt,
+      })
+
+      ack?.({ ok: true })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }

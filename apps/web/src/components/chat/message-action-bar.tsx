@@ -81,17 +81,23 @@ export function MessageActionBar({
 
         <DropdownMenuContent side="top" align="end">
           {canManageMessage && (
-            <>
-              <DropdownMenuItem onSelect={onEdit} disabled={!onEdit}>
-                Edit message
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onDelete} disabled={!onDelete}>
-                Delete message
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
+            <DropdownMenuItem onSelect={onEdit} disabled={!onEdit}>
+              Edit message
+            </DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={onCopyText}>Copy text</DropdownMenuItem>
+          {canManageMessage && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={onDelete}
+                disabled={!onDelete}
+                className="text-destructive focus:text-destructive"
+              >
+                Delete message
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

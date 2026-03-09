@@ -11,6 +11,8 @@ import { MessageList } from "@/components/chat/message-list"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
 import { useFileUpload } from "@/hooks/use-file-upload"
+import { useMessageDeletion } from "@/hooks/use-message-deletion"
+import { useMessageEditing } from "@/hooks/use-message-editing"
 import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
@@ -95,6 +97,18 @@ function ChannelView() {
     queryClient,
     channelId,
     currentUserId,
+  })
+
+  const { handleDelete } = useMessageDeletion<ListMessagesResponse>({
+    socket,
+    queryClient,
+    channelId,
+  })
+
+  const { handleEdit } = useMessageEditing<ListMessagesResponse>({
+    socket,
+    queryClient,
+    channelId,
   })
 
   const { handleSend } = useMessageSending<ListMessagesResponse>({
@@ -189,6 +203,9 @@ function ChannelView() {
         currentUserId={currentUserId}
         onReact={handleReact}
         onReply={setReplyingTo}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+        mentionCandidates={mentionCandidates}
         isLoading={messagesLoading}
       />
       <MessageInput

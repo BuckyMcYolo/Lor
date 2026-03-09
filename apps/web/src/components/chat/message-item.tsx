@@ -1,11 +1,23 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@repo/ui/components/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import { cn } from "@repo/ui/lib/utils"
 import { formatTime } from "@repo/utils/date"
 import { useCallback, useState } from "react"
 import type { Message } from "@/lib/api-types"
+import type { MentionCandidate } from "./composer/mention-types"
 import { EmbedCard } from "./embed-card"
 import { MessageActionBar } from "./message-action-bar"
 import { AttachmentGrid } from "./message-attachment"
+import { MessageEditInput } from "./message-edit-input"
 import { MessageMarkdown } from "./message-markdown"
 
 interface MessageItemProps {
@@ -14,6 +26,9 @@ interface MessageItemProps {
   currentUserId?: string
   onReact?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
+  onDelete?: (messageId: string) => void
+  onEdit?: (messageId: string, content: string) => void
+  mentionCandidates?: MentionCandidate[]
 }
 
 function nameInitial(name: string) {
@@ -105,9 +120,14 @@ export function MessageItem({
   currentUserId,
   onReact,
   onReply,
+  onDelete,
+  onEdit,
+  mentionCandidates,
 }: MessageItemProps) {
   const author = message.author
   const [isActionBarPinned, setIsActionBarPinned] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const isOwnMessage = !!currentUserId && currentUserId === message.authorId
   const isReply = message.type === "reply"
 
@@ -131,6 +151,31 @@ export function MessageItem({
     onReply?.(message)
   }, [message, onReply])
 
+  const handleDeleteRequest = useCallback(() => {
+    setIsDeleteDialogOpen(true)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(() => {
+    onDelete?.(message.id)
+    setIsDeleteDialogOpen(false)
+  }, [message.id, onDelete])
+
+  const handleEditRequest = useCallback(() => {
+    setIsEditing(true)
+  }, [])
+
+  const handleEditSave = useCallback(
+    (content: string) => {
+      onEdit?.(message.id, content)
+      setIsEditing(false)
+    },
+    [message.id, onEdit]
+  )
+
+  const handleEditCancel = useCallback(() => {
+    setIsEditing(false)
+  }, [])
+
   return (
     <div
       data-message-id={message.id}
@@ -147,6 +192,8 @@ export function MessageItem({
           onReact={handleReact}
           onReply={handleReply}
           onCopyText={handleCopyText}
+          onEdit={isOwnMessage && onEdit ? handleEditRequest : undefined}
+          onDelete={isOwnMessage && onDelete ? handleDeleteRequest : undefined}
           canManageMessage={isOwnMessage}
           onOverlayOpenChange={setIsActionBarPinned}
         />
@@ -182,10 +229,20 @@ export function MessageItem({
               </span>
             </div>
           )}
-          <MessageMarkdown
-            content={message.content}
-            mentions={message.mentions}
-          />
+          {isEditing ? (
+            <MessageEditInput
+              initialContent={message.content ?? ""}
+              onSave={handleEditSave}
+              onCancel={handleEditCancel}
+              mentionCandidates={mentionCandidates}
+            />
+          ) : (
+            <MessageMarkdown
+              content={message.content}
+              mentions={message.mentions}
+              editedAt={message.editedAt}
+            />
+          )}
           {message.attachments && message.attachments.length > 0 && (
             <AttachmentGrid attachments={message.attachments} />
           )}
@@ -219,6 +276,29 @@ export function MessageItem({
           )}
         </div>
       </div>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this message? This action cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

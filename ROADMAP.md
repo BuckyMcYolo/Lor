@@ -22,7 +22,7 @@
 ## Phase 1 — Core UX Gaps
 
 - [x] File/image attachment uploads (R2)
-- [ ] Message deletion
+- [x] Message deletion
 - [ ] Message editing UI
 - [ ] User profiles (bio, custom status, avatar upload)
 - [ ] Channel edit/delete

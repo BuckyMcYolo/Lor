@@ -41,6 +41,17 @@ export const toggleMessageReactionPayloadSchema = z.object({
   emoji: z.string().trim().min(1).max(64),
 })
 
+export const deleteMessagePayloadSchema = z.object({
+  channelId: z.string().uuid(),
+  messageId: z.string().uuid(),
+})
+
+export const editMessagePayloadSchema = z.object({
+  channelId: z.string().uuid(),
+  messageId: z.string().uuid(),
+  content: z.string().trim().min(1).max(2000),
+})
+
 export const markChannelReadPayloadSchema = z.object({
   channelId: z.string().uuid(),
   lastReadMessageId: z.string().uuid().optional(),
@@ -51,6 +62,8 @@ export type SendMessagePayload = z.infer<typeof sendMessagePayloadSchema>
 export type ToggleMessageReactionPayload = z.infer<
   typeof toggleMessageReactionPayloadSchema
 >
+export type DeleteMessagePayload = z.infer<typeof deleteMessagePayloadSchema>
+export type EditMessagePayload = z.infer<typeof editMessagePayloadSchema>
 export type MarkChannelReadPayload = z.infer<
   typeof markChannelReadPayloadSchema
 >
@@ -125,6 +138,7 @@ export type RealtimeMessage = {
   attachments: RealtimeAttachment[]
   embeds: RealtimeEmbed[]
   referencedMessage: RealtimeReferencedMessage | null
+  editedAt?: string
   nonce?: string
 }
 
@@ -146,6 +160,9 @@ export type RealtimeMessageReactionUpdated = {
 export type SendMessageAck = (
   result: { ok: true; message: RealtimeMessage } | ErrorResult
 ) => void
+
+export type DeleteMessageAck = (result: OkResult | ErrorResult) => void
+export type EditMessageAck = (result: OkResult | ErrorResult) => void
 
 export type ToggleMessageReactionAck = (
   result: { ok: true; update: RealtimeMessageReactionUpdated } | ErrorResult
@@ -202,6 +219,11 @@ export interface ClientToServerEvents {
   "channel:join": (payload: ChannelRoomPayload, ack?: JoinLeaveAck) => void
   "channel:leave": (payload: ChannelRoomPayload, ack?: JoinLeaveAck) => void
   "message:send": (payload: SendMessagePayload, ack?: SendMessageAck) => void
+  "message:delete": (
+    payload: DeleteMessagePayload,
+    ack?: DeleteMessageAck
+  ) => void
+  "message:edit": (payload: EditMessagePayload, ack?: EditMessageAck) => void
   "message:reaction:toggle": (
     payload: ToggleMessageReactionPayload,
     ack?: ToggleMessageReactionAck
@@ -222,6 +244,13 @@ export interface ServerToClientEvents {
   }) => void
   "presence:user:update": (payload: PresenceUserUpdate) => void
   "message:created": (payload: RealtimeMessage) => void
+  "message:deleted": (payload: { channelId: string; messageId: string }) => void
+  "message:updated": (payload: {
+    channelId: string
+    messageId: string
+    content: string
+    editedAt: string
+  }) => void
   "message:reaction:updated": (payload: RealtimeMessageReactionUpdated) => void
   "message:embeds:updated": (payload: RealtimeMessageEmbedsUpdated) => void
   "notification:unread": (payload: UnreadNotification) => void

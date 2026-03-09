@@ -18,7 +18,7 @@ export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
     attachments: rm.attachments ?? [],
     embeds: rm.embeds ?? [],
     pinned: false,
-    editedAt: null,
+    editedAt: rm.editedAt ?? null,
     mentions: rm.mentions,
     reactions: rm.reactions,
   }

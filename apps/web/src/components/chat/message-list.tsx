@@ -4,6 +4,7 @@ import { differenceInMinutes, isSameDay } from "@repo/utils/date"
 import { Hash, User, Users } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Message } from "@/lib/api-types"
+import type { MentionCandidate } from "./composer/mention-types"
 import { DateDivider } from "./date-divider"
 import type { ChatContext } from "./header"
 import { MessageItem } from "./message-item"
@@ -14,6 +15,9 @@ interface MessageListProps {
   currentUserId?: string
   onReact?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
+  onDelete?: (messageId: string) => void
+  onEdit?: (messageId: string, content: string) => void
+  mentionCandidates?: MentionCandidate[]
   isLoading?: boolean
   hasMore?: boolean
   onLoadMore?: () => void
@@ -64,6 +68,9 @@ export function MessageList({
   currentUserId,
   onReact,
   onReply,
+  onDelete,
+  onEdit,
+  mentionCandidates,
   isLoading,
   hasMore,
   onLoadMore,
@@ -178,6 +185,9 @@ export function MessageList({
                 currentUserId={currentUserId}
                 onReact={onReact}
                 onReply={onReply}
+                onDelete={onDelete}
+                onEdit={onEdit}
+                mentionCandidates={mentionCandidates}
               />
             </div>
           )
