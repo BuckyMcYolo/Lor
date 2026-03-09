@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
 import { MoreHorizontal, Reply } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { EmojiReactionPicker } from "./emoji-reaction-picker"
 
 interface MessageActionBarProps {
@@ -37,17 +37,28 @@ export function MessageActionBar({
   const [isEmojiOpen, setIsEmojiOpen] = useState(false)
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   const [suppressTooltip, setSuppressTooltip] = useState(false)
+  const suppressTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
 
   useEffect(() => {
     onOverlayOpenChange?.(isEmojiOpen || isMoreOpen)
   }, [isEmojiOpen, isMoreOpen, onOverlayOpenChange])
+
+  useEffect(() => {
+    return () => {
+      if (suppressTimeoutRef.current) clearTimeout(suppressTimeoutRef.current)
+    }
+  }, [])
 
   const handleMoreOpenChange = useCallback((open: boolean) => {
     setIsMoreOpen(open)
     if (!open) {
       // Suppress tooltip briefly after dropdown closes to prevent it from sticking
       setSuppressTooltip(true)
-      setTimeout(() => setSuppressTooltip(false), 150)
+      if (suppressTimeoutRef.current) clearTimeout(suppressTimeoutRef.current)
+      suppressTimeoutRef.current = setTimeout(
+        () => setSuppressTooltip(false),
+        150
+      )
     }
   }, [])
 

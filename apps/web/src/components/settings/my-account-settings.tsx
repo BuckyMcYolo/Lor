@@ -44,6 +44,7 @@ export function MyAccountSettings() {
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
+  const avatarPreviewRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -52,6 +53,13 @@ export function MyAccountSettings() {
     setStatus((user.status as string) ?? "")
   }, [user])
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewRef.current)
+        URL.revokeObjectURL(avatarPreviewRef.current)
+    }
+  }, [])
+
   const setAvatarFromFile = useCallback((file: File) => {
     const error = validateAvatarFile(file)
     if (error) {
@@ -59,7 +67,10 @@ export function MyAccountSettings() {
       return
     }
     setAvatarFile(file)
-    setAvatarPreview(URL.createObjectURL(file))
+    if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current)
+    const url = URL.createObjectURL(file)
+    avatarPreviewRef.current = url
+    setAvatarPreview(url)
   }, [])
 
   const handleAvatarSelect = useCallback(
@@ -153,6 +164,7 @@ export function MyAccountSettings() {
       setAvatarFile(null)
       if (avatarPreview) {
         URL.revokeObjectURL(avatarPreview)
+        avatarPreviewRef.current = null
         setAvatarPreview(null)
       }
 
