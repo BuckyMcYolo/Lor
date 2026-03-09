@@ -104,7 +104,14 @@ export function useMessageSending<TData extends MessagesQueryData>({
   }, [socket, channelId, updateMessagesInCache])
 
   const handleSend = useCallback(
-    (content: string, options?: { mentions: Message["mentions"] }) => {
+    (
+      content: string,
+      options?: {
+        mentions: Message["mentions"]
+        referencedMessage?: Message["referencedMessage"]
+        attachments?: Message["attachments"]
+      }
+    ) => {
       if (!socket?.connected || !currentUser) return
 
       const nonce = crypto.randomUUID()
@@ -122,32 +129,46 @@ export function useMessageSending<TData extends MessagesQueryData>({
         createOptimisticMessage(
           nonce,
           channelId,
-          content,
+          content || null,
           author,
-          options?.mentions ?? []
+          options?.mentions ?? [],
+          options?.referencedMessage ?? undefined,
+          options?.attachments ?? []
         ),
         ...messages,
       ])
 
-      socket.emit("message:send", { channelId, content, nonce }, (result) => {
-        if (!result.ok) {
-          console.error("[chat] send failed:", result.error)
+      const referencedMessageId = options?.referencedMessage?.id
+      const attachments = options?.attachments ?? undefined
+      socket.emit(
+        "message:send",
+        {
+          channelId,
+          content: content || undefined,
+          nonce,
+          referencedMessageId,
+          attachments,
+        },
+        (result) => {
+          if (!result.ok) {
+            console.error("[chat] send failed:", result.error)
+            pendingNonces.current.delete(nonce)
+            updateMessagesInCache((messages) =>
+              messages.filter((message) => message.id !== nonce)
+            )
+            return
+          }
+
           pendingNonces.current.delete(nonce)
           updateMessagesInCache((messages) =>
-            messages.filter((message) => message.id !== nonce)
+            messages.map((message) =>
+              message.id === nonce
+                ? realtimeMessageToMessage(result.message)
+                : message
+            )
           )
-          return
         }
-
-        pendingNonces.current.delete(nonce)
-        updateMessagesInCache((messages) =>
-          messages.map((message) =>
-            message.id === nonce
-              ? realtimeMessageToMessage(result.message)
-              : message
-          )
-        )
-      })
+      )
     },
     [socket, currentUser, channelId, updateMessagesInCache]
   )

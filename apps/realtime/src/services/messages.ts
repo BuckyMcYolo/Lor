@@ -36,14 +36,39 @@ export async function createMessage(input: CreateMessageInput) {
     input.payload.channelId
   )
 
+  let hasReply = !!input.payload.referencedMessageId
+
   const messageWithAuthor = await db.transaction(async (tx) => {
+    // Verify the referenced message exists in the same channel
+    if (hasReply && input.payload.referencedMessageId) {
+      const refExists = await tx
+        .select({ id: schema.message.id })
+        .from(schema.message)
+        .where(
+          and(
+            eq(schema.message.id, input.payload.referencedMessageId),
+            eq(schema.message.channelId, input.payload.channelId)
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (!refExists) {
+        hasReply = false
+      }
+    }
+
     const insertedMessage = await tx
       .insert(schema.message)
       .values({
         channelId: input.payload.channelId,
         authorId: input.userId,
-        content: input.payload.content,
-        type: "default",
+        content: input.payload.content ?? null,
+        type: hasReply ? "reply" : "default",
+        referencedMessageId: hasReply
+          ? (input.payload.referencedMessageId ?? null)
+          : null,
+        attachments: input.payload.attachments ?? [],
       })
       .returning({
         id: schema.message.id,
@@ -85,6 +110,39 @@ export async function createMessage(input: CreateMessageInput) {
     return createdMessageWithAuthor
   })
 
+  let referencedMessage: RealtimeMessage["referencedMessage"] = null
+  if (hasReply && input.payload.referencedMessageId) {
+    const refMsg = await db
+      .select({
+        id: schema.message.id,
+        content: schema.message.content,
+        authorId: schema.user.id,
+        authorName: schema.user.name,
+        authorUsername: schema.user.username,
+        authorDisplayUsername: schema.user.displayUsername,
+        authorImage: schema.user.image,
+      })
+      .from(schema.message)
+      .innerJoin(schema.user, eq(schema.message.authorId, schema.user.id))
+      .where(eq(schema.message.id, input.payload.referencedMessageId))
+      .limit(1)
+      .then((rows) => rows[0])
+
+    if (refMsg) {
+      referencedMessage = {
+        id: refMsg.id,
+        content: refMsg.content,
+        author: {
+          id: refMsg.authorId,
+          name: refMsg.authorName,
+          username: refMsg.authorUsername,
+          displayUsername: refMsg.authorDisplayUsername,
+          image: refMsg.authorImage,
+        },
+      }
+    }
+  }
+
   const createdMessage: RealtimeMessage = {
     id: messageWithAuthor.id,
     channelId: messageWithAuthor.channelId,
@@ -100,7 +158,9 @@ export async function createMessage(input: CreateMessageInput) {
     },
     mentions: [],
     reactions: [],
+    attachments: input.payload.attachments ?? [],
     embeds: [],
+    referencedMessage,
   }
 
   if (input.payload.nonce) {

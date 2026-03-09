@@ -1,15 +1,19 @@
 import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo } from "react"
+import { useDropzone } from "react-dropzone"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { MessageInput } from "@/components/chat/composer/message-input"
+import { DropZoneOverlay } from "@/components/chat/drop-zone-overlay"
 import { ChatHeader } from "@/components/chat/header"
 import { MessageList } from "@/components/chat/message-list"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
+import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
+import { useReplyState } from "@/hooks/use-reply-state"
 import { apiClient } from "@/lib/api-client"
 import type { ListMessagesResponse } from "@/lib/api-types"
 
@@ -100,6 +104,30 @@ function ChannelView() {
     currentUser: session?.user,
   })
 
+  const { replyingTo, setReplyingTo, clearReply } = useReplyState()
+
+  // Clear reply state when switching channels
+  useEffect(() => {
+    clearReply()
+  }, [channelId, clearReply])
+
+  const fileUpload = useFileUpload(channelId)
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) {
+        void fileUpload.addFiles(acceptedFiles)
+      }
+    },
+    [fileUpload.addFiles]
+  )
+
+  const { getRootProps, isDragActive } = useDropzone({
+    onDrop,
+    noClick: true,
+    noKeyboard: true,
+  })
+
   const mentionCandidates = useMemo(
     () => [
       {
@@ -149,13 +177,18 @@ function ChannelView() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div
+      {...getRootProps()}
+      className="relative flex h-full flex-col overflow-hidden"
+    >
+      <DropZoneOverlay isDragActive={isDragActive} />
       <ChatHeader context={context} />
       <MessageList
         context={context}
         messages={messagesData?.data ?? []}
         currentUserId={currentUserId}
         onReact={handleReact}
+        onReply={setReplyingTo}
         isLoading={messagesLoading}
       />
       <MessageInput
@@ -163,6 +196,14 @@ function ChannelView() {
         onSend={handleSend}
         currentUserId={currentUserId}
         mentionCandidates={mentionCandidates}
+        replyingTo={replyingTo}
+        onCancelReply={clearReply}
+        pendingAttachments={fileUpload.attachments}
+        addFiles={fileUpload.addFiles}
+        removeAttachment={fileUpload.removeAttachment}
+        clearAttachments={fileUpload.clearAttachments}
+        getUploadedAttachments={fileUpload.getUploadedAttachments}
+        isUploading={fileUpload.isUploading}
       />
     </div>
   )

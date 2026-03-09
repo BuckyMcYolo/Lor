@@ -81,6 +81,45 @@ export async function fetchMessagePage(
           .where(inArray(messageReaction.messageId, messageIds))
       : []
 
+  // Batch-fetch referenced messages for replies
+  const referencedMessageIds = messages
+    .map((msg) => msg.referencedMessageId)
+    .filter((id): id is string => id !== null)
+
+  const referencedMessageRows =
+    referencedMessageIds.length > 0
+      ? await db
+          .select({
+            id: message.id,
+            content: message.content,
+            authorId: user.id,
+            authorName: user.name,
+            authorUsername: user.username,
+            authorDisplayUsername: user.displayUsername,
+            authorImage: user.image,
+          })
+          .from(message)
+          .innerJoin(user, eq(message.authorId, user.id))
+          .where(inArray(message.id, referencedMessageIds))
+      : []
+
+  const referencedMessagesById = new Map(
+    referencedMessageRows.map((row) => [
+      row.id,
+      {
+        id: row.id,
+        content: row.content,
+        author: {
+          id: row.authorId,
+          name: row.authorName,
+          username: row.authorUsername,
+          displayUsername: row.authorDisplayUsername,
+          image: row.authorImage,
+        },
+      },
+    ])
+  )
+
   const mentionsByMessageId = new Map<
     string,
     Array<{
@@ -138,6 +177,9 @@ export async function fetchMessagePage(
     embeds: msg.embeds ?? [],
     mentions: mentionsByMessageId.get(msg.id) ?? [],
     reactions: Array.from(reactionsByMessageId.get(msg.id)?.values() ?? []),
+    referencedMessage: msg.referencedMessageId
+      ? (referencedMessagesById.get(msg.referencedMessageId) ?? null)
+      : null,
   }))
 
   return {

@@ -27,11 +27,20 @@ export const messageEmbedSchema = z.object({
   siteName: z.string().optional(),
 })
 
+export const referencedMessageSchema = z
+  .object({
+    id: z.string().uuid(),
+    content: z.string().nullable(),
+    author: messageAuthorSchema,
+  })
+  .nullable()
+
 export const messageWithAuthorSchema = selectMessageSchema.extend({
   author: messageAuthorSchema,
   mentions: z.array(messageAuthorSchema),
   reactions: z.array(messageReactionSchema),
   embeds: z.array(messageEmbedSchema),
+  referencedMessage: referencedMessageSchema,
 })
 
 export const listMessagesQuerySchema = paginationQuerySchema
