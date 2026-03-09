@@ -14,6 +14,7 @@ interface MessageListProps {
   currentUserId?: string
   onReact?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
+  onDelete?: (messageId: string) => void
   isLoading?: boolean
   hasMore?: boolean
   onLoadMore?: () => void
@@ -64,6 +65,7 @@ export function MessageList({
   currentUserId,
   onReact,
   onReply,
+  onDelete,
   isLoading,
   hasMore,
   onLoadMore,
@@ -178,6 +180,7 @@ export function MessageList({
                 currentUserId={currentUserId}
                 onReact={onReact}
                 onReply={onReply}
+                onDelete={onDelete}
               />
             </div>
           )

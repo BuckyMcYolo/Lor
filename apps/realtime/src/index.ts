@@ -10,6 +10,7 @@ import type {
 import {
   channelRoom,
   channelRoomPayloadSchema,
+  deleteMessagePayloadSchema,
   guildRoom,
   markChannelReadPayloadSchema,
   presenceSubscribePayloadSchema,
@@ -25,7 +26,11 @@ import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
-import { createMessage, toggleMessageReaction } from "@/services/messages"
+import {
+  createMessage,
+  deleteMessage,
+  toggleMessageReaction,
+} from "@/services/messages"
 import { buildMessageFanout } from "@/services/notifications"
 import {
   listOnlineUserIds,
@@ -348,6 +353,25 @@ io.on("connection", (socket) => {
             console.error("[realtime] failed to enqueue link-unfurl:", err)
           })
       }
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("message:delete", async (payload, ack) => {
+    try {
+      const parsed = deleteMessagePayloadSchema.parse(payload)
+      const result = await deleteMessage({
+        userId: socket.data.user.id,
+        payload: parsed,
+      })
+
+      socket.to(channelRoom(parsed.channelId)).emit("message:deleted", {
+        channelId: result.channelId,
+        messageId: result.messageId,
+      })
+
+      ack?.({ ok: true })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }

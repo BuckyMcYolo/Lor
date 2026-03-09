@@ -10,6 +10,7 @@ import { ChatHeader } from "@/components/chat/header"
 import { MessageList } from "@/components/chat/message-list"
 import { useSocket } from "@/context/socket-context"
 import { useFileUpload } from "@/hooks/use-file-upload"
+import { useMessageDeletion } from "@/hooks/use-message-deletion"
 import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
@@ -65,6 +66,12 @@ function DMConversation() {
     queryClient,
     channelId: dmId,
     currentUserId,
+  })
+
+  const { handleDelete } = useMessageDeletion<ListDMMessagesResponse>({
+    socket,
+    queryClient,
+    channelId: dmId,
   })
 
   const { handleSend } = useMessageSending<ListDMMessagesResponse>({
@@ -156,6 +163,7 @@ function DMConversation() {
         currentUserId={currentUserId}
         onReact={handleReact}
         onReply={setReplyingTo}
+        onDelete={handleDelete}
         isLoading={messagesLoading}
       />
       <MessageInput
