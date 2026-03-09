@@ -93,7 +93,7 @@ function ReplyPreview({
     <button
       type="button"
       onClick={() => scrollToMessage(referencedMessage.id)}
-      className="mb-0.5 flex cursor-pointer items-center gap-1.5 rounded-sm text-xs hover:opacity-80"
+      className="mb-0.5 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-xs hover:opacity-80"
     >
       <div className="mb-1 ml-4 h-3 w-8 rounded-tl-md border-t-2 border-l-2 border-muted-foreground/40" />
       <Avatar size="sm" className="size-4">
@@ -102,7 +102,7 @@ function ReplyPreview({
           {nameInitial(author.displayUsername ?? author.name)}
         </AvatarFallback>
       </Avatar>
-      <span className="font-semibold text-foreground/80">
+      <span className="shrink-0 font-semibold text-foreground/80">
         {author.displayUsername ?? author.name}
       </span>
       {truncatedContent && (

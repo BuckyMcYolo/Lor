@@ -1,5 +1,12 @@
 import { relations } from "drizzle-orm"
-import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
+import {
+  boolean,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+} from "drizzle-orm/pg-core"
 import { account } from "./accounts"
 import { guildMember } from "./guild-members"
 import { guild } from "./guilds"
@@ -26,6 +33,8 @@ export const user = pgTable("user", {
   displayUsername: text("display_username"),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
+  bio: varchar("bio", { length: 255 }),
+  status: varchar("status", { length: 128 }),
 })
 
 export const userRelations = relations(user, ({ many }) => ({

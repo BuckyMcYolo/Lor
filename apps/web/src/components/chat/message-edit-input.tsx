@@ -79,6 +79,15 @@ export function MessageEditInput({
     []
   )
 
+  // Force focus after mount — the Radix dropdown close animation steals focus back
+  useEffect(() => {
+    if (!editor) return
+    const timeout = setTimeout(() => {
+      editor.commands.focus("end")
+    }, 200)
+    return () => clearTimeout(timeout)
+  }, [editor])
+
   const handleSave = useCallback(() => {
     if (!editor) return
 

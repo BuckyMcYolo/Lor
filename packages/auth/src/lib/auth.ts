@@ -85,6 +85,16 @@ export const auth = betterAuth({
         defaultValue: false,
         returned: true,
       },
+      bio: {
+        type: "string",
+        returned: true,
+        required: false,
+      },
+      status: {
+        type: "string",
+        returned: true,
+        required: false,
+      },
     },
   },
   trustedOrigins:

@@ -8,7 +8,9 @@ import {
 } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { OnboardingDialog } from "../components/onboarding/onboarding-dialog"
+import { SettingsDialog } from "../components/settings/settings-dialog"
 import { Sidebar } from "../components/sidebar"
+import { SettingsProvider } from "../context/settings-context"
 import { SocketProvider } from "../context/socket-context"
 
 const LAST_PATH_KEY = "townhall:last-path"
@@ -64,12 +66,15 @@ function AuthenticatedLayout() {
 
   return (
     <SocketProvider enabled={!!session}>
-      <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
-        <Sidebar>
-          <Outlet />
-        </Sidebar>
-        <OnboardingDialog open={showOnboarding} />
-      </div>
+      <SettingsProvider>
+        <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
+          <Sidebar>
+            <Outlet />
+          </Sidebar>
+          <OnboardingDialog open={showOnboarding} />
+          <SettingsDialog />
+        </div>
+      </SettingsProvider>
     </SocketProvider>
   )
 }
