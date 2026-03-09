@@ -5,6 +5,7 @@ import { useCallback, useState } from "react"
 import type { Message } from "@/lib/api-types"
 import { EmbedCard } from "./embed-card"
 import { MessageActionBar } from "./message-action-bar"
+import { AttachmentGrid } from "./message-attachment"
 import { MessageMarkdown } from "./message-markdown"
 
 interface MessageItemProps {
@@ -186,6 +187,9 @@ export function MessageItem({
             content={message.content}
             mentions={message.mentions}
           />
+          {message.attachments && message.attachments.length > 0 && (
+            <AttachmentGrid attachments={message.attachments} />
+          )}
           {message.embeds.length > 0 && (
             <div className="flex flex-col gap-1">
               {message.embeds.map((embed, index) => (

@@ -164,6 +164,7 @@ function ChannelView() {
       />
       <MessageInput
         context={context}
+        channelId={channelId}
         onSend={handleSend}
         currentUserId={currentUserId}
         mentionCandidates={mentionCandidates}

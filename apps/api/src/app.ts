@@ -6,6 +6,7 @@ import index from "@/routes/index.route"
 import channelsRouter from "@/routes/v1/channels/index"
 import dmsRouter from "@/routes/v1/dms/index"
 import guildsRouter from "@/routes/v1/guilds/index"
+import uploadsRouter from "@/routes/v1/uploads/index"
 import waitlistRouter from "@/routes/waitlist/index"
 
 const app = createApp()
@@ -31,6 +32,7 @@ const routes = app
   .route("/v1", channelsRouter)
   .route("/v1", guildsRouter)
   .route("/v1", dmsRouter)
+  .route("/v1", uploadsRouter)
 
 export type AppType = typeof routes
 

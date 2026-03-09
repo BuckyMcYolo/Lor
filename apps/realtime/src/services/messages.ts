@@ -44,9 +44,10 @@ export async function createMessage(input: CreateMessageInput) {
       .values({
         channelId: input.payload.channelId,
         authorId: input.userId,
-        content: input.payload.content,
+        content: input.payload.content ?? null,
         type: hasReply ? "reply" : "default",
         referencedMessageId: input.payload.referencedMessageId ?? null,
+        attachments: input.payload.attachments ?? [],
       })
       .returning({
         id: schema.message.id,
@@ -136,6 +137,7 @@ export async function createMessage(input: CreateMessageInput) {
     },
     mentions: [],
     reactions: [],
+    attachments: input.payload.attachments ?? [],
     embeds: [],
     referencedMessage,
   }

@@ -27,9 +27,7 @@ import {
   Bold,
   Code,
   FileUp,
-  ImagePlus,
   Italic,
-  Link2,
   Plus,
   Send,
   Smile,
@@ -44,8 +42,10 @@ import {
   useRef,
   useState,
 } from "react"
+import { useFileUpload } from "@/hooks/use-file-upload"
 import type { Message } from "@/lib/api-types"
 import type { ChatContext } from "../header"
+import { AttachmentPreview } from "./attachment-preview"
 import {
   MentionSuggestionList,
   type MentionSuggestionListProps,
@@ -72,11 +72,6 @@ const SLASH_COMMAND_PLUGIN_KEY = new PluginKey("slash-command")
 const TIPTAP_MARKDOWN_MENTION_REGEX = /\[@[^\]]*?\bid="([^"]+)"[^\]]*]/g
 const STORED_MENTION_REGEX =
   /<@([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})>/gi
-const ATTACHMENT_ACTIONS = [
-  { id: "upload-file", label: "Upload File", icon: FileUp },
-  { id: "upload-image", label: "Upload Image", icon: ImagePlus },
-  { id: "attach-link", label: "Attach Link", icon: Link2 },
-] as const
 const DEFAULT_CODE_BLOCK_LANGUAGE = "plaintext"
 const CODE_BLOCK_LANGUAGE_OPTIONS = [
   { value: "plaintext", label: "Plain Text" },
@@ -97,11 +92,13 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
 
 interface MessageInputProps {
   context: ChatContext
+  channelId: string
   onSend: (
     content: string,
     options?: {
       mentions: Message["mentions"]
       referencedMessage?: Message["referencedMessage"]
+      attachments?: Message["attachments"]
     }
   ) => void
   isSending?: boolean
@@ -284,7 +281,7 @@ function createMentionSuggestion(
   }
 }
 
-function createSlashCommandSuggestion(): Omit<
+function _createSlashCommandSuggestion(): Omit<
   SuggestionOptions<SlashCommandItem, SlashCommandItem>,
   "editor"
 > {
@@ -337,7 +334,7 @@ function createSlashCommandSuggestion(): Omit<
   }
 }
 
-function createSlashCommandExtension(
+function _createSlashCommandExtension(
   suggestion: Omit<
     SuggestionOptions<SlashCommandItem, SlashCommandItem>,
     "editor"
@@ -433,6 +430,7 @@ function getActiveCodeBlockPos(editor: {
 
 export function MessageInput({
   context,
+  channelId,
   onSend,
   isSending,
   currentUserId,
@@ -443,6 +441,15 @@ export function MessageInput({
   const [plainText, setPlainText] = useState("")
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false)
   const mentionCandidatesRef = useRef<MentionCandidate[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const {
+    attachments: pendingAttachments,
+    addFiles,
+    removeAttachment,
+    clearAttachments,
+    getUploadedAttachments,
+    isUploading,
+  } = useFileUpload(channelId)
 
   const placeholder =
     context.type === "channel"
@@ -536,12 +543,17 @@ export function MessageInput({
   )
 
   const handleSend = useCallback(() => {
-    if (!editor) return
+    if (!editor || isUploading) return
 
     const rawMarkdown = editor.getMarkdown()
     const markdown = toStoredMarkdown(rawMarkdown)
     const trimmed = markdown.trim()
-    if (!trimmed || trimmed.length > MAX_MESSAGE_LENGTH || isSending) return
+    const uploadedAttachments = getUploadedAttachments()
+    const hasAttachments = uploadedAttachments.length > 0
+    const hasContent = trimmed.length > 0
+
+    if ((!hasContent && !hasAttachments) || isSending) return
+    if (hasContent && trimmed.length > MAX_MESSAGE_LENGTH) return
 
     const mentionCandidatesById = new Map(
       normalizedMentionCandidates.map((candidate) => [candidate.id, candidate])
@@ -573,14 +585,19 @@ export function MessageInput({
             author: replyingTo.author,
           }
         : undefined,
+      attachments: hasAttachments ? uploadedAttachments : undefined,
     })
     editor.commands.clearContent(true)
     editor.commands.focus("end")
     setPlainText("")
+    clearAttachments()
     onCancelReply?.()
   }, [
     editor,
     isSending,
+    isUploading,
+    getUploadedAttachments,
+    clearAttachments,
     normalizedMentionCandidates,
     onSend,
     replyingTo,
@@ -624,9 +641,10 @@ export function MessageInput({
 
   const trimmedValue = plainText.trim()
   const canSend =
-    trimmedValue.length > 0 &&
+    (trimmedValue.length > 0 || pendingAttachments.length > 0) &&
     trimmedValue.length <= MAX_MESSAGE_LENGTH &&
-    !isSending
+    !isSending &&
+    !isUploading
   const isEmpty = trimmedValue.length === 0
   const markState = useEditorState({
     editor,
@@ -657,7 +675,7 @@ export function MessageInput({
     },
   })
   const isBoldActive = markState?.isBoldActive ?? false
-  const isCodeBlockActive = markState?.isCodeBlockActive ?? false
+  const _isCodeBlockActive = markState?.isCodeBlockActive ?? false
   const codeBlockPos = markState?.codeBlockPos ?? null
   const isCodeActive = markState?.isCodeActive ?? false
   const codeBlockLanguage =
@@ -691,8 +709,48 @@ export function MessageInput({
     [codeBlockPos, editor]
   )
 
+  const handleFileInputChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files
+      if (files && files.length > 0) {
+        void addFiles(Array.from(files))
+      }
+      event.target.value = ""
+    },
+    [addFiles]
+  )
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+      const files = Array.from(event.dataTransfer.files)
+      if (files.length > 0) {
+        void addFiles(files)
+      }
+    },
+    [addFiles]
+  )
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent) => {
+      const files = Array.from(event.clipboardData.files)
+      if (files.length > 0) {
+        event.preventDefault()
+        void addFiles(files)
+      }
+    },
+    [addFiles]
+  )
+
   return (
     <div className="shrink-0 px-4 pb-3">
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
       {replyingTo && (
         <div className="flex items-center gap-2 rounded-t-lg border border-b-0 border-input bg-muted/60 px-3 py-1.5 text-sm">
           <span className="truncate text-muted-foreground">
@@ -711,262 +769,273 @@ export function MessageInput({
           </button>
         </div>
       )}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: drop/paste zone, not an interactive control */}
       <div
         className={cn(
-          "flex items-center gap-2 border border-input bg-muted/40 px-3 py-2",
+          "border border-input bg-muted/40",
           replyingTo ? "rounded-b-lg" : "rounded-lg"
         )}
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
+        onPaste={handlePaste}
       >
-        <Popover
-          open={isAttachmentMenuOpen}
-          onOpenChange={setIsAttachmentMenuOpen}
-        >
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="outline"
-              className="shrink-0 text-muted-foreground hover:text-foreground"
-              aria-label="Open attachment menu"
-            >
-              <Plus
-                className={cn(
-                  "size-4 transition-transform duration-200 ease-out",
-                  isAttachmentMenuOpen && "rotate-45"
-                )}
-              />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            side="top"
-            align="start"
-            sideOffset={10}
-            className="w-64 p-2"
+        <AttachmentPreview
+          attachments={pendingAttachments}
+          onRemove={removeAttachment}
+        />
+        <div className="flex items-center gap-2 px-3 py-2">
+          <Popover
+            open={isAttachmentMenuOpen}
+            onOpenChange={setIsAttachmentMenuOpen}
           >
-            <div className="grid gap-1">
-              {ATTACHMENT_ACTIONS.map((action) => (
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Open attachment menu"
+              >
+                <Plus
+                  className={cn(
+                    "size-4 transition-transform duration-200 ease-out",
+                    isAttachmentMenuOpen && "rotate-45"
+                  )}
+                />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="top"
+              align="start"
+              sideOffset={10}
+              className="w-64 p-2"
+            >
+              <div className="grid gap-1">
                 <button
-                  key={action.id}
                   type="button"
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground/90 hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => {
+                    fileInputRef.current?.click()
+                    setIsAttachmentMenuOpen(false)
+                  }}
                 >
-                  <action.icon className="size-4 text-muted-foreground" />
-                  {action.label}
+                  <FileUp className="size-4 text-muted-foreground" />
+                  Upload File
                 </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-        <div
-          className={cn(
-            "relative min-w-0 flex-1",
-            "[&_.ProseMirror_p]:m-0 [&_.ProseMirror_p]:leading-6"
-          )}
-        >
-          {isEmpty && (
-            <span className="pointer-events-none absolute left-0 top-0 text-sm text-muted-foreground">
-              {placeholder}
-            </span>
-          )}
-          {editor && (
-            <BubbleMenu
-              editor={editor}
-              appendTo={() => document.body}
-              shouldShow={({ editor: tiptapEditor, element }) => {
-                const activeElement =
-                  typeof document !== "undefined"
-                    ? document.activeElement
-                    : null
-
-                return (
-                  tiptapEditor.isEditable &&
-                  (tiptapEditor.isActive("codeBlock") ||
-                    (activeElement ? element.contains(activeElement) : false))
-                )
-              }}
-              getReferencedVirtualElement={() => {
-                const rect = getActiveCodeBlockRect(editor)
-                if (!rect) return null
-
-                return {
-                  getBoundingClientRect: () => rect,
-                }
-              }}
-              options={{
-                strategy: "fixed",
-                placement: "bottom-start",
-                offset: 0,
-                flip: true,
-                shift: true,
-              }}
-              className="z-50 rounded-md border border-border/70 bg-background/95 p-1 shadow-sm backdrop-blur"
-            >
-              <div className="flex items-center gap-1">
-                <span className="px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Lang
-                </span>
-                <select
-                  value={codeBlockLanguage}
-                  onMouseDown={(event) => {
-                    event.stopPropagation()
-                  }}
-                  onChange={(event) => {
-                    handleCodeBlockLanguageChange(event.target.value)
-                  }}
-                  className="h-7 rounded border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring"
-                  aria-label="Code block language"
-                >
-                  {CODE_BLOCK_LANGUAGE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
               </div>
-            </BubbleMenu>
-          )}
-          {editor && (
-            <BubbleMenu
-              editor={editor}
-              appendTo={() => document.body}
-              shouldShow={({ editor: tiptapEditor, state, from, to }) => {
-                if (!tiptapEditor.isEditable) return false
-                if (state.selection.empty || from === to) return false
-                if (tiptapEditor.isActive("codeBlock")) return false
-                return state.doc.textBetween(from, to).trim().length > 0
-              }}
-              getReferencedVirtualElement={() => {
-                const { selection } = editor.state
-                if (selection.empty) return null
-
-                const { left, right, top, bottom } = editor.view.coordsAtPos(
-                  selection.head
-                )
-
-                return {
-                  getBoundingClientRect: () =>
-                    new DOMRect(
-                      left,
-                      top,
-                      Math.max(1, right - left),
-                      Math.max(1, bottom - top)
-                    ),
-                }
-              }}
-              options={{
-                strategy: "fixed",
-                placement: "top",
-                offset: 8,
-                flip: true,
-                shift: true,
-              }}
-              className="z-50 flex items-center gap-1 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
-            >
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                className={getMarkButtonClassName(isBoldActive)}
-                aria-label="Bold"
-                aria-pressed={isBoldActive}
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                }}
-                onClick={() => {
-                  editor.chain().focus().toggleBold().run()
-                }}
-                disabled={!editor.can().chain().focus().toggleBold().run()}
-              >
-                <Bold
-                  className="size-3.5"
-                  strokeWidth={isBoldActive ? 2.5 : 2}
-                />
-              </Button>
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                className={getMarkButtonClassName(isItalicActive)}
-                aria-label="Italic"
-                aria-pressed={isItalicActive}
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                }}
-                onClick={() => {
-                  editor.chain().focus().toggleItalic().run()
-                }}
-                disabled={!editor.can().chain().focus().toggleItalic().run()}
-              >
-                <Italic
-                  className="size-3.5"
-                  strokeWidth={isItalicActive ? 2.5 : 2}
-                />
-              </Button>
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                className={getMarkButtonClassName(isCodeActive)}
-                aria-label="Inline code"
-                aria-pressed={isCodeActive}
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                }}
-                onClick={() => {
-                  editor.chain().focus().toggleCode().run()
-                }}
-                disabled={!editor.can().chain().focus().toggleCode().run()}
-              >
-                <Code
-                  className="size-3.5"
-                  strokeWidth={isCodeActive ? 2.5 : 2}
-                />
-              </Button>
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                className={getMarkButtonClassName(isStrikeActive)}
-                aria-label="Strikethrough"
-                aria-pressed={isStrikeActive}
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                }}
-                onClick={() => {
-                  editor.chain().focus().toggleStrike().run()
-                }}
-                disabled={!editor.can().chain().focus().toggleStrike().run()}
-              >
-                <Strikethrough
-                  className="size-3.5"
-                  strokeWidth={isStrikeActive ? 2.5 : 2}
-                />
-              </Button>
-            </BubbleMenu>
-          )}
-          <EditorContent editor={editor} className="flex-1" />
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-foreground"
-            aria-label="Add emoji"
-          >
-            <Smile className="size-5" />
-          </button>
-          <Button
-            size="icon"
-            variant="ghost"
+            </PopoverContent>
+          </Popover>
+          <div
             className={cn(
-              "size-7 text-muted-foreground transition-colors",
-              canSend && "text-primary hover:text-primary"
+              "relative min-w-0 flex-1",
+              "[&_.ProseMirror_p]:m-0 [&_.ProseMirror_p]:leading-6"
             )}
-            onClick={handleSend}
-            disabled={!canSend}
-            aria-label="Send message"
           >
-            <Send className="size-4" />
-          </Button>
+            {isEmpty && (
+              <span className="pointer-events-none absolute left-0 top-0 text-sm text-muted-foreground">
+                {placeholder}
+              </span>
+            )}
+            {editor && (
+              <BubbleMenu
+                editor={editor}
+                appendTo={() => document.body}
+                shouldShow={({ editor: tiptapEditor, element }) => {
+                  const activeElement =
+                    typeof document !== "undefined"
+                      ? document.activeElement
+                      : null
+
+                  return (
+                    tiptapEditor.isEditable &&
+                    (tiptapEditor.isActive("codeBlock") ||
+                      (activeElement ? element.contains(activeElement) : false))
+                  )
+                }}
+                getReferencedVirtualElement={() => {
+                  const rect = getActiveCodeBlockRect(editor)
+                  if (!rect) return null
+
+                  return {
+                    getBoundingClientRect: () => rect,
+                  }
+                }}
+                options={{
+                  strategy: "fixed",
+                  placement: "bottom-start",
+                  offset: 0,
+                  flip: true,
+                  shift: true,
+                }}
+                className="z-50 rounded-md border border-border/70 bg-background/95 p-1 shadow-sm backdrop-blur"
+              >
+                <div className="flex items-center gap-1">
+                  <span className="px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Lang
+                  </span>
+                  <select
+                    value={codeBlockLanguage}
+                    onMouseDown={(event) => {
+                      event.stopPropagation()
+                    }}
+                    onChange={(event) => {
+                      handleCodeBlockLanguageChange(event.target.value)
+                    }}
+                    className="h-7 rounded border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring"
+                    aria-label="Code block language"
+                  >
+                    {CODE_BLOCK_LANGUAGE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </BubbleMenu>
+            )}
+            {editor && (
+              <BubbleMenu
+                editor={editor}
+                appendTo={() => document.body}
+                shouldShow={({ editor: tiptapEditor, state, from, to }) => {
+                  if (!tiptapEditor.isEditable) return false
+                  if (state.selection.empty || from === to) return false
+                  if (tiptapEditor.isActive("codeBlock")) return false
+                  return state.doc.textBetween(from, to).trim().length > 0
+                }}
+                getReferencedVirtualElement={() => {
+                  const { selection } = editor.state
+                  if (selection.empty) return null
+
+                  const { left, right, top, bottom } = editor.view.coordsAtPos(
+                    selection.head
+                  )
+
+                  return {
+                    getBoundingClientRect: () =>
+                      new DOMRect(
+                        left,
+                        top,
+                        Math.max(1, right - left),
+                        Math.max(1, bottom - top)
+                      ),
+                  }
+                }}
+                options={{
+                  strategy: "fixed",
+                  placement: "top",
+                  offset: 8,
+                  flip: true,
+                  shift: true,
+                }}
+                className="z-50 flex items-center gap-1 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+              >
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  className={getMarkButtonClassName(isBoldActive)}
+                  aria-label="Bold"
+                  aria-pressed={isBoldActive}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                  }}
+                  onClick={() => {
+                    editor.chain().focus().toggleBold().run()
+                  }}
+                  disabled={!editor.can().chain().focus().toggleBold().run()}
+                >
+                  <Bold
+                    className="size-3.5"
+                    strokeWidth={isBoldActive ? 2.5 : 2}
+                  />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  className={getMarkButtonClassName(isItalicActive)}
+                  aria-label="Italic"
+                  aria-pressed={isItalicActive}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                  }}
+                  onClick={() => {
+                    editor.chain().focus().toggleItalic().run()
+                  }}
+                  disabled={!editor.can().chain().focus().toggleItalic().run()}
+                >
+                  <Italic
+                    className="size-3.5"
+                    strokeWidth={isItalicActive ? 2.5 : 2}
+                  />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  className={getMarkButtonClassName(isCodeActive)}
+                  aria-label="Inline code"
+                  aria-pressed={isCodeActive}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                  }}
+                  onClick={() => {
+                    editor.chain().focus().toggleCode().run()
+                  }}
+                  disabled={!editor.can().chain().focus().toggleCode().run()}
+                >
+                  <Code
+                    className="size-3.5"
+                    strokeWidth={isCodeActive ? 2.5 : 2}
+                  />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  className={getMarkButtonClassName(isStrikeActive)}
+                  aria-label="Strikethrough"
+                  aria-pressed={isStrikeActive}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                  }}
+                  onClick={() => {
+                    editor.chain().focus().toggleStrike().run()
+                  }}
+                  disabled={!editor.can().chain().focus().toggleStrike().run()}
+                >
+                  <Strikethrough
+                    className="size-3.5"
+                    strokeWidth={isStrikeActive ? 2.5 : 2}
+                  />
+                </Button>
+              </BubbleMenu>
+            )}
+            <EditorContent editor={editor} className="flex-1" />
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Add emoji"
+            >
+              <Smile className="size-5" />
+            </button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className={cn(
+                "size-7 text-muted-foreground transition-colors",
+                canSend && "text-primary hover:text-primary"
+              )}
+              onClick={handleSend}
+              disabled={!canSend}
+              aria-label="Send message"
+            >
+              <Send className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

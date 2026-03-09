@@ -131,6 +131,7 @@ function DMConversation() {
       />
       <MessageInput
         context={context}
+        channelId={dmId}
         onSend={handleSend}
         currentUserId={currentUserId}
         mentionCandidates={mentionCandidates}

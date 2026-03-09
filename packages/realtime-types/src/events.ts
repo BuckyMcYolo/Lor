@@ -11,12 +11,29 @@ export const channelRoomPayloadSchema = z.object({
   channelId: z.string().uuid(),
 })
 
-export const sendMessagePayloadSchema = z.object({
-  channelId: z.string().uuid(),
-  content: z.string().trim().min(1).max(2000),
-  nonce: z.string().max(100).optional(),
-  referencedMessageId: z.string().uuid().optional(),
+export const attachmentPayloadSchema = z.object({
+  url: z.string().url(),
+  filename: z.string().min(1).max(256),
+  size: z.number().int().min(1),
+  contentType: z.string().min(1),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
 })
+
+export const sendMessagePayloadSchema = z
+  .object({
+    channelId: z.string().uuid(),
+    content: z.string().trim().max(2000).optional(),
+    nonce: z.string().max(100).optional(),
+    referencedMessageId: z.string().uuid().optional(),
+    attachments: z.array(attachmentPayloadSchema).max(10).optional(),
+  })
+  .refine(
+    (data) =>
+      (data.content && data.content.length > 0) ||
+      (data.attachments && data.attachments.length > 0),
+    { message: "Message must have content or at least one attachment" }
+  )
 
 export const toggleMessageReactionPayloadSchema = z.object({
   channelId: z.string().uuid(),
@@ -68,6 +85,15 @@ export type RealtimeMessageReaction = {
   reactedByCurrentUser: boolean
 }
 
+export type RealtimeAttachment = {
+  url: string
+  filename: string
+  size: number
+  contentType: string
+  width?: number
+  height?: number
+}
+
 export type RealtimeEmbed = {
   type: "link" | "image" | "video" | "rich"
   url: string
@@ -106,6 +132,7 @@ export type RealtimeMessage = {
   }
   mentions: RealtimeMessageMention[]
   reactions: RealtimeMessageReaction[]
+  attachments: RealtimeAttachment[]
   embeds: RealtimeEmbed[]
   referencedMessage: RealtimeReferencedMessage | null
   nonce?: string

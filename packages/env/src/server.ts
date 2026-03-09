@@ -36,6 +36,12 @@ const serverSchema = z.object({
   SELF_HOSTED: z.coerce.boolean().default(true),
   MAX_FILE_UPLOAD_SIZE: z.coerce.number().default(DEFAULT_MAX_FILE_UPLOAD_SIZE),
   NEXT_PUBLIC_API_URL: z.string().min(1).transform(addProtocol),
+  S3_ENDPOINT: z.string().url(),
+  S3_ACCESS_KEY_ID: z.string().min(1),
+  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_BUCKET_NAME: z.string().min(1),
+  S3_REGION: z.string().default("auto"),
+  S3_PUBLIC_URL: z.string().url(),
 })
 
 export const env = serverSchema.parse(process.env)

@@ -109,6 +109,7 @@ export function useMessageSending<TData extends MessagesQueryData>({
       options?: {
         mentions: Message["mentions"]
         referencedMessage?: Message["referencedMessage"]
+        attachments?: Message["attachments"]
       }
     ) => {
       if (!socket?.connected || !currentUser) return
@@ -128,18 +129,26 @@ export function useMessageSending<TData extends MessagesQueryData>({
         createOptimisticMessage(
           nonce,
           channelId,
-          content,
+          content || null,
           author,
           options?.mentions ?? [],
-          options?.referencedMessage ?? undefined
+          options?.referencedMessage ?? undefined,
+          options?.attachments ?? []
         ),
         ...messages,
       ])
 
       const referencedMessageId = options?.referencedMessage?.id
+      const attachments = options?.attachments ?? undefined
       socket.emit(
         "message:send",
-        { channelId, content, nonce, referencedMessageId },
+        {
+          channelId,
+          content: content || undefined,
+          nonce,
+          referencedMessageId,
+          attachments,
+        },
         (result) => {
           if (!result.ok) {
             console.error("[chat] send failed:", result.error)

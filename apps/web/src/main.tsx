@@ -41,7 +41,7 @@ createRoot(rootElement).render(
           <RouterProvider router={router} />
         </TooltipProvider>
       </ThemeProvider>
-      <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-right" />
+      {/*<ReactQueryDevtools initialIsOpen={false} buttonPosition="top-right" />*/}
     </QueryClientProvider>
   </StrictMode>
 )

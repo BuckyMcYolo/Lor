@@ -15,7 +15,7 @@ export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
     author: rm.author,
     referencedMessageId: rm.referencedMessage?.id ?? null,
     referencedMessage: rm.referencedMessage ?? null,
-    attachments: [],
+    attachments: rm.attachments ?? [],
     embeds: rm.embeds ?? [],
     pinned: false,
     editedAt: null,
@@ -136,10 +136,11 @@ export function toggleReactionOptimistically(
 export function createOptimisticMessage(
   nonce: string,
   channelId: string,
-  content: string,
+  content: string | null,
   author: MessageAuthor,
   mentions: Message["mentions"] = [],
-  referencedMessage?: Message["referencedMessage"]
+  referencedMessage?: Message["referencedMessage"],
+  attachments: Message["attachments"] = []
 ): Message {
   return {
     id: nonce,
@@ -151,7 +152,7 @@ export function createOptimisticMessage(
     author,
     referencedMessageId: referencedMessage?.id ?? null,
     referencedMessage: referencedMessage ?? null,
-    attachments: [],
+    attachments,
     embeds: [],
     pinned: false,
     editedAt: null,
