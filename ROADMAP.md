@@ -23,10 +23,10 @@
 
 - [x] File/image attachment uploads (R2)
 - [x] Message deletion
-- [ ] Message editing UI
-- [ ] User profiles (bio, custom status, avatar upload)
+- [x] Message editing UI
+- [x] User profiles (bio, custom status, avatar upload)
 - [ ] Channel edit/delete
-- [ ] Settings pages
+- [x] Settings pages
 
 ## Phase 2 — Permissions & Moderation
 

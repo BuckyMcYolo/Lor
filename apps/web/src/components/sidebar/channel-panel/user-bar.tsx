@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { LayoutGroup, motion } from "motion/react"
 import { useTheme } from "next-themes"
+import { useSettings } from "@/context/settings-context"
 import { UserAvatar } from "../../ui/user-avatar"
 
 const themes = [
@@ -76,6 +77,7 @@ function ThemeSwitcher({
 export function UserBar() {
   const { data: session } = authClient.useSession()
   const { setTheme, theme } = useTheme()
+  const { openSettings } = useSettings()
   const name = session?.user.name ?? "User"
   const email = session?.user.email ?? ""
 
@@ -85,10 +87,6 @@ export function UserBar() {
     } catch (err) {
       console.error("Sign out failed:", err)
     }
-  }
-
-  const handleOpenSettings = () => {
-    // TODO: Navigate to settings page
   }
 
   return (
@@ -144,7 +142,7 @@ export function UserBar() {
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={handleOpenSettings}>
+              <DropdownMenuItem onSelect={openSettings}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </DropdownMenuItem>
@@ -162,7 +160,7 @@ export function UserBar() {
           type="button"
           aria-label="Open settings"
           title="Open settings"
-          onClick={handleOpenSettings}
+          onClick={openSettings}
           className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
         >
           <Settings className="size-4" />
