@@ -26,7 +26,7 @@
 - [x] Message editing UI
 - [x] User profiles (bio, custom status, avatar upload)
 - [ ] Channel edit/delete
-- [x] Settings pages
+- [x] User settings page
 
 ## Phase 2 — Permissions & Moderation
 
@@ -57,6 +57,7 @@
 - [ ] Thread support
 - [ ] Notification preferences
 - [ ] Error handling & loading state improvements
+- [ ] Other settings pages
 
 ## Phase 6 — Infrastructure
 

@@ -1,5 +1,5 @@
 import { authClient } from "@repo/auth/client"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { useEffect, useMemo } from "react"
 
@@ -30,11 +30,17 @@ function GuildLayout() {
     [guilds, guildSlug]
   )
 
+  const queryClient = useQueryClient()
+
   useEffect(() => {
     if (!guild) return
     if (activeOrg?.id === guild.id) return
-    authClient.organization.setActive({ organizationId: guild.id })
-  }, [guild, activeOrg?.id])
+    authClient.organization.setActive({ organizationId: guild.id }).then(() => {
+      queryClient.invalidateQueries({
+        queryKey: ["active-guild-member", guildSlug],
+      })
+    })
+  }, [guild, activeOrg?.id, guildSlug, queryClient])
 
   if (guildsLoading) {
     return (

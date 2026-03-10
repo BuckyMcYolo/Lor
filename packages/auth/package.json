@@ -17,6 +17,7 @@
   "exports": {
     ".": "./src/lib/auth.ts",
     "./client": "./src/lib/auth-client.ts",
-    "./utils": "./src/lib/auth-utils.ts"
+    "./utils": "./src/lib/auth-utils.ts",
+    "./permissions": "./src/lib/permissions.ts"
   }
 }

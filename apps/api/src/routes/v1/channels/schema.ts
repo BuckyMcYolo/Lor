@@ -1,5 +1,9 @@
 import { z } from "@hono/zod-openapi"
-import { insertChannelSchema, selectChannelSchema } from "@repo/db/schema"
+import {
+  insertChannelSchema,
+  selectChannelSchema,
+  updateChannelSchema,
+} from "@repo/db/schema"
 import {
   listMessagesQuerySchema,
   listMessagesResponseSchema,
@@ -43,6 +47,16 @@ export const listChannelsResponseSchema = z.object({
 export const createChannelRequestSchema = insertChannelSchema
 
 export const createChannelResponseSchema = selectChannelSchema
+
+// ── Update / Delete ──────────────────────────────────────────
+
+export const updateChannelRequestSchema = updateChannelSchema
+
+export const updateChannelResponseSchema = selectChannelSchema
+
+export const deleteChannelResponseSchema = z.object({
+  success: z.literal(true),
+})
 
 // ── Messages ──────────────────────────────────────────
 

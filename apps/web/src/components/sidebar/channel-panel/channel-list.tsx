@@ -15,6 +15,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { authClient } from "@repo/auth/client"
+import type { GuildRole } from "@repo/auth/permissions"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +40,9 @@ import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useState } from "react"
 import { apiClient } from "@/lib/api-client"
 import type { Channel, ListChannelsResponse } from "@/lib/api-types"
+import { canDeleteChannels, canManageChannels } from "@/lib/permissions"
+import { DeleteChannelDialog } from "./delete-channel-dialog"
+import { EditChannelDialog } from "./edit-channel-dialog"
 
 const channelIcons = {
   text: Hash,
@@ -136,6 +141,21 @@ export function ChannelList() {
       queryClient.invalidateQueries({ queryKey: ["channels", guildSlug] })
     },
   })
+
+  const { data: activeMember } = useQuery({
+    queryKey: ["active-guild-member", guildSlug],
+    queryFn: async () => {
+      const res = await authClient.organization.getActiveMember()
+      return res.data
+    },
+    enabled: !!guildSlug,
+  })
+  const canManage = activeMember?.role
+    ? canManageChannels(activeMember.role as GuildRole)
+    : false
+  const canDelete = activeMember?.role
+    ? canDeleteChannels(activeMember.role as GuildRole)
+    : false
 
   const [activeItem, setActiveItem] = useState<{
     channel: Channel
@@ -355,15 +375,16 @@ export function ChannelList() {
           <SortableContext
             items={data.uncategorized.map((ch) => ch.id)}
             strategy={verticalListSortingStrategy}
+            disabled={!canManage}
           >
             <div>
               {data.uncategorized.map((ch) => (
                 <SortableChannelItem
                   key={ch.id}
-                  id={ch.id}
-                  name={ch.name ?? ""}
-                  type={ch.type}
+                  channel={ch}
                   active={activeChannelId === ch.id}
+                  canManage={canManage}
+                  canDelete={canDelete}
                   onClick={() =>
                     navigate({
                       to: "/$guildSlug/$channelId",
@@ -383,6 +404,7 @@ export function ChannelList() {
         <SortableContext
           items={data.categories.map((cat) => cat.id)}
           strategy={verticalListSortingStrategy}
+          disabled={!canManage}
         >
           {data.categories.map((cat) => (
             <SortableCategorySection
@@ -392,6 +414,8 @@ export function ChannelList() {
               channels={cat.channels}
               draggingCategory={activeItem?.isCategory ?? false}
               activeChannelId={activeChannelId}
+              canManage={canManage}
+              canDelete={canDelete}
               onChannelClick={(channelId) =>
                 navigate({
                   to: "/$guildSlug/$channelId",
@@ -432,6 +456,8 @@ function SortableCategorySection({
   channels,
   draggingCategory,
   activeChannelId,
+  canManage,
+  canDelete,
   onChannelClick,
 }: {
   id: string
@@ -439,6 +465,8 @@ function SortableCategorySection({
   channels: Channel[]
   draggingCategory: boolean
   activeChannelId?: string
+  canManage: boolean
+  canDelete: boolean
   onChannelClick?: (channelId: string) => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -449,7 +477,7 @@ function SortableCategorySection({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id })
+  } = useSortable({ id, disabled: !canManage })
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -462,8 +490,7 @@ function SortableCategorySection({
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
-        {...attributes}
-        {...listeners}
+        {...(canManage ? { ...attributes, ...listeners } : {})}
         className="group flex w-full items-center gap-0.5 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer"
       >
         <motion.div
@@ -486,15 +513,15 @@ function SortableCategorySection({
             <SortableContext
               items={channels.map((ch) => ch.id)}
               strategy={verticalListSortingStrategy}
-              disabled={draggingCategory}
+              disabled={!canManage || draggingCategory}
             >
               {channels.map((ch) => (
                 <SortableChannelItem
                   key={ch.id}
-                  id={ch.id}
-                  name={ch.name ?? ""}
-                  type={ch.type}
+                  channel={ch}
                   active={activeChannelId === ch.id}
+                  canManage={canManage}
+                  canDelete={canDelete}
                   onClick={() => onChannelClick?.(ch.id)}
                 />
               ))}
@@ -507,16 +534,16 @@ function SortableCategorySection({
 }
 
 function SortableChannelItem({
-  id,
-  name,
-  type,
+  channel: ch,
   active = false,
+  canManage,
+  canDelete,
   onClick,
 }: {
-  id: string
-  name: string
-  type: string
+  channel: Channel
   active?: boolean
+  canManage: boolean
+  canDelete: boolean
   onClick?: () => void
 }) {
   const {
@@ -526,9 +553,11 @@ function SortableChannelItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id })
+  } = useSortable({ id: ch.id, disabled: !canManage })
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -537,52 +566,90 @@ function SortableChannelItem({
   }
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit requires a div here
-    // biome-ignore lint/a11y/useKeyWithClickEvents: dnd-kit handles keyboard interactions
-    <div
-      ref={setNodeRef}
-      style={style}
-      onClick={onClick}
-      {...attributes}
-      {...listeners}
-      className={cn(
-        "group relative flex w-full items-center gap-2 rounded-lg px-2 py-[6px] text-[14px] hover:bg-foreground/[0.06] cursor-pointer",
-        active && "bg-foreground/[0.06] font-medium text-foreground",
-        !active && "text-muted-foreground",
-        menuOpen && "bg-foreground/[0.06]"
+    <>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit requires a div here */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: dnd-kit handles keyboard interactions */}
+      <div
+        ref={setNodeRef}
+        style={style}
+        onClick={onClick}
+        {...(canManage ? { ...attributes, ...listeners } : {})}
+        className={cn(
+          "group relative flex w-full items-center gap-2 rounded-lg px-2 py-[6px] text-[14px] hover:bg-foreground/[0.06] cursor-pointer",
+          active && "bg-foreground/[0.06] font-medium text-foreground",
+          !active && "text-muted-foreground",
+          menuOpen && "bg-foreground/[0.06]"
+        )}
+      >
+        {active && (
+          <div className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+        )}
+        <ChannelIcon type={ch.type} />
+        <span className="truncate">{ch.name}</span>
+        {canManage && (
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+            <DropdownMenuTrigger
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "ml-auto flex size-5 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
+                menuOpen && "opacity-100"
+              )}
+            >
+              <MoreHorizontal className="size-4 shrink-0" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="bottom" align="start">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpen(false)
+                  setEditOpen(true)
+                }}
+              >
+                Edit Channel
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigator.clipboard.writeText(ch.id)
+                  setMenuOpen(false)
+                }}
+              >
+                Copy Channel ID
+              </DropdownMenuItem>
+              {canDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMenuOpen(false)
+                      setDeleteOpen(true)
+                    }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    Delete Channel
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+      {canManage && (
+        <EditChannelDialog
+          channel={ch}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
       )}
-    >
-      {active && (
-        <div className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+      {canDelete && (
+        <DeleteChannelDialog
+          channel={ch}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+        />
       )}
-      <ChannelIcon type={type} />
-      <span className="truncate">{name}</span>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger
-          onClick={(e) => e.stopPropagation()}
-          className={cn(
-            "ml-auto flex size-5 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
-            menuOpen && "opacity-100"
-          )}
-        >
-          <MoreHorizontal className="size-4 shrink-0" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side="bottom" align="start">
-          {/* TODO: handleEditChannel */}
-          <DropdownMenuItem disabled>Edit Channel</DropdownMenuItem>
-          {/* TODO: handleCopyChannelId */}
-          <DropdownMenuItem disabled>Copy Channel ID</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {/* TODO: handleDeleteChannel — requires confirmation */}
-          <DropdownMenuItem
-            disabled
-            className="text-destructive focus:text-destructive"
-          >
-            Delete Channel
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    </>
   )
 }
 

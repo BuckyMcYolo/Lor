@@ -74,3 +74,6 @@ All CSS lives in `packages/ui`. Apps do NOT have their own `globals.css`.
 ./lib/*          → ./src/lib/*.ts
 ./hooks/*        → ./src/hooks/*.ts
 ```
+
+PS. If u add/edit routes in the API, make sure to build the API Client as the frontend relies on this being built to be up to date.
+Otherwise you will receive errors when type checking

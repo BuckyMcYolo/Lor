@@ -13,12 +13,15 @@ import {
   channelResponseSchema,
   createChannelRequestSchema,
   createChannelResponseSchema,
+  deleteChannelResponseSchema,
   guildSlugParamsSchema,
   listChannelsResponseSchema,
   listMessagesQuerySchema,
   listMessagesResponseSchema,
   reorderChannelsRequestSchema,
   reorderChannelsResponseSchema,
+  updateChannelRequestSchema,
+  updateChannelResponseSchema,
 } from "./schema"
 
 export const listChannels = createRoute({
@@ -138,8 +141,60 @@ export const listChannelMessages = createRoute({
   },
 })
 
+export const updateChannel = createRoute({
+  path: "/guilds/{guildSlug}/channels/{channelId}",
+  method: "patch",
+  summary: "Update a channel",
+  description:
+    "Updates a channel's name, topic, or other properties. Requires channel:update permission.",
+  tags: ["Channels"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: channelParamsSchema,
+    body: jsonContent({
+      schema: updateChannelRequestSchema,
+      description: "Channel fields to update",
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: updateChannelResponseSchema,
+      description: "Updated channel",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
+export const deleteChannel = createRoute({
+  path: "/guilds/{guildSlug}/channels/{channelId}",
+  method: "delete",
+  summary: "Delete a channel",
+  description:
+    "Permanently deletes a channel and all its messages. Requires channel:delete permission.",
+  tags: ["Channels"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: channelParamsSchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: deleteChannelResponseSchema,
+      description: "Channel deleted",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export type ListChannelsRoute = typeof listChannels
 export type CreateChannelRoute = typeof createChannel
 export type ReorderChannelsRoute = typeof reorderChannels
 export type GetChannelRoute = typeof getChannel
+export type UpdateChannelRoute = typeof updateChannel
+export type DeleteChannelRoute = typeof deleteChannel
 export type ListChannelMessagesRoute = typeof listChannelMessages

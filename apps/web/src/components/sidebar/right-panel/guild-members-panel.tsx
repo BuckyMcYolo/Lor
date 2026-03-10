@@ -24,9 +24,16 @@ const statusLabel: Record<GuildMemberPresence["status"], string> = {
   offline: "Offline",
 }
 
+const roleDisplayNames: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  warden: "Warden",
+  member: "Citizen",
+}
+
 function formatRole(role: GuildMemberPresence["role"]) {
-  if (!role) return "Member"
-  return role.charAt(0).toUpperCase() + role.slice(1)
+  if (!role) return "Citizen"
+  return roleDisplayNames[role] ?? role.charAt(0).toUpperCase() + role.slice(1)
 }
 
 function MembersSkeleton() {
