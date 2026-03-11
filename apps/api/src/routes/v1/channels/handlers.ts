@@ -2,7 +2,7 @@ import { db } from "@repo/db"
 import { channel } from "@repo/db/schema"
 import { and, asc, eq, inArray } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
-import { checkPermission } from "@/lib/permissions"
+import { assertGuildPermission } from "@/lib/permissions"
 import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
@@ -58,10 +58,13 @@ export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
 }
 
 export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
-  await checkPermission(c.req.raw.headers, "channel", ["create"])
-
   const guild = c.var.guild
+  const member = c.var.member
   const body = c.req.valid("json")
+
+  assertGuildPermission(member, guild, {
+    channel: ["create"],
+  })
 
   const newChannel = await db
     .insert(channel)
@@ -85,10 +88,13 @@ export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
 export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
   c
 ) => {
-  await checkPermission(c.req.raw.headers, "channel", ["update"])
-
   const guild = c.var.guild
+  const member = c.var.member
   const { channels: updates } = c.req.valid("json")
+
+  assertGuildPermission(member, guild, {
+    channel: ["update"],
+  })
 
   const channelIds = updates.map((u) => u.id)
   const uniqueChannelIds = [...new Set(channelIds)]
@@ -142,11 +148,14 @@ export const getChannel: AppRouteHandler<GetChannelRoute> = async (c) => {
 }
 
 export const updateChannel: AppRouteHandler<UpdateChannelRoute> = async (c) => {
-  await checkPermission(c.req.raw.headers, "channel", ["update"])
-
   const guild = c.var.guild
+  const member = c.var.member
   const { channelId } = c.req.valid("param")
   const body = c.req.valid("json")
+
+  assertGuildPermission(member, guild, {
+    channel: ["update"],
+  })
 
   const updated = await db
     .update(channel)
@@ -166,10 +175,13 @@ export const updateChannel: AppRouteHandler<UpdateChannelRoute> = async (c) => {
 }
 
 export const deleteChannel: AppRouteHandler<DeleteChannelRoute> = async (c) => {
-  await checkPermission(c.req.raw.headers, "channel", ["delete"])
-
   const guild = c.var.guild
+  const member = c.var.member
   const { channelId } = c.req.valid("param")
+
+  assertGuildPermission(member, guild, {
+    channel: ["delete"],
+  })
 
   const deleted = await db
     .delete(channel)

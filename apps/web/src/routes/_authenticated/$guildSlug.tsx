@@ -1,7 +1,7 @@
 import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Outlet } from "@tanstack/react-router"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 export const Route = createFileRoute("/_authenticated/$guildSlug")({
   component: GuildLayout,
@@ -9,6 +9,7 @@ export const Route = createFileRoute("/_authenticated/$guildSlug")({
 
 function GuildLayout() {
   const { guildSlug } = Route.useParams()
+  const [isSwitchingGuild, setIsSwitchingGuild] = useState(false)
 
   const { data: guilds, isPending: guildsLoading } = useQuery({
     queryKey: ["guilds"],
@@ -33,13 +34,41 @@ function GuildLayout() {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (!guild) return
-    if (activeOrg?.id === guild.id) return
-    authClient.organization.setActive({ organizationId: guild.id }).then(() => {
-      queryClient.invalidateQueries({
-        queryKey: ["active-guild-member", guildSlug],
-      })
-    })
+    let cancelled = false
+
+    if (!guild) {
+      setIsSwitchingGuild(false)
+      return
+    }
+
+    if (activeOrg?.id === guild.id) {
+      setIsSwitchingGuild(false)
+      return
+    }
+
+    setIsSwitchingGuild(true)
+
+    void (async () => {
+      try {
+        await authClient.organization.setActive({ organizationId: guild.id })
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ["active-guild", guildSlug],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["active-guild-member", guildSlug],
+          }),
+        ])
+      } finally {
+        if (!cancelled) {
+          setIsSwitchingGuild(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [guild, activeOrg?.id, guildSlug, queryClient])
 
   if (guildsLoading) {
@@ -54,6 +83,14 @@ function GuildLayout() {
     return (
       <div className="flex flex-1 items-center justify-center">
         <span className="text-sm text-muted-foreground">Guild not found</span>
+      </div>
+    )
+  }
+
+  if (isSwitchingGuild || activeOrg?.id !== guild.id) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
     )
   }

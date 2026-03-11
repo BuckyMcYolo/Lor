@@ -38,13 +38,14 @@ function toGuildAuthority(
 
 /**
  * Checks if the current user has the specified permissions in their active guild.
- * Uses better-auth's hasPermission API.
- *
- * Throws an HTTPException with 403 if the user lacks the required permissions.
+ * Uses better-auth's hasPermission API and throws HTTPException(403) when the
+ * requested permission is missing.
  *
  * @example
- * const allowed = await checkPermission(c.req.raw.headers, "channel", ["update"])
- * if (!allowed) throw new HTTPException(403)
+ * await checkPermission(c.req.raw.headers, "channel", ["update"])
+ *
+ * // If the permission is missing, checkPermission(...) throws
+ * // HTTPException(403) from the internal !result.success branch.
  */
 export async function checkPermission<
   TResource extends StatementKey,

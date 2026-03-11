@@ -13,6 +13,7 @@ import { Textarea } from "@repo/ui/components/textarea"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { apiClient } from "@/lib/api-client"
 import type { Channel } from "@/lib/api-types"
 
@@ -47,7 +48,20 @@ export function EditChannelDialog({
         json: { name, topic: topic || undefined },
       })
       if (!res.ok) {
-        throw new Error("Failed to update channel")
+        let message = "Failed to update channel"
+        const responseText = await res.text()
+
+        if (responseText) {
+          try {
+            const parsed = JSON.parse(responseText) as { message?: string }
+            message =
+              typeof parsed.message === "string" ? parsed.message : responseText
+          } catch {
+            message = responseText
+          }
+        }
+
+        throw new Error(message)
       }
       return res.json()
     },
@@ -57,6 +71,11 @@ export function EditChannelDialog({
         queryKey: ["channel", guildSlug, channel.id],
       })
       onOpenChange(false)
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update channel"
+      )
     },
   })
 
