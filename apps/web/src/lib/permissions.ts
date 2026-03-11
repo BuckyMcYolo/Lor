@@ -1,16 +1,56 @@
-import { authClient } from "@repo/auth/client"
-import type { GuildRole } from "@repo/auth/permissions"
+import {
+  canManageGuildAuthority,
+  formatGuildRole,
+  type GuildRole,
+  roleHasPermissions,
+} from "@repo/auth/permissions"
 
 export function canManageChannels(role: GuildRole): boolean {
-  return authClient.organization.checkRolePermission({
-    permissions: { channel: ["update"] },
-    role,
+  return roleHasPermissions(role, {
+    channel: ["update"],
   })
 }
 
 export function canDeleteChannels(role: GuildRole): boolean {
-  return authClient.organization.checkRolePermission({
-    permissions: { channel: ["delete"] },
-    role,
+  return roleHasPermissions(role, {
+    channel: ["delete"],
   })
 }
+
+export function canUpdateGuildMemberRoles(role: GuildRole): boolean {
+  return roleHasPermissions(role, {
+    guildMember: ["role:update"],
+  })
+}
+
+export function canKickGuildMembers(role: GuildRole): boolean {
+  return roleHasPermissions(role, {
+    guildMember: ["kick"],
+  })
+}
+
+export function canBanGuildMembers(role: GuildRole): boolean {
+  return roleHasPermissions(role, {
+    guildMember: ["ban"],
+  })
+}
+
+export function canTimeoutGuildMembers(role: GuildRole): boolean {
+  return roleHasPermissions(role, {
+    guildMember: ["timeout"],
+  })
+}
+
+export function canManageGuildMember(
+  actorRole: GuildRole,
+  targetRole: GuildRole,
+  actorIsOwner = false,
+  targetIsOwner = false
+) {
+  return canManageGuildAuthority(
+    { role: actorRole, isOwner: actorIsOwner },
+    { role: targetRole, isOwner: targetIsOwner }
+  )
+}
+
+export { formatGuildRole }

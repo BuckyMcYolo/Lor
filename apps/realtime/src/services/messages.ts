@@ -12,6 +12,14 @@ import {
   assertUserCanAccessChannel,
 } from "./channel-access"
 
+function assertChannelCommunicationAllowed(channel: AccessibleChannel) {
+  if (!channel.guildId) return
+  if (!channel.communicationDisabledUntil) return
+  if (channel.communicationDisabledUntil.getTime() <= Date.now()) return
+
+  throw new Error("You are temporarily timed out and cannot send messages")
+}
+
 type CreateMessageInput = {
   userId: string
   payload: SendMessagePayload
@@ -53,6 +61,7 @@ export async function createMessage(input: CreateMessageInput) {
     input.userId,
     input.payload.channelId
   )
+  assertChannelCommunicationAllowed(channelRecord)
 
   let hasReply = !!input.payload.referencedMessageId
 
@@ -248,6 +257,7 @@ export async function editMessage(
     input.userId,
     input.payload.channelId
   )
+  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({
@@ -293,6 +303,7 @@ export async function toggleMessageReaction(input: ToggleMessageReactionInput) {
     input.userId,
     input.payload.channelId
   )
+  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({

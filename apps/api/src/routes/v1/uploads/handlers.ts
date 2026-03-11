@@ -5,6 +5,7 @@ import { channel, channelMember, guildMember } from "@repo/db/schema"
 import { env } from "@repo/env/server"
 import { and, eq } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
+import { assertMemberCanCommunicate } from "@/lib/permissions"
 import { s3Client } from "@/lib/s3"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type { AvatarPresignRoute, PresignRoute } from "./routes"
@@ -41,7 +42,10 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
   // Guild channel — verify guild membership
   if (ch.guildId) {
     const member = await db
-      .select({ id: guildMember.id })
+      .select({
+        id: guildMember.id,
+        communicationDisabledUntil: guildMember.communicationDisabledUntil,
+      })
       .from(guildMember)
       .where(
         and(
@@ -58,6 +62,8 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
         HttpStatusCodes.FORBIDDEN
       )
     }
+
+    assertMemberCanCommunicate(member)
   } else if (
     DM_CHANNEL_TYPES.includes(ch.type as (typeof DM_CHANNEL_TYPES)[number])
   ) {

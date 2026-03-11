@@ -25,7 +25,7 @@
 - [x] Message deletion
 - [x] Message editing UI
 - [x] User profiles (bio, custom status, avatar upload)
-- [ ] Channel edit/delete
+- [x] Channel edit/delete
 - [x] User settings page
 
 ## Phase 2 — Permissions & Moderation
@@ -64,7 +64,6 @@
 - [ ] Structured logger (Pino/Winston) replacing `console.error`
 - [ ] Production environment management
 - [ ] Production startup guard for `REALTIME_CORS_ORIGIN` on localhost defaults
-- [ ] Database migration workflow
 - [ ] Monitoring & logging (observability)
 - [ ] CORS lockdown for production domains
 

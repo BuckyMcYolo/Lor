@@ -25,7 +25,7 @@ function PlaceholderSidebar({
 
 export function RightSidebarPanel({ view }: { view: RightSidebarView }) {
   return (
-    <aside className="hidden h-full w-[320px] shrink-0 border-l border-border bg-card xl:flex">
+    <aside className="hidden h-full w-[360px] min-w-[360px] shrink-0 border-l border-border bg-card xl:flex">
       {view.type === "guild-members" && <GuildMembersPanel view={view} />}
       {view.type === "thread" && (
         <PlaceholderSidebar

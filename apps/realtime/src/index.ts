@@ -39,6 +39,7 @@ import {
   markUserConnected,
   markUserDisconnected,
 } from "@/services/presence"
+import { enforceGuildMessageRateLimit } from "@/services/rate-limit"
 import { markChannelRead } from "@/services/read-states"
 
 type SocketData = {
@@ -302,6 +303,19 @@ io.on("connection", (socket) => {
   socket.on("message:send", async (payload, ack) => {
     try {
       const parsed = sendMessagePayloadSchema.parse(payload)
+      const accessibleChannel = await assertUserCanAccessChannel(
+        socket.data.user.id,
+        parsed.channelId
+      )
+
+      if (accessibleChannel.guildId && accessibleChannel.memberRole) {
+        await enforceGuildMessageRateLimit(redisPresenceClient, {
+          guildId: accessibleChannel.guildId,
+          userId: socket.data.user.id,
+          role: accessibleChannel.memberRole,
+        })
+      }
+
       const createdMessage = await createMessage({
         userId: socket.data.user.id,
         payload: parsed,

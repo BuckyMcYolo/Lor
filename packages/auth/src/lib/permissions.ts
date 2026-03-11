@@ -10,26 +10,49 @@ const statement = {
   ...defaultStatements,
   channel: ["create", "update", "delete"],
   message: ["delete"], // delete others' messages (own messages are always deletable)
+  guildMember: ["kick", "ban", "timeout", "role:update"],
 } as const
 
 const ac = createAccessControl(statement)
 
+const guildPermissionGrants = {
+  owner: {
+    channel: ["create", "update", "delete"],
+    message: ["delete"],
+    guildMember: ["kick", "ban", "timeout", "role:update"],
+  },
+  admin: {
+    channel: ["create", "update", "delete"],
+    message: ["delete"],
+    guildMember: ["kick", "ban", "timeout", "role:update"],
+  },
+  warden: {
+    channel: ["create", "update"],
+    message: ["delete"],
+    guildMember: ["kick", "ban", "timeout"],
+  },
+  member: {},
+} as const
+
 const owner = ac.newRole({
   channel: ["create", "update", "delete"],
   message: ["delete"],
+  guildMember: ["kick", "ban", "timeout", "role:update"],
   ...ownerAc.statements,
 })
 
 const admin = ac.newRole({
   channel: ["create", "update", "delete"],
   message: ["delete"],
+  guildMember: ["kick", "ban", "timeout", "role:update"],
   ...adminAc.statements,
 })
 
-// Warden (moderator) — can create/update channels and moderate messages
+// Warden (moderator) — can create/update channels and moderate messages/members
 const warden = ac.newRole({
   channel: ["create", "update"],
   message: ["delete"],
+  guildMember: ["kick", "ban", "timeout"],
   ...memberAc.statements,
 })
 
@@ -40,6 +63,115 @@ const member = ac.newRole({
 
 const roles = { owner, admin, warden, member }
 
-export type GuildRole = keyof typeof roles
+const guildRoleLabels = {
+  owner: "Owner",
+  admin: "Admin",
+  warden: "Warden",
+  member: "Citizen",
+} as const satisfies Record<keyof typeof roles, string>
 
-export { ac, admin, member, owner, roles, statement, warden }
+const guildRolePositions = {
+  owner: 0,
+  admin: 10,
+  warden: 20,
+  member: 30,
+} as const satisfies Record<keyof typeof roles, number>
+
+const guildMessageRateLimitsPerMinute = {
+  owner: 120,
+  admin: 120,
+  warden: 60,
+  member: 30,
+} as const satisfies Record<keyof typeof roles, number>
+
+const assignableGuildRoles = ["admin", "warden", "member"] as const
+
+export type GuildRole = keyof typeof roles
+export type AssignableGuildRole = (typeof assignableGuildRoles)[number]
+export type StatementKey = keyof typeof statement
+export type PermissionRequest = {
+  [K in StatementKey]?: readonly (typeof statement)[K][number][]
+}
+export type GuildAuthority = {
+  role: GuildRole
+  isOwner?: boolean
+}
+
+export function isGuildRole(value: string): value is GuildRole {
+  return value in roles
+}
+
+export function formatGuildRole(role: GuildRole) {
+  return guildRoleLabels[role]
+}
+
+export function getGuildRolePosition(role: GuildRole) {
+  return guildRolePositions[role]
+}
+
+export function getGuildAuthorityPosition(authority: GuildAuthority) {
+  if (authority.isOwner) return guildRolePositions.owner
+  return getGuildRolePosition(authority.role)
+}
+
+export function canManageGuildAuthority(
+  actor: GuildAuthority,
+  target: GuildAuthority
+) {
+  if (target.isOwner) {
+    return actor.isOwner === true
+  }
+
+  return getGuildAuthorityPosition(actor) < getGuildAuthorityPosition(target)
+}
+
+export function roleHasPermissions(
+  role: GuildRole,
+  requestedPermissions: PermissionRequest
+) {
+  const grantedStatements = guildPermissionGrants[role] as Record<
+    string,
+    readonly string[] | undefined
+  >
+
+  for (const [resource, actions] of Object.entries(requestedPermissions)) {
+    if (!actions || actions.length === 0) continue
+
+    const grantedActions = grantedStatements[resource] ?? []
+    const grantedActionSet = new Set(grantedActions)
+
+    for (const action of actions) {
+      if (!grantedActionSet.has(action)) {
+        return false
+      }
+    }
+  }
+
+  return true
+}
+
+export function guildAuthorityHasPermissions(
+  authority: GuildAuthority,
+  requestedPermissions: PermissionRequest
+) {
+  if (authority.isOwner) return true
+  return roleHasPermissions(authority.role, requestedPermissions)
+}
+
+export function getGuildMessageRateLimit(role: GuildRole) {
+  return guildMessageRateLimitsPerMinute[role]
+}
+
+export {
+  ac,
+  admin,
+  assignableGuildRoles,
+  guildMessageRateLimitsPerMinute,
+  guildRoleLabels,
+  guildRolePositions,
+  member,
+  owner,
+  roles,
+  statement,
+  warden,
+}
