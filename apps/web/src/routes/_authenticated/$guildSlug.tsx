@@ -1,7 +1,8 @@
 import { authClient } from "@repo/auth/client"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Outlet } from "@tanstack/react-router"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 
 export const Route = createFileRoute("/_authenticated/$guildSlug")({
   component: GuildLayout,
@@ -9,6 +10,10 @@ export const Route = createFileRoute("/_authenticated/$guildSlug")({
 
 function GuildLayout() {
   const { guildSlug } = Route.useParams()
+  const [isSwitchingGuild, setIsSwitchingGuild] = useState(false)
+  const [switchError, setSwitchError] = useState<string | null>(null)
+  const latestDesiredGuildRef = useRef<string | null>(null)
+  const switchRequestRef = useRef(0)
 
   const { data: guilds, isPending: guildsLoading } = useQuery({
     queryKey: ["guilds"],
@@ -18,7 +23,7 @@ function GuildLayout() {
     },
   })
   const { data: activeOrg } = useQuery({
-    queryKey: ["active-guild", guildSlug],
+    queryKey: ["active-guild"],
     queryFn: async () => {
       const res = await authClient.organization.getFullOrganization()
       return res.data
@@ -30,11 +35,81 @@ function GuildLayout() {
     [guilds, guildSlug]
   )
 
+  const queryClient = useQueryClient()
+
   useEffect(() => {
-    if (!guild) return
-    if (activeOrg?.id === guild.id) return
-    authClient.organization.setActive({ organizationId: guild.id })
-  }, [guild, activeOrg?.id])
+    let cancelled = false
+
+    if (!guild) {
+      latestDesiredGuildRef.current = null
+      setSwitchError(null)
+      setIsSwitchingGuild(false)
+      return
+    }
+
+    const desiredGuildId = guild.id
+    latestDesiredGuildRef.current = desiredGuildId
+
+    if (activeOrg?.id === desiredGuildId) {
+      setSwitchError(null)
+      setIsSwitchingGuild(false)
+      return
+    }
+
+    const requestId = ++switchRequestRef.current
+    setSwitchError(null)
+    setIsSwitchingGuild(true)
+
+    void (async () => {
+      try {
+        await authClient.organization.setActive({
+          organizationId: desiredGuildId,
+        })
+
+        if (
+          cancelled ||
+          latestDesiredGuildRef.current !== desiredGuildId ||
+          switchRequestRef.current !== requestId
+        ) {
+          return
+        }
+
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ["active-guild"],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["active-guild-member", guildSlug],
+          }),
+        ])
+      } catch (error) {
+        if (
+          cancelled ||
+          latestDesiredGuildRef.current !== desiredGuildId ||
+          switchRequestRef.current !== requestId
+        ) {
+          return
+        }
+
+        console.error("[guild-layout] Failed to switch active guild", error)
+        const message = "Failed to switch guild. Please try again."
+        setSwitchError(message)
+        toast.error(message)
+      } finally {
+        if (
+          !cancelled &&
+          latestDesiredGuildRef.current === desiredGuildId &&
+          switchRequestRef.current === requestId
+        ) {
+          setIsSwitchingGuild(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [guild, activeOrg?.id, guildSlug, queryClient])
 
   if (guildsLoading) {
     return (
@@ -48,6 +123,24 @@ function GuildLayout() {
     return (
       <div className="flex flex-1 items-center justify-center">
         <span className="text-sm text-muted-foreground">Guild not found</span>
+      </div>
+    )
+  }
+
+  if (isSwitchingGuild) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    )
+  }
+
+  if (activeOrg?.id !== guild.id) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <span className="text-sm text-muted-foreground">
+          {switchError ?? "Loading..."}
+        </span>
       </div>
     )
   }

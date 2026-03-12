@@ -25,13 +25,13 @@
 - [x] Message deletion
 - [x] Message editing UI
 - [x] User profiles (bio, custom status, avatar upload)
-- [ ] Channel edit/delete
-- [x] Settings pages
+- [x] Channel edit/delete
+- [x] User settings page
 
 ## Phase 2 — Permissions & Moderation
 
 - [ ] Granular permission system (beyond owner/admin/member)
-- [ ] Member management UI (kick, banish, silence, role assignment)
+- [~] Member management UI (kick, banish, silence, role assignment) (in progress in this PR)
 - [ ] Rate limiting enforcement (API-level + per-channel)
 - [ ] Audit logs
 
@@ -57,13 +57,13 @@
 - [ ] Thread support
 - [ ] Notification preferences
 - [ ] Error handling & loading state improvements
+- [ ] Other settings pages
 
 ## Phase 6 — Infrastructure
 
 - [ ] Structured logger (Pino/Winston) replacing `console.error`
 - [ ] Production environment management
 - [ ] Production startup guard for `REALTIME_CORS_ORIGIN` on localhost defaults
-- [ ] Database migration workflow
 - [ ] Monitoring & logging (observability)
 - [ ] CORS lockdown for production domains
 

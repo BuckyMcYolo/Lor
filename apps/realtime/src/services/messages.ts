@@ -12,9 +12,20 @@ import {
   assertUserCanAccessChannel,
 } from "./channel-access"
 
+function assertChannelCommunicationAllowed(channel: AccessibleChannel) {
+  if (!channel.guildId) return
+  if (!channel.communicationDisabledUntil) return
+  if (channel.communicationDisabledUntil.getTime() <= Date.now()) return
+
+  throw new Error(
+    "You are temporarily timed out and cannot perform this action"
+  )
+}
+
 type CreateMessageInput = {
   userId: string
   payload: SendMessagePayload
+  accessibleChannel: AccessibleChannel
 }
 
 type DeleteMessageInput = {
@@ -49,10 +60,12 @@ export type ToggleMessageReactionResult = {
 }
 
 export async function createMessage(input: CreateMessageInput) {
-  const channelRecord = await assertUserCanAccessChannel(
-    input.userId,
-    input.payload.channelId
-  )
+  if (input.accessibleChannel.id !== input.payload.channelId) {
+    throw new Error("Channel mismatch")
+  }
+
+  const channelRecord = input.accessibleChannel
+  assertChannelCommunicationAllowed(channelRecord)
 
   let hasReply = !!input.payload.referencedMessageId
 
@@ -198,6 +211,7 @@ export async function deleteMessage(
     input.userId,
     input.payload.channelId
   )
+  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({
@@ -248,6 +262,7 @@ export async function editMessage(
     input.userId,
     input.payload.channelId
   )
+  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({
@@ -293,6 +308,7 @@ export async function toggleMessageReaction(input: ToggleMessageReactionInput) {
     input.userId,
     input.payload.channelId
   )
+  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({

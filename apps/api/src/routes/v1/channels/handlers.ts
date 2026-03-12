@@ -2,14 +2,17 @@ import { db } from "@repo/db"
 import { channel } from "@repo/db/schema"
 import { and, asc, eq, inArray } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
+import { assertGuildPermission } from "@/lib/permissions"
 import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
   CreateChannelRoute,
+  DeleteChannelRoute,
   GetChannelRoute,
   ListChannelMessagesRoute,
   ListChannelsRoute,
   ReorderChannelsRoute,
+  UpdateChannelRoute,
 } from "./routes"
 
 export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
@@ -56,7 +59,12 @@ export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
 
 export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
   const guild = c.var.guild
+  const member = c.var.member
   const body = c.req.valid("json")
+
+  assertGuildPermission(member, guild, {
+    channel: ["create"],
+  })
 
   const newChannel = await db
     .insert(channel)
@@ -81,7 +89,12 @@ export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
   c
 ) => {
   const guild = c.var.guild
+  const member = c.var.member
   const { channels: updates } = c.req.valid("json")
+
+  assertGuildPermission(member, guild, {
+    channel: ["update"],
+  })
 
   const channelIds = updates.map((u) => u.id)
   const uniqueChannelIds = [...new Set(channelIds)]
@@ -132,6 +145,58 @@ export const getChannel: AppRouteHandler<GetChannelRoute> = async (c) => {
   }
 
   return c.json(ch, HttpStatusCodes.OK)
+}
+
+export const updateChannel: AppRouteHandler<UpdateChannelRoute> = async (c) => {
+  const guild = c.var.guild
+  const member = c.var.member
+  const { channelId } = c.req.valid("param")
+  const body = c.req.valid("json")
+
+  assertGuildPermission(member, guild, {
+    channel: ["update"],
+  })
+
+  const updated = await db
+    .update(channel)
+    .set(body)
+    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .returning()
+    .then((rows) => rows[0])
+
+  if (!updated) {
+    return c.json(
+      { success: false, message: "Channel not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  return c.json(updated, HttpStatusCodes.OK)
+}
+
+export const deleteChannel: AppRouteHandler<DeleteChannelRoute> = async (c) => {
+  const guild = c.var.guild
+  const member = c.var.member
+  const { channelId } = c.req.valid("param")
+
+  assertGuildPermission(member, guild, {
+    channel: ["delete"],
+  })
+
+  const deleted = await db
+    .delete(channel)
+    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .returning({ id: channel.id })
+    .then((rows) => rows[0])
+
+  if (!deleted) {
+    return c.json(
+      { success: false, message: "Channel not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  return c.json({ success: true }, HttpStatusCodes.OK)
 }
 
 export const listChannelMessages: AppRouteHandler<

@@ -11,6 +11,7 @@ import {
   createSelectSchema,
   createUpdateSchema,
 } from "drizzle-zod"
+import { guildBan } from "./guild-bans"
 import { guildMember } from "./guild-members"
 import { guildRole } from "./guild-roles"
 import { invitation } from "./invitations"
@@ -37,6 +38,7 @@ export const guildRelations = relations(guild, ({ one, many }) => ({
     fields: [guild.ownerId],
     references: [user.id],
   }),
+  guildBans: many(guildBan),
   guildRoles: many(guildRole),
   guildMembers: many(guildMember),
   invitations: many(invitation),

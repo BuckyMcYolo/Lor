@@ -1,10 +1,41 @@
+import { authClient } from "@repo/auth/client"
+import {
+  type AssignableGuildRole,
+  assignableGuildRoles,
+  type GuildRole,
+  isGuildRole,
+} from "@repo/auth/permissions"
 import type { PresenceUserUpdate } from "@repo/realtime-types"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@repo/ui/components/alert-dialog"
+import { Button } from "@repo/ui/components/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@repo/ui/components/dropdown-menu"
 import { ScrollArea } from "@repo/ui/components/scroll-area"
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Users } from "lucide-react"
-import { useEffect, useMemo } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { MoreHorizontal, Users } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { useSocket } from "@/context/socket-context"
 import { apiClient } from "@/lib/api-client"
@@ -12,6 +43,14 @@ import type {
   GuildMemberPresence,
   ListGuildMembersResponse,
 } from "@/lib/api-types"
+import {
+  canBanGuildMembers,
+  canKickGuildMembers,
+  canManageGuildMember,
+  canTimeoutGuildMembers,
+  canUpdateGuildMemberRoles,
+  formatGuildRole,
+} from "@/lib/permissions"
 import type { GuildMembersSidebarView } from "./right-sidebar-types"
 
 const statusStyles: Record<GuildMemberPresence["status"], string> = {
@@ -25,9 +64,32 @@ const statusLabel: Record<GuildMemberPresence["status"], string> = {
 }
 
 function formatRole(role: GuildMemberPresence["role"]) {
-  if (!role) return "Member"
-  return role.charAt(0).toUpperCase() + role.slice(1)
+  if (!role || !isGuildRole(role)) return "Citizen"
+  return formatGuildRole(role)
 }
+
+function isMemberTimedOut(member: GuildMemberPresence) {
+  if (!member.communicationDisabledUntil) return false
+  return new Date(member.communicationDisabledUntil).getTime() > Date.now()
+}
+
+function formatTimeoutLabel(member: GuildMemberPresence) {
+  if (!member.communicationDisabledUntil) return null
+  const timeoutDate = new Date(member.communicationDisabledUntil)
+  if (Number.isNaN(timeoutDate.getTime())) return null
+  return `Timed out until ${timeoutDate.toLocaleString()}`
+}
+
+const timeoutOptions = [
+  { label: "10 minutes", durationMinutes: 10 },
+  { label: "1 hour", durationMinutes: 60 },
+  { label: "1 day", durationMinutes: 60 * 24 },
+] as const
+
+type ModerationDialogState =
+  | { type: "kick"; member: GuildMemberPresence }
+  | { type: "ban"; member: GuildMemberPresence }
+  | null
 
 function MembersSkeleton() {
   return (
@@ -49,10 +111,62 @@ function MembersSkeleton() {
   )
 }
 
-function MemberRow({ member }: { member: GuildMemberPresence }) {
+function MemberRow({
+  member,
+  currentUserId,
+  currentRole,
+  currentIsOwner,
+  onRoleChange,
+  onKick,
+  onBan,
+  onTimeout,
+  onClearTimeout,
+  isBusy,
+}: {
+  member: GuildMemberPresence
+  currentUserId: string | null
+  currentRole: GuildRole | null
+  currentIsOwner: boolean
+  onRoleChange: (member: GuildMemberPresence, role: AssignableGuildRole) => void
+  onKick: (member: GuildMemberPresence) => void
+  onBan: (member: GuildMemberPresence) => void
+  onTimeout: (member: GuildMemberPresence, durationMinutes: number) => void
+  onClearTimeout: (member: GuildMemberPresence) => void
+  isBusy: boolean
+}) {
+  const targetRole = isGuildRole(member.role) ? member.role : null
+  const canManageTarget =
+    currentRole && targetRole
+      ? canManageGuildMember(
+          currentRole,
+          targetRole,
+          currentIsOwner,
+          member.isOwner
+        ) && currentUserId !== member.userId
+      : false
+
+  const canUpdateRole =
+    currentRole && targetRole
+      ? canUpdateGuildMemberRoles(currentRole) && canManageTarget
+      : false
+  const canKick =
+    currentRole && targetRole
+      ? canKickGuildMembers(currentRole) && canManageTarget
+      : false
+  const canBan =
+    currentRole && targetRole
+      ? canBanGuildMembers(currentRole) && canManageTarget
+      : false
+  const canTimeout =
+    currentRole && targetRole
+      ? canTimeoutGuildMembers(currentRole) && canManageTarget
+      : false
+  const showActions = canUpdateRole || canKick || canBan || canTimeout
+  const timeoutLabel = formatTimeoutLabel(member)
+
   return (
-    <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-foreground/[0.04]">
-      <div className="relative">
+    <div className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-foreground/[0.04]">
+      <div className="relative shrink-0">
         <UserAvatar name={member.name} src={member.image} size="sm" />
         <span
           className={cn(
@@ -66,10 +180,108 @@ function MemberRow({ member }: { member: GuildMemberPresence }) {
         <div className="truncate text-[11px] text-muted-foreground">
           {formatRole(member.role)}
         </div>
+        {timeoutLabel && (
+          <div className="truncate text-[11px] text-amber-700 dark:text-amber-400">
+            {timeoutLabel}
+          </div>
+        )}
       </div>
-      <span className="text-[11px] text-muted-foreground">
-        {statusLabel[member.status]}
-      </span>
+      <div className="flex shrink-0 items-center gap-2 pl-2">
+        <span className="max-w-12 truncate text-[11px] text-muted-foreground">
+          {statusLabel[member.status]}
+        </span>
+        {showActions && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                disabled={isBusy}
+              >
+                <MoreHorizontal className="size-4" />
+                <span className="sr-only">Moderate member</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canUpdateRole && targetRole && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Change Role</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuRadioGroup
+                      value={
+                        assignableGuildRoles.includes(
+                          targetRole as AssignableGuildRole
+                        )
+                          ? targetRole
+                          : "member"
+                      }
+                      onValueChange={(value) => {
+                        if (
+                          !assignableGuildRoles.includes(
+                            value as AssignableGuildRole
+                          )
+                        ) {
+                          return
+                        }
+
+                        onRoleChange(member, value as AssignableGuildRole)
+                      }}
+                    >
+                      {assignableGuildRoles.map((role) => (
+                        <DropdownMenuRadioItem key={role} value={role}>
+                          {formatGuildRole(role)}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              {canTimeout && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Timeout</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {timeoutOptions.map((option) => (
+                      <DropdownMenuItem
+                        key={option.durationMinutes}
+                        onClick={() =>
+                          onTimeout(member, option.durationMinutes)
+                        }
+                      >
+                        {option.label}
+                      </DropdownMenuItem>
+                    ))}
+                    {isMemberTimedOut(member) && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => onClearTimeout(member)}
+                        >
+                          Clear timeout
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              {(canKick || canBan) && <DropdownMenuSeparator />}
+              {canKick && (
+                <DropdownMenuItem onClick={() => onKick(member)}>
+                  Kick member
+                </DropdownMenuItem>
+              )}
+              {canBan && (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onBan(member)}
+                >
+                  Ban member
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
     </div>
   )
 }
@@ -77,6 +289,9 @@ function MemberRow({ member }: { member: GuildMemberPresence }) {
 export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const socket = useSocket()
   const queryClient = useQueryClient()
+  const { data: session } = authClient.useSession()
+  const [moderationDialog, setModerationDialog] =
+    useState<ModerationDialogState>(null)
   const queryKey = useMemo(
     () => ["guild-members", view.guildSlug] as const,
     [view.guildSlug]
@@ -92,7 +307,214 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       return res.json()
     },
   })
+  const {
+    data: activeMember,
+    error: activeMemberError,
+    isError: hasActiveMemberError,
+  } = useQuery({
+    queryKey: ["active-guild-member", view.guildSlug],
+    queryFn: async () => {
+      const res = await authClient.organization.getActiveMember()
+      if (res.error) {
+        throw new Error(
+          res.error.message ?? "Failed to verify moderation permissions"
+        )
+      }
+
+      if (!res.data) {
+        throw new Error("Failed to verify moderation permissions")
+      }
+
+      return res.data
+    },
+    enabled: !!view.guildSlug,
+  })
   const guildId = data?.guildId
+  const currentUserId = session?.user?.id ?? null
+  const activeMemberRole =
+    typeof activeMember?.role === "string" ? activeMember.role : null
+  const currentRole =
+    !hasActiveMemberError && activeMemberRole && isGuildRole(activeMemberRole)
+      ? activeMemberRole
+      : null
+  const currentIsOwner = data?.ownerId === currentUserId
+
+  useEffect(() => {
+    if (!hasActiveMemberError) return
+
+    toast.error(
+      activeMemberError instanceof Error
+        ? activeMemberError.message
+        : "Failed to verify moderation permissions"
+    )
+  }, [hasActiveMemberError, activeMemberError, view.guildSlug])
+
+  const invalidateMembers = async () => {
+    await queryClient.invalidateQueries({ queryKey })
+  }
+
+  const updateRoleMutation = useMutation({
+    mutationFn: async (input: {
+      userId: string
+      role: AssignableGuildRole
+    }) => {
+      const res = await apiClient.v1.guilds[":guildSlug"].members[
+        ":userId"
+      ].role.$patch({
+        param: { guildSlug: view.guildSlug, userId: input.userId },
+        json: { role: input.role },
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to update guild member role")
+      }
+
+      return res.json()
+    },
+    onSuccess: async () => {
+      await invalidateMembers()
+      toast.success("Role updated")
+    },
+    onError: () => {
+      toast.error("Failed to update role")
+    },
+  })
+
+  const kickMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiClient.v1.guilds[":guildSlug"].members[
+        ":userId"
+      ].kick.$post({
+        param: { guildSlug: view.guildSlug, userId },
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to kick member")
+      }
+    },
+    onSuccess: async () => {
+      await invalidateMembers()
+      setModerationDialog(null)
+      toast.success("Member kicked")
+    },
+    onError: () => {
+      toast.error("Failed to kick member")
+    },
+  })
+
+  const banMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiClient.v1.guilds[":guildSlug"].members[
+        ":userId"
+      ].ban.$post({
+        param: { guildSlug: view.guildSlug, userId },
+        json: { reason: null, expiresAt: null },
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to ban member")
+      }
+    },
+    onSuccess: async () => {
+      await invalidateMembers()
+      setModerationDialog(null)
+      toast.success("Member banned")
+    },
+    onError: () => {
+      toast.error("Failed to ban member")
+    },
+  })
+
+  const timeoutMutation = useMutation({
+    mutationFn: async (input: { userId: string; durationMinutes: number }) => {
+      const res = await apiClient.v1.guilds[":guildSlug"].members[
+        ":userId"
+      ].timeout.$post({
+        param: { guildSlug: view.guildSlug, userId: input.userId },
+        json: {
+          durationMinutes: input.durationMinutes,
+          reason: null,
+        },
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to time out member")
+      }
+    },
+    onSuccess: async () => {
+      await invalidateMembers()
+      toast.success("Timeout applied")
+    },
+    onError: () => {
+      toast.error("Failed to apply timeout")
+    },
+  })
+
+  const clearTimeoutMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiClient.v1.guilds[":guildSlug"].members[
+        ":userId"
+      ].timeout.$delete({
+        param: { guildSlug: view.guildSlug, userId },
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to clear timeout")
+      }
+    },
+    onSuccess: async () => {
+      await invalidateMembers()
+      toast.success("Timeout cleared")
+    },
+    onError: () => {
+      toast.error("Failed to clear timeout")
+    },
+  })
+
+  const isMutating =
+    updateRoleMutation.isPending ||
+    kickMutation.isPending ||
+    banMutation.isPending ||
+    timeoutMutation.isPending ||
+    clearTimeoutMutation.isPending
+
+  const handleRoleChange = (
+    member: GuildMemberPresence,
+    role: AssignableGuildRole
+  ) => {
+    if (member.role === role) return
+    updateRoleMutation.mutate({ userId: member.userId, role })
+  }
+
+  const handleKick = (member: GuildMemberPresence) => {
+    setModerationDialog({ type: "kick", member })
+  }
+
+  const handleBan = (member: GuildMemberPresence) => {
+    setModerationDialog({ type: "ban", member })
+  }
+
+  const handleTimeout = (
+    member: GuildMemberPresence,
+    durationMinutes: number
+  ) => {
+    timeoutMutation.mutate({ userId: member.userId, durationMinutes })
+  }
+
+  const handleClearTimeout = (member: GuildMemberPresence) => {
+    clearTimeoutMutation.mutate(member.userId)
+  }
+
+  const handleConfirmModeration = () => {
+    if (!moderationDialog) return
+
+    if (moderationDialog.type === "kick") {
+      kickMutation.mutate(moderationDialog.member.userId)
+      return
+    }
+
+    banMutation.mutate(moderationDialog.member.userId)
+  }
 
   useEffect(() => {
     if (!socket || !guildId) return
@@ -171,62 +593,151 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const onlineMembers = members.filter((member) => member.status !== "offline")
   const offlineMembers = members.filter((member) => member.status === "offline")
   const guildName = data?.guildName?.trim() || "Guild"
+  const isModerationDialogOpen = moderationDialog !== null
+  const moderationDialogTitle =
+    moderationDialog?.type === "kick" ? "Kick member" : "Ban member"
+  const moderationDialogDescription =
+    moderationDialog?.type === "kick"
+      ? `Are you sure you want to kick ${moderationDialog.member.name} from this guild? They can rejoin if invited again.`
+      : moderationDialog
+        ? `Are you sure you want to ban ${moderationDialog.member.name} from this guild? They will be removed immediately and blocked from rejoining.`
+        : ""
+  const isModerationSubmitting =
+    (moderationDialog?.type === "kick" && kickMutation.isPending) ||
+    (moderationDialog?.type === "ban" && banMutation.isPending)
+  const moderationActionLabel =
+    moderationDialog?.type === "kick" ? "Kick member" : "Ban member"
 
   return (
-    <div className="flex h-full w-full flex-col bg-card">
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Users className="size-4 text-muted-foreground" />
-          <span className="text-sm font-semibold">{guildName} Members</span>
+    <>
+      <div className="flex h-full w-full flex-col bg-card">
+        <div className="border-b border-border px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Users className="size-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">{guildName} Members</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {members.length} total members
+          </p>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {members.length} total members
-        </p>
+
+        {hasActiveMemberError && (
+          <div className="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-xs text-destructive">
+            Unable to verify moderation permissions right now. Moderation
+            actions are temporarily unavailable.
+          </div>
+        )}
+
+        {isPending ? (
+          <MembersSkeleton />
+        ) : isError ? (
+          <div className="px-4 py-3 text-sm text-muted-foreground">
+            Failed to load members.
+          </div>
+        ) : (
+          <ScrollArea className="min-w-0 flex-1 overflow-x-hidden px-2 py-2">
+            {members.length === 0 ? (
+              <div className="px-2 py-4 text-sm text-muted-foreground">
+                No members found for this guild.
+              </div>
+            ) : (
+              <div className="min-w-0 space-y-4 px-1 pb-3">
+                {onlineMembers.length > 0 && (
+                  <section>
+                    <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Online - {onlineMembers.length}
+                    </div>
+                    <div className="space-y-0.5">
+                      {onlineMembers.map((member) => (
+                        <MemberRow
+                          key={member.userId}
+                          member={member}
+                          currentUserId={currentUserId}
+                          currentRole={currentRole}
+                          currentIsOwner={currentIsOwner}
+                          onRoleChange={handleRoleChange}
+                          onKick={handleKick}
+                          onBan={handleBan}
+                          onTimeout={handleTimeout}
+                          onClearTimeout={handleClearTimeout}
+                          isBusy={isMutating}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {offlineMembers.length > 0 && (
+                  <section>
+                    <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Offline - {offlineMembers.length}
+                    </div>
+                    <div className="space-y-0.5">
+                      {offlineMembers.map((member) => (
+                        <MemberRow
+                          key={member.userId}
+                          member={member}
+                          currentUserId={currentUserId}
+                          currentRole={currentRole}
+                          currentIsOwner={currentIsOwner}
+                          onRoleChange={handleRoleChange}
+                          onKick={handleKick}
+                          onBan={handleBan}
+                          onTimeout={handleTimeout}
+                          onClearTimeout={handleClearTimeout}
+                          isBusy={isMutating}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+        )}
       </div>
+      <AlertDialog
+        open={isModerationDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && isModerationSubmitting) {
+            return
+          }
 
-      {isPending ? (
-        <MembersSkeleton />
-      ) : isError ? (
-        <div className="px-4 py-3 text-sm text-muted-foreground">
-          Failed to load members.
-        </div>
-      ) : (
-        <ScrollArea className="flex-1 px-2 py-2">
-          {members.length === 0 ? (
-            <div className="px-2 py-4 text-sm text-muted-foreground">
-              No members found for this guild.
-            </div>
-          ) : (
-            <div className="space-y-4 px-1 pb-3">
-              {onlineMembers.length > 0 && (
-                <section>
-                  <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Online - {onlineMembers.length}
-                  </div>
-                  <div className="space-y-0.5">
-                    {onlineMembers.map((member) => (
-                      <MemberRow key={member.userId} member={member} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {offlineMembers.length > 0 && (
-                <section>
-                  <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Offline - {offlineMembers.length}
-                  </div>
-                  <div className="space-y-0.5">
-                    {offlineMembers.map((member) => (
-                      <MemberRow key={member.userId} member={member} />
-                    ))}
-                  </div>
-                </section>
-              )}
-            </div>
-          )}
-        </ScrollArea>
-      )}
-    </div>
+          if (!open) {
+            setModerationDialog(null)
+          }
+        }}
+      >
+        <AlertDialogContent
+          onEscapeKeyDown={(event) => {
+            if (isModerationSubmitting) {
+              event.preventDefault()
+            }
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>{moderationDialogTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {moderationDialogDescription}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isModerationSubmitting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              loading={isModerationSubmitting}
+              onClick={(event) => {
+                event.preventDefault()
+                handleConfirmModeration()
+              }}
+            >
+              {moderationActionLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

@@ -4,6 +4,10 @@ export type AccessibleChannel = {
   id: string
   type: (typeof schema.channel.$inferSelect)["type"]
   guildId: string | null
+  memberRole: string | null
+  memberIsOwner: boolean
+  communicationDisabledUntil: Date | null
+  communicationDisabledReason: string | null
 }
 
 export async function assertUserCanAccessChannel(
@@ -31,8 +35,16 @@ export async function assertUserCanAccessChannel(
 
   if (channelRecord.guildId) {
     const memberRecord = await db
-      .select({ id: schema.guildMember.id })
+      .select({
+        role: schema.guildMember.role,
+        communicationDisabledUntil:
+          schema.guildMember.communicationDisabledUntil,
+        communicationDisabledReason:
+          schema.guildMember.communicationDisabledReason,
+        ownerId: schema.guild.ownerId,
+      })
       .from(schema.guildMember)
+      .innerJoin(schema.guild, eq(schema.guild.id, schema.guildMember.guildId))
       .where(
         and(
           eq(schema.guildMember.guildId, channelRecord.guildId),
@@ -46,7 +58,13 @@ export async function assertUserCanAccessChannel(
       throw new Error("Forbidden")
     }
 
-    return channelRecord
+    return {
+      ...channelRecord,
+      memberRole: memberRecord.role,
+      memberIsOwner: memberRecord.ownerId === userId,
+      communicationDisabledUntil: memberRecord.communicationDisabledUntil,
+      communicationDisabledReason: memberRecord.communicationDisabledReason,
+    }
   }
 
   const dmMemberRecord = await db
@@ -65,5 +83,11 @@ export async function assertUserCanAccessChannel(
     throw new Error("Forbidden")
   }
 
-  return channelRecord
+  return {
+    ...channelRecord,
+    memberRole: null,
+    memberIsOwner: false,
+    communicationDisabledUntil: null,
+    communicationDisabledReason: null,
+  }
 }

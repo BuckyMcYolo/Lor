@@ -3,6 +3,13 @@ import { env } from "@repo/env/server"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { betterAuth } from "better-auth/minimal"
 import { admin, organization, twoFactor, username } from "better-auth/plugins"
+import {
+  ac,
+  admin as adminRole,
+  member as memberRole,
+  owner as ownerRole,
+  warden,
+} from "./permissions"
 
 const defaultGuildChannels = {
   uncategorized: [
@@ -123,6 +130,13 @@ export const auth = betterAuth({
   },
   plugins: [
     organization({
+      ac,
+      roles: {
+        owner: ownerRole,
+        admin: adminRole,
+        warden,
+        member: memberRole,
+      },
       schema: {
         organization: {
           modelName: "guild",
