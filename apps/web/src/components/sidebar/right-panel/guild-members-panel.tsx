@@ -699,12 +699,22 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       <AlertDialog
         open={isModerationDialogOpen}
         onOpenChange={(open) => {
+          if (!open && isModerationSubmitting) {
+            return
+          }
+
           if (!open) {
             setModerationDialog(null)
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          onEscapeKeyDown={(event) => {
+            if (isModerationSubmitting) {
+              event.preventDefault()
+            }
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>{moderationDialogTitle}</AlertDialogTitle>
             <AlertDialogDescription>

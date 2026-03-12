@@ -65,7 +65,11 @@ const guildMessageRateLimitsPerMinute = {
   member: 30,
 } as const satisfies Record<keyof typeof roles, number>
 
-const assignableGuildRoles = ["admin", "warden", "member"] as const
+const assignableGuildRoles = [
+  "admin",
+  "warden",
+  "member",
+] as const satisfies ReadonlyArray<Exclude<keyof typeof roles, "owner">>
 
 export type GuildRole = keyof typeof roles
 export type AssignableGuildRole = (typeof assignableGuildRoles)[number]

@@ -53,6 +53,7 @@ export const createChannelResponseSchema = selectChannelSchema
 const updateChannelRequestBaseSchema = updateChannelSchema.omit({
   position: true,
   parentId: true,
+  type: true,
 })
 
 export const updateChannelRequestSchema = updateChannelRequestBaseSchema.refine(

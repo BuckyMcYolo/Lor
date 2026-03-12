@@ -2,6 +2,7 @@ import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 
 export const Route = createFileRoute("/_authenticated/$guildSlug")({
   component: GuildLayout,
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/_authenticated/$guildSlug")({
 function GuildLayout() {
   const { guildSlug } = Route.useParams()
   const [isSwitchingGuild, setIsSwitchingGuild] = useState(false)
+  const [switchError, setSwitchError] = useState<string | null>(null)
   const latestDesiredGuildRef = useRef<string | null>(null)
   const switchRequestRef = useRef(0)
 
@@ -40,6 +42,7 @@ function GuildLayout() {
 
     if (!guild) {
       latestDesiredGuildRef.current = null
+      setSwitchError(null)
       setIsSwitchingGuild(false)
       return
     }
@@ -48,11 +51,13 @@ function GuildLayout() {
     latestDesiredGuildRef.current = desiredGuildId
 
     if (activeOrg?.id === desiredGuildId) {
+      setSwitchError(null)
       setIsSwitchingGuild(false)
       return
     }
 
     const requestId = ++switchRequestRef.current
+    setSwitchError(null)
     setIsSwitchingGuild(true)
 
     void (async () => {
@@ -77,6 +82,19 @@ function GuildLayout() {
             queryKey: ["active-guild-member", guildSlug],
           }),
         ])
+      } catch (error) {
+        if (
+          cancelled ||
+          latestDesiredGuildRef.current !== desiredGuildId ||
+          switchRequestRef.current !== requestId
+        ) {
+          return
+        }
+
+        console.error("[guild-layout] Failed to switch active guild", error)
+        const message = "Failed to switch guild. Please try again."
+        setSwitchError(message)
+        toast.error(message)
       } finally {
         if (
           !cancelled &&
@@ -109,10 +127,20 @@ function GuildLayout() {
     )
   }
 
-  if (isSwitchingGuild || activeOrg?.id !== guild.id) {
+  if (isSwitchingGuild) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    )
+  }
+
+  if (activeOrg?.id !== guild.id) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <span className="text-sm text-muted-foreground">
+          {switchError ?? "Loading..."}
+        </span>
       </div>
     )
   }

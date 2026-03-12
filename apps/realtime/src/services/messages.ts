@@ -17,7 +17,9 @@ function assertChannelCommunicationAllowed(channel: AccessibleChannel) {
   if (!channel.communicationDisabledUntil) return
   if (channel.communicationDisabledUntil.getTime() <= Date.now()) return
 
-  throw new Error("You are temporarily timed out and cannot send messages")
+  throw new Error(
+    "You are temporarily timed out and cannot perform this action"
+  )
 }
 
 type CreateMessageInput = {
@@ -209,6 +211,7 @@ export async function deleteMessage(
     input.userId,
     input.payload.channelId
   )
+  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({
