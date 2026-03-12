@@ -23,7 +23,7 @@ function GuildLayout() {
     },
   })
   const { data: activeOrg } = useQuery({
-    queryKey: ["active-guild", guildSlug],
+    queryKey: ["active-guild"],
     queryFn: async () => {
       const res = await authClient.organization.getFullOrganization()
       return res.data
@@ -76,7 +76,7 @@ function GuildLayout() {
 
         await Promise.all([
           queryClient.invalidateQueries({
-            queryKey: ["active-guild", guildSlug],
+            queryKey: ["active-guild"],
           }),
           queryClient.invalidateQueries({
             queryKey: ["active-guild-member", guildSlug],

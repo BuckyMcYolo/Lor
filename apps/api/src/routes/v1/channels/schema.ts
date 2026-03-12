@@ -50,11 +50,13 @@ export const createChannelResponseSchema = selectChannelSchema
 
 // ── Update / Delete ──────────────────────────────────────────
 
-const updateChannelRequestBaseSchema = updateChannelSchema.omit({
-  position: true,
-  parentId: true,
-  type: true,
-})
+const updateChannelRequestBaseSchema = updateChannelSchema
+  .pick({
+    name: true,
+    topic: true,
+    rateLimitPerUser: true,
+  })
+  .strict()
 
 export const updateChannelRequestSchema = updateChannelRequestBaseSchema.refine(
   (value) => Object.values(value).some((field) => field !== undefined),

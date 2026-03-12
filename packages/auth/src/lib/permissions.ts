@@ -82,6 +82,15 @@ export type GuildAuthority = {
   isOwner?: boolean
 }
 
+export function normalizeGuildAuthority(
+  authority: GuildAuthority
+): GuildAuthority & { isOwner: boolean } {
+  return {
+    ...authority,
+    isOwner: authority.role === "owner",
+  }
+}
+
 export function isGuildRole(value: string): value is GuildRole {
   return Object.hasOwn(roles, value)
 }
@@ -95,19 +104,26 @@ export function getGuildRolePosition(role: GuildRole) {
 }
 
 export function getGuildAuthorityPosition(authority: GuildAuthority) {
-  if (authority.isOwner) return guildRolePositions.owner
-  return getGuildRolePosition(authority.role)
+  const normalizedAuthority = normalizeGuildAuthority(authority)
+  if (normalizedAuthority.isOwner) return guildRolePositions.owner
+  return getGuildRolePosition(normalizedAuthority.role)
 }
 
 export function canManageGuildAuthority(
   actor: GuildAuthority,
   target: GuildAuthority
 ) {
-  if (target.isOwner) {
-    return actor.isOwner === true
+  const normalizedActor = normalizeGuildAuthority(actor)
+  const normalizedTarget = normalizeGuildAuthority(target)
+
+  if (normalizedTarget.isOwner) {
+    return normalizedActor.isOwner
   }
 
-  return getGuildAuthorityPosition(actor) < getGuildAuthorityPosition(target)
+  return (
+    getGuildAuthorityPosition(normalizedActor) <
+    getGuildAuthorityPosition(normalizedTarget)
+  )
 }
 
 export function roleHasPermissions(
@@ -139,8 +155,9 @@ export function guildAuthorityHasPermissions(
   authority: GuildAuthority,
   requestedPermissions: PermissionRequest
 ) {
-  if (authority.isOwner) return true
-  return roleHasPermissions(authority.role, requestedPermissions)
+  const normalizedAuthority = normalizeGuildAuthority(authority)
+  if (normalizedAuthority.isOwner) return true
+  return roleHasPermissions(normalizedAuthority.role, requestedPermissions)
 }
 
 export function getGuildMessageRateLimit(role: GuildRole) {
