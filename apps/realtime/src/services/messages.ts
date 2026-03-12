@@ -23,6 +23,7 @@ function assertChannelCommunicationAllowed(channel: AccessibleChannel) {
 type CreateMessageInput = {
   userId: string
   payload: SendMessagePayload
+  accessibleChannel: AccessibleChannel
 }
 
 type DeleteMessageInput = {
@@ -57,10 +58,11 @@ export type ToggleMessageReactionResult = {
 }
 
 export async function createMessage(input: CreateMessageInput) {
-  const channelRecord = await assertUserCanAccessChannel(
-    input.userId,
-    input.payload.channelId
-  )
+  if (input.accessibleChannel.id !== input.payload.channelId) {
+    throw new Error("Channel mismatch")
+  }
+
+  const channelRecord = input.accessibleChannel
   assertChannelCommunicationAllowed(channelRecord)
 
   let hasReply = !!input.payload.referencedMessageId

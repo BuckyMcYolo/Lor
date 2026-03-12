@@ -15,25 +15,6 @@ const statement = {
 
 const ac = createAccessControl(statement)
 
-const guildPermissionGrants = {
-  owner: {
-    channel: ["create", "update", "delete"],
-    message: ["delete"],
-    guildMember: ["kick", "ban", "timeout", "role:update"],
-  },
-  admin: {
-    channel: ["create", "update", "delete"],
-    message: ["delete"],
-    guildMember: ["kick", "ban", "timeout", "role:update"],
-  },
-  warden: {
-    channel: ["create", "update"],
-    message: ["delete"],
-    guildMember: ["kick", "ban", "timeout"],
-  },
-  member: {},
-} as const
-
 const owner = ac.newRole({
   channel: ["create", "update", "delete"],
   message: ["delete"],
@@ -98,7 +79,7 @@ export type GuildAuthority = {
 }
 
 export function isGuildRole(value: string): value is GuildRole {
-  return value in roles
+  return Object.hasOwn(roles, value)
 }
 
 export function formatGuildRole(role: GuildRole) {
@@ -129,7 +110,7 @@ export function roleHasPermissions(
   role: GuildRole,
   requestedPermissions: PermissionRequest
 ) {
-  const grantedStatements = guildPermissionGrants[role] as Record<
+  const grantedStatements = roles[role].statements as Record<
     string,
     readonly string[] | undefined
   >

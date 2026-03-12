@@ -272,11 +272,13 @@ export const banGuildMember: AppRouteHandler<BanGuildMemberRoute> = async (
   assertCanManageGuildMember(actor, target, guild)
 
   const expiresAtDate = expiresAt ? new Date(expiresAt) : null
+  const banTimestamp = new Date()
 
   const ban = await db.transaction(async (tx) => {
     const insertedBan = await tx
       .insert(schema.guildBan)
       .values({
+        createdAt: banTimestamp,
         guildId: guild.id,
         userId,
         bannedBy: actor.userId,
@@ -288,6 +290,7 @@ export const banGuildMember: AppRouteHandler<BanGuildMemberRoute> = async (
       .onConflictDoUpdate({
         target: [schema.guildBan.guildId, schema.guildBan.userId],
         set: {
+          createdAt: banTimestamp,
           bannedBy: actor.userId,
           reason: reason ?? null,
           expiresAt: expiresAtDate,

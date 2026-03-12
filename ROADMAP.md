@@ -31,7 +31,7 @@
 ## Phase 2 — Permissions & Moderation
 
 - [ ] Granular permission system (beyond owner/admin/member)
-- [ ] Member management UI (kick, banish, silence, role assignment)
+- [~] Member management UI (kick, banish, silence, role assignment) (in progress in this PR)
 - [ ] Rate limiting enforcement (API-level + per-channel)
 - [ ] Audit logs
 

@@ -62,9 +62,24 @@ export const guildBanSchema = z.object({
   revokedAt: z.string().datetime().nullable(),
 })
 
+const optionalFutureExpiresAtSchema = z
+  .string()
+  .datetime()
+  .nullable()
+  .optional()
+  .refine(
+    (value) => {
+      if (value == null) return true
+      return new Date(value).getTime() > Date.now()
+    },
+    {
+      message: "expiresAt must be in the future",
+    }
+  )
+
 export const banGuildMemberRequestSchema = z.object({
   reason: z.string().trim().min(1).max(255).nullable().optional(),
-  expiresAt: z.string().datetime().nullable().optional(),
+  expiresAt: optionalFutureExpiresAtSchema,
 })
 
 export const banGuildMemberResponseSchema = z.object({

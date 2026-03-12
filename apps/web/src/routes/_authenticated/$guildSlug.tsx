@@ -1,7 +1,7 @@
 import { authClient } from "@repo/auth/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Outlet } from "@tanstack/react-router"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 export const Route = createFileRoute("/_authenticated/$guildSlug")({
   component: GuildLayout,
@@ -10,6 +10,8 @@ export const Route = createFileRoute("/_authenticated/$guildSlug")({
 function GuildLayout() {
   const { guildSlug } = Route.useParams()
   const [isSwitchingGuild, setIsSwitchingGuild] = useState(false)
+  const latestDesiredGuildRef = useRef<string | null>(null)
+  const switchRequestRef = useRef(0)
 
   const { data: guilds, isPending: guildsLoading } = useQuery({
     queryKey: ["guilds"],
@@ -37,20 +39,36 @@ function GuildLayout() {
     let cancelled = false
 
     if (!guild) {
+      latestDesiredGuildRef.current = null
       setIsSwitchingGuild(false)
       return
     }
 
-    if (activeOrg?.id === guild.id) {
+    const desiredGuildId = guild.id
+    latestDesiredGuildRef.current = desiredGuildId
+
+    if (activeOrg?.id === desiredGuildId) {
       setIsSwitchingGuild(false)
       return
     }
 
+    const requestId = ++switchRequestRef.current
     setIsSwitchingGuild(true)
 
     void (async () => {
       try {
-        await authClient.organization.setActive({ organizationId: guild.id })
+        await authClient.organization.setActive({
+          organizationId: desiredGuildId,
+        })
+
+        if (
+          cancelled ||
+          latestDesiredGuildRef.current !== desiredGuildId ||
+          switchRequestRef.current !== requestId
+        ) {
+          return
+        }
+
         await Promise.all([
           queryClient.invalidateQueries({
             queryKey: ["active-guild", guildSlug],
@@ -60,7 +78,11 @@ function GuildLayout() {
           }),
         ])
       } finally {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          latestDesiredGuildRef.current === desiredGuildId &&
+          switchRequestRef.current === requestId
+        ) {
           setIsSwitchingGuild(false)
         }
       }

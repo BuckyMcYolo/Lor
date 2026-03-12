@@ -5,7 +5,7 @@ import {
   guildAuthorityHasPermissions,
   isGuildRole,
   type PermissionRequest,
-  type statement,
+  type StatementKey,
 } from "@repo/auth/permissions"
 import { HTTPException } from "hono/http-exception"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
@@ -13,10 +13,11 @@ import type { Guild, GuildMember } from "@/lib/types/app-types"
 
 // ── Type-Safe Permission Types ──────────────────────────────────────
 
-export type StatementKey = keyof typeof statement
+export type { StatementKey }
 
-export type PermissionForStatement<T extends StatementKey> =
-  (typeof statement)[T][number]
+export type PermissionForStatement<T extends StatementKey> = NonNullable<
+  PermissionRequest[T]
+>[number]
 
 function toGuildAuthority(
   member: Pick<GuildMember, "role" | "userId">,

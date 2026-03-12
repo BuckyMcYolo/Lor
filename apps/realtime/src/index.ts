@@ -319,6 +319,7 @@ io.on("connection", (socket) => {
       const createdMessage = await createMessage({
         userId: socket.data.user.id,
         payload: parsed,
+        accessibleChannel,
       })
 
       const fanout = await buildMessageFanout({

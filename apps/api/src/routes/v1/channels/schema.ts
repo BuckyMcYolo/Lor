@@ -50,7 +50,12 @@ export const createChannelResponseSchema = selectChannelSchema
 
 // ── Update / Delete ──────────────────────────────────────────
 
-export const updateChannelRequestSchema = updateChannelSchema.refine(
+const updateChannelRequestBaseSchema = updateChannelSchema.omit({
+  position: true,
+  parentId: true,
+})
+
+export const updateChannelRequestSchema = updateChannelRequestBaseSchema.refine(
   (value) => Object.values(value).some((field) => field !== undefined),
   {
     message: "At least one channel field must be provided",

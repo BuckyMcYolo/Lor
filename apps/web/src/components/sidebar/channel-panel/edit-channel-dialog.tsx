@@ -41,10 +41,15 @@ export function EditChannelDialog({
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      if (!guildSlug) {
+        throw new Error("Missing guild slug")
+      }
+
+      const validatedGuildSlug = guildSlug
       const res = await apiClient.v1.guilds[":guildSlug"].channels[
         ":channelId"
       ].$patch({
-        param: { guildSlug: guildSlug as string, channelId: channel.id },
+        param: { guildSlug: validatedGuildSlug, channelId: channel.id },
         json: { name, topic: topic || undefined },
       })
       if (!res.ok) {
@@ -63,12 +68,17 @@ export function EditChannelDialog({
 
         throw new Error(message)
       }
-      return res.json()
+      return {
+        guildSlug: validatedGuildSlug,
+        channel: await res.json(),
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["channels", guildSlug] })
+    onSuccess: ({ guildSlug: validatedGuildSlug }) => {
       queryClient.invalidateQueries({
-        queryKey: ["channel", guildSlug, channel.id],
+        queryKey: ["channels", validatedGuildSlug],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["channel", validatedGuildSlug, channel.id],
       })
       onOpenChange(false)
     },

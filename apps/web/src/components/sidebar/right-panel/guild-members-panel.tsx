@@ -307,10 +307,24 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       return res.json()
     },
   })
-  const { data: activeMember } = useQuery({
+  const {
+    data: activeMember,
+    error: activeMemberError,
+    isError: hasActiveMemberError,
+  } = useQuery({
     queryKey: ["active-guild-member", view.guildSlug],
     queryFn: async () => {
       const res = await authClient.organization.getActiveMember()
+      if (res.error) {
+        throw new Error(
+          res.error.message ?? "Failed to verify moderation permissions"
+        )
+      }
+
+      if (!res.data) {
+        throw new Error("Failed to verify moderation permissions")
+      }
+
       return res.data
     },
     enabled: !!view.guildSlug,
@@ -320,8 +334,20 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const activeMemberRole =
     typeof activeMember?.role === "string" ? activeMember.role : null
   const currentRole =
-    activeMemberRole && isGuildRole(activeMemberRole) ? activeMemberRole : null
+    !hasActiveMemberError && activeMemberRole && isGuildRole(activeMemberRole)
+      ? activeMemberRole
+      : null
   const currentIsOwner = data?.ownerId === currentUserId
+
+  useEffect(() => {
+    if (!hasActiveMemberError) return
+
+    toast.error(
+      activeMemberError instanceof Error
+        ? activeMemberError.message
+        : "Failed to verify moderation permissions"
+    )
+  }, [hasActiveMemberError, activeMemberError, view.guildSlug])
 
   const invalidateMembers = async () => {
     await queryClient.invalidateQueries({ queryKey })
@@ -595,6 +621,13 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
           </p>
         </div>
 
+        {hasActiveMemberError && (
+          <div className="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-xs text-destructive">
+            Unable to verify moderation permissions right now. Moderation
+            actions are temporarily unavailable.
+          </div>
+        )}
+
         {isPending ? (
           <MembersSkeleton />
         ) : isError ? (
@@ -685,7 +718,10 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
             <AlertDialogAction
               variant="destructive"
               loading={isModerationSubmitting}
-              onClick={handleConfirmModeration}
+              onClick={(event) => {
+                event.preventDefault()
+                handleConfirmModeration()
+              }}
             >
               {moderationActionLabel}
             </AlertDialogAction>
