@@ -341,53 +341,7 @@ export const acceptInvite: AppRouteHandler<AcceptInviteRoute> = async (c) => {
     )
   }
 
-  // Check if already a member
-  const existingMember = await db
-    .select({ id: schema.guildMember.id })
-    .from(schema.guildMember)
-    .where(
-      and(
-        eq(schema.guildMember.guildId, invite.guildId),
-        eq(schema.guildMember.userId, user.id)
-      )
-    )
-    .limit(1)
-    .then((rows) => rows[0])
-
-  if (existingMember) {
-    // Already a member — just return the guild info
-    const guildRecord = await db
-      .select({
-        id: schema.guild.id,
-        name: schema.guild.name,
-        slug: schema.guild.slug,
-      })
-      .from(schema.guild)
-      .where(eq(schema.guild.id, invite.guildId))
-      .limit(1)
-      .then((rows) => rows[0])
-
-    if (!guildRecord) {
-      return c.json(
-        { success: false, message: "Guild not found" },
-        HttpStatusCodes.NOT_FOUND
-      )
-    }
-
-    return c.json(
-      {
-        success: true as const,
-        guild: {
-          id: guildRecord.id,
-          name: guildRecord.name,
-          slug: guildRecord.slug,
-        },
-      },
-      HttpStatusCodes.OK
-    )
-  }
-
-  // Check if banned
+  // Check if banned (outside transaction — read-only check)
   const activeBan = await db
     .select({ id: schema.guildBan.id })
     .from(schema.guildBan)
@@ -409,8 +363,51 @@ export const acceptInvite: AppRouteHandler<AcceptInviteRoute> = async (c) => {
     )
   }
 
-  // Join the guild in a transaction
-  const guildRecord = await db.transaction(async (tx) => {
+  // Join the guild in a transaction with race-condition protection
+  const result = await db.transaction(async (tx) => {
+    // Check if already a member (inside transaction)
+    const existingMember = await tx
+      .select({ id: schema.guildMember.id })
+      .from(schema.guildMember)
+      .where(
+        and(
+          eq(schema.guildMember.guildId, invite.guildId),
+          eq(schema.guildMember.userId, user.id)
+        )
+      )
+      .limit(1)
+      .then((rows) => rows[0])
+
+    if (existingMember) {
+      const guild = await tx
+        .select({
+          id: schema.guild.id,
+          name: schema.guild.name,
+          slug: schema.guild.slug,
+        })
+        .from(schema.guild)
+        .where(eq(schema.guild.id, invite.guildId))
+        .limit(1)
+        .then((rows) => rows[0])
+      return { alreadyMember: true as const, guild }
+    }
+
+    // Atomically increment uses only if under the limit
+    const updated = await tx
+      .update(schema.guildInvite)
+      .set({ uses: sql`${schema.guildInvite.uses} + 1` })
+      .where(
+        and(
+          eq(schema.guildInvite.id, invite.id),
+          sql`(${schema.guildInvite.maxUses} IS NULL OR ${schema.guildInvite.uses} < ${schema.guildInvite.maxUses})`
+        )
+      )
+      .returning({ id: schema.guildInvite.id })
+
+    if (updated.length === 0) {
+      return { maxedOut: true as const }
+    }
+
     // Insert membership
     await tx.insert(schema.guildMember).values({
       guildId: invite.guildId,
@@ -419,13 +416,7 @@ export const acceptInvite: AppRouteHandler<AcceptInviteRoute> = async (c) => {
       createdAt: new Date(),
     })
 
-    // Increment invite uses
-    await tx
-      .update(schema.guildInvite)
-      .set({ uses: sql`${schema.guildInvite.uses} + 1` })
-      .where(eq(schema.guildInvite.id, invite.id))
-
-    return tx
+    const guild = await tx
       .select({
         id: schema.guild.id,
         name: schema.guild.name,
@@ -435,7 +426,18 @@ export const acceptInvite: AppRouteHandler<AcceptInviteRoute> = async (c) => {
       .where(eq(schema.guild.id, invite.guildId))
       .limit(1)
       .then((rows) => rows[0])
+
+    return { joined: true as const, guild }
   })
+
+  if ("maxedOut" in result) {
+    return c.json(
+      { success: false, message: "This invite has reached its maximum uses" },
+      HttpStatusCodes.FORBIDDEN
+    )
+  }
+
+  const guildRecord = result.guild
 
   if (!guildRecord) {
     return c.json(
@@ -443,8 +445,6 @@ export const acceptInvite: AppRouteHandler<AcceptInviteRoute> = async (c) => {
       HttpStatusCodes.INTERNAL_SERVER_ERROR
     )
   }
-
-  // TODO: broadcast member:join via realtime
 
   return c.json(
     {

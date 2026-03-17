@@ -33,7 +33,10 @@ export function GuildHeader() {
     queryKey: ["active-guild-member", guildSlug],
     queryFn: async () => {
       const res = await authClient.organization.getActiveMember()
-      if (res.error) return null
+      if (res.error) {
+        if (res.error.status === 403) return null
+        throw res.error
+      }
       return res.data
     },
     enabled: !!guildSlug,

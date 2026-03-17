@@ -454,16 +454,17 @@ io.on("connection", (socket) => {
     }
   })
 
-  socket.on("typing:start", (payload) => {
+  socket.on("typing:start", async (payload) => {
     try {
       const parsed = typingStartPayloadSchema.parse(payload)
+      await assertUserCanAccessChannel(socket.data.user.id, parsed.channelId)
       socket.to(channelRoom(parsed.channelId)).emit("typing:update", {
         channelId: parsed.channelId,
         userId: socket.data.user.id,
         name: socket.data.user.name,
       })
     } catch {
-      // silently ignore invalid typing payloads
+      // silently ignore — unauthorized or invalid payload
     }
   })
 

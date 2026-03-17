@@ -185,7 +185,10 @@ export function ManageInvitesDialog({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => revokeCode && revokeMutation.mutate(revokeCode)}
+              onClick={(e) => {
+                e.preventDefault()
+                if (revokeCode) revokeMutation.mutate(revokeCode)
+              }}
               disabled={revokeMutation.isPending}
             >
               {revokeMutation.isPending ? "Revoking..." : "Revoke"}
