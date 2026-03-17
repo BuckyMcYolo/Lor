@@ -8,6 +8,7 @@ import { MessageInput } from "@/components/chat/composer/message-input"
 import { DropZoneOverlay } from "@/components/chat/drop-zone-overlay"
 import { ChatHeader } from "@/components/chat/header"
 import { MessageList } from "@/components/chat/message-list"
+import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
 import { useFileUpload } from "@/hooks/use-file-upload"
@@ -16,6 +17,7 @@ import { useMessageEditing } from "@/hooks/use-message-editing"
 import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
+import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
 import type { ListMessagesResponse } from "@/lib/api-types"
 
@@ -120,6 +122,12 @@ function ChannelView() {
 
   const { replyingTo, setReplyingTo, clearReply } = useReplyState()
 
+  const { typingUsers, emitTyping } = useTypingIndicator({
+    socket,
+    channelId,
+    currentUserId,
+  })
+
   // Clear reply state when switching channels
   useEffect(() => {
     clearReply()
@@ -208,6 +216,7 @@ function ChannelView() {
         mentionCandidates={mentionCandidates}
         isLoading={messagesLoading}
       />
+      <TypingIndicator users={typingUsers} />
       <MessageInput
         context={context}
         onSend={handleSend}
@@ -221,6 +230,7 @@ function ChannelView() {
         clearAttachments={fileUpload.clearAttachments}
         getUploadedAttachments={fileUpload.getUploadedAttachments}
         isUploading={fileUpload.isUploading}
+        onTyping={emitTyping}
       />
     </div>
   )

@@ -229,6 +229,18 @@ export type GuildMemberJoinedEvent = {
 
 export type GuildMemberJoinedAck = (result: OkResult | ErrorResult) => void
 
+export const typingStartPayloadSchema = z.object({
+  channelId: z.string().uuid(),
+})
+
+export type TypingStartPayload = z.infer<typeof typingStartPayloadSchema>
+
+export type TypingIndicatorEvent = {
+  channelId: string
+  userId: string
+  name: string
+}
+
 export interface ClientToServerEvents {
   "presence:subscribe": (
     payload: PresenceSubscribePayload,
@@ -254,6 +266,7 @@ export interface ClientToServerEvents {
     payload: GuildMemberJoinedPayload,
     ack?: GuildMemberJoinedAck
   ) => void
+  "typing:start": (payload: TypingStartPayload) => void
 }
 
 export interface ServerToClientEvents {
@@ -279,6 +292,7 @@ export interface ServerToClientEvents {
   "notification:mention": (payload: MentionNotification) => void
   "channel:read-state": (payload: ChannelReadState) => void
   "guild:member:joined": (payload: GuildMemberJoinedEvent) => void
+  "typing:update": (payload: TypingIndicatorEvent) => void
 }
 
 export type InterServerEvents = Record<string, never>

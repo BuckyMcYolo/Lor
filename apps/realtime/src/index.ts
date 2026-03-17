@@ -18,6 +18,7 @@ import {
   presenceSubscribePayloadSchema,
   sendMessagePayloadSchema,
   toggleMessageReactionPayloadSchema,
+  typingStartPayloadSchema,
   userRoom,
 } from "@repo/realtime-types"
 import type { LinkUnfurlJobData } from "@repo/realtime-types/queues"
@@ -450,6 +451,19 @@ io.on("connection", (socket) => {
       ack?.({ ok: true, state })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("typing:start", (payload) => {
+    try {
+      const parsed = typingStartPayloadSchema.parse(payload)
+      socket.to(channelRoom(parsed.channelId)).emit("typing:update", {
+        channelId: parsed.channelId,
+        userId: socket.data.user.id,
+        name: socket.data.user.name,
+      })
+    } catch {
+      // silently ignore invalid typing payloads
     }
   })
 
