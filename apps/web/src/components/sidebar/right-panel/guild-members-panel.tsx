@@ -5,7 +5,10 @@ import {
   type GuildRole,
   isGuildRole,
 } from "@repo/auth/permissions"
-import type { PresenceUserUpdate } from "@repo/realtime-types"
+import type {
+  GuildMemberJoinedEvent,
+  PresenceUserUpdate,
+} from "@repo/realtime-types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -574,9 +577,16 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       )
     }
 
+    const onMemberJoined = (payload: GuildMemberJoinedEvent) => {
+      if (!guildId || payload.guildId !== guildId) return
+      // Refetch the full member list to get the new member with all fields
+      queryClient.invalidateQueries({ queryKey })
+    }
+
     socket.on("presence:ready", onPresenceReady)
     socket.on("connect", onConnect)
     socket.on("presence:user:update", onPresenceUpdate)
+    socket.on("guild:member:joined", onMemberJoined)
 
     if (socket.connected) {
       requestSnapshot()
@@ -586,6 +596,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       socket.off("presence:ready", onPresenceReady)
       socket.off("connect", onConnect)
       socket.off("presence:user:update", onPresenceUpdate)
+      socket.off("guild:member:joined", onMemberJoined)
     }
   }, [socket, guildId, queryClient, queryKey])
 

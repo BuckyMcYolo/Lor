@@ -12,6 +12,7 @@ import {
   channelRoomPayloadSchema,
   deleteMessagePayloadSchema,
   editMessagePayloadSchema,
+  guildMemberJoinedPayloadSchema,
   guildRoom,
   markChannelReadPayloadSchema,
   presenceSubscribePayloadSchema,
@@ -447,6 +448,29 @@ io.on("connection", (socket) => {
 
       socket.to(userRoom(socket.data.user.id)).emit("channel:read-state", state)
       ack?.({ ok: true, state })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("guild:member:joined", async (payload, ack) => {
+    try {
+      const parsed = guildMemberJoinedPayloadSchema.parse(payload)
+
+      // Join the guild room so the new member receives future events
+      await socket.join(guildRoom(parsed.guildId))
+      socket.data.guildIds = [...(socket.data.guildIds ?? []), parsed.guildId]
+
+      // Broadcast to other guild members
+      socket.to(guildRoom(parsed.guildId)).emit("guild:member:joined", {
+        guildId: parsed.guildId,
+        userId: socket.data.user.id,
+        name: socket.data.user.name,
+        username: socket.data.user.username ?? null,
+        image: socket.data.user.image ?? null,
+      })
+
+      ack?.({ ok: true })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }

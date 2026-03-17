@@ -47,6 +47,23 @@ export type ListDMMessagesResponse = InferResponseType<
   200
 >
 
+// ── Guild Invites ──────────────────────────────────────────
+
+type GuildInvitesClient = Client["v1"]["guilds"][":guildSlug"]["invites"]
+
+export type ListGuildInvitesResponse = InferResponseType<
+  GuildInvitesClient["$get"],
+  200
+>
+export type GuildInvite = ListGuildInvitesResponse["invites"][number]
+
+type InvitePreviewClient = Client["v1"]["invites"][":code"]
+
+export type InvitePreviewResponse = InferResponseType<
+  InvitePreviewClient["$get"],
+  200
+>
+
 // ── Guild Members ──────────────────────────────────────────
 
 type GuildMembersClient = Client["v1"]["guilds"][":guildSlug"]["members"]

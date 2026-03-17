@@ -12,6 +12,7 @@ import {
   createUpdateSchema,
 } from "drizzle-zod"
 import { guildBan } from "./guild-bans"
+import { guildInvite } from "./guild-invites"
 import { guildMember } from "./guild-members"
 import { guildRole } from "./guild-roles"
 import { invitation } from "./invitations"
@@ -42,6 +43,7 @@ export const guildRelations = relations(guild, ({ one, many }) => ({
   guildRoles: many(guildRole),
   guildMembers: many(guildMember),
   invitations: many(invitation),
+  guildInvites: many(guildInvite),
 }))
 
 // Zod schemas

@@ -211,6 +211,24 @@ export type MentionNotification = {
   createdAt: string
 }
 
+export const guildMemberJoinedPayloadSchema = z.object({
+  guildId: z.string().uuid(),
+})
+
+export type GuildMemberJoinedPayload = z.infer<
+  typeof guildMemberJoinedPayloadSchema
+>
+
+export type GuildMemberJoinedEvent = {
+  guildId: string
+  userId: string
+  name: string
+  username: string | null
+  image: string | null
+}
+
+export type GuildMemberJoinedAck = (result: OkResult | ErrorResult) => void
+
 export interface ClientToServerEvents {
   "presence:subscribe": (
     payload: PresenceSubscribePayload,
@@ -231,6 +249,10 @@ export interface ClientToServerEvents {
   "channel:mark-read": (
     payload: MarkChannelReadPayload,
     ack?: MarkChannelReadAck
+  ) => void
+  "guild:member:joined": (
+    payload: GuildMemberJoinedPayload,
+    ack?: GuildMemberJoinedAck
   ) => void
 }
 
@@ -256,6 +278,7 @@ export interface ServerToClientEvents {
   "notification:unread": (payload: UnreadNotification) => void
   "notification:mention": (payload: MentionNotification) => void
   "channel:read-state": (payload: ChannelReadState) => void
+  "guild:member:joined": (payload: GuildMemberJoinedEvent) => void
 }
 
 export type InterServerEvents = Record<string, never>
