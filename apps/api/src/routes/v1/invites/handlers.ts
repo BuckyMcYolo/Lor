@@ -156,21 +156,21 @@ export const listInvites: AppRouteHandler<ListInvitesRoute> = async (c) => {
     })
     .from(schema.guildInvite)
     .innerJoin(schema.user, eq(schema.guildInvite.inviterId, schema.user.id))
-    .where(eq(schema.guildInvite.guildId, guild.id))
+    .where(
+      and(
+        eq(schema.guildInvite.guildId, guild.id),
+        sql`(${schema.guildInvite.expiresAt} IS NULL OR ${schema.guildInvite.expiresAt} > NOW())`,
+        sql`(${schema.guildInvite.maxUses} IS NULL OR ${schema.guildInvite.uses} < ${schema.guildInvite.maxUses})`
+      )
+    )
 
-  const invites = rows
-    .filter(
-      (row) =>
-        !isInviteExpired(row.expiresAt) &&
-        !isInviteMaxedOut(row.uses, row.maxUses)
-    )
-    .map((row) =>
-      toInviteResponse(row, {
-        name: row.inviterName,
-        username: row.inviterUsername,
-        image: row.inviterImage,
-      })
-    )
+  const invites = rows.map((row) =>
+    toInviteResponse(row, {
+      name: row.inviterName,
+      username: row.inviterUsername,
+      image: row.inviterImage,
+    })
+  )
 
   return c.json({ success: true as const, invites }, HttpStatusCodes.OK)
 }

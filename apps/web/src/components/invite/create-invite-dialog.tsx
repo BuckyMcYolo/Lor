@@ -143,6 +143,7 @@ export function CreateInviteDialog({
                   type="button"
                   variant="outline"
                   size="icon"
+                  aria-label={copied ? "Copied link" : "Copy link"}
                   onClick={handleCopy}
                 >
                   {copied ? (

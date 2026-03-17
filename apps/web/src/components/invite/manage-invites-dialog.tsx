@@ -34,7 +34,7 @@ export function ManageInvitesDialog({
   const queryClient = useQueryClient()
   const [revokeCode, setRevokeCode] = useState<string | null>(null)
 
-  const { data, isPending } = useQuery({
+  const { data, isPending, isError } = useQuery({
     queryKey: ["guild-invites", guildSlug],
     queryFn: async () => {
       if (!guildSlug) throw new Error("Missing guild slug")
@@ -110,6 +110,10 @@ export function ManageInvitesDialog({
             <div className="py-8 text-center text-sm text-muted-foreground">
               Loading invites...
             </div>
+          ) : isError ? (
+            <div className="py-8 text-center text-sm text-destructive">
+              Failed to load invites. Try closing and reopening.
+            </div>
           ) : invites.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               No active invites
@@ -142,6 +146,7 @@ export function ManageInvitesDialog({
                       variant="ghost"
                       size="icon"
                       className="size-8"
+                      aria-label={`Copy invite ${invite.code}`}
                       onClick={() => handleCopy(invite.code)}
                     >
                       <Copy className="size-3.5" />
@@ -150,6 +155,7 @@ export function ManageInvitesDialog({
                       variant="ghost"
                       size="icon"
                       className="size-8 text-destructive hover:text-destructive"
+                      aria-label={`Revoke invite ${invite.code}`}
                       onClick={() => setRevokeCode(invite.code)}
                     >
                       <Trash2 className="size-3.5" />

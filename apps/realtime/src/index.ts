@@ -1,6 +1,6 @@
 import { createServer } from "node:http"
 import { auth, type Session } from "@repo/auth"
-import { db, eq, schema } from "@repo/db"
+import { and, db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import type {
   ClientToServerEvents,
@@ -471,9 +471,32 @@ io.on("connection", (socket) => {
     try {
       const parsed = guildMemberJoinedPayloadSchema.parse(payload)
 
+      // Verify the user is actually a member of this guild
+      const membership = await db
+        .select({ guildId: schema.guildMember.guildId })
+        .from(schema.guildMember)
+        .where(
+          and(
+            eq(schema.guildMember.guildId, parsed.guildId),
+            eq(schema.guildMember.userId, socket.data.user.id)
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (!membership) {
+        ack?.({ ok: false, error: "Forbidden" })
+        return
+      }
+
       // Join the guild room so the new member receives future events
       await socket.join(guildRoom(parsed.guildId))
-      socket.data.guildIds = [...(socket.data.guildIds ?? []), parsed.guildId]
+
+      // Deduplicate guildIds
+      const currentGuildIds = socket.data.guildIds ?? []
+      if (!currentGuildIds.includes(parsed.guildId)) {
+        socket.data.guildIds = [...currentGuildIds, parsed.guildId]
+      }
 
       // Broadcast to other guild members
       socket.to(guildRoom(parsed.guildId)).emit("guild:member:joined", {

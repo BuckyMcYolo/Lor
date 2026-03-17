@@ -1,4 +1,5 @@
 import { authClient } from "@repo/auth/client"
+import { isGuildRole } from "@repo/auth/permissions"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +13,7 @@ import { ChevronDown, Link, UserPlus } from "lucide-react"
 import { useMemo, useState } from "react"
 import { CreateInviteDialog } from "@/components/invite/create-invite-dialog"
 import { ManageInvitesDialog } from "@/components/invite/manage-invites-dialog"
+import { canKickGuildMembers } from "@/lib/permissions"
 
 export function GuildHeader() {
   const { guildSlug } = useParams({ strict: false })
@@ -27,12 +29,37 @@ export function GuildHeader() {
     },
   })
 
+  const { data: activeMember } = useQuery({
+    queryKey: ["active-guild-member", guildSlug],
+    queryFn: async () => {
+      const res = await authClient.organization.getActiveMember()
+      if (res.error) return null
+      return res.data
+    },
+    enabled: !!guildSlug,
+  })
+
+  const canManageInvites =
+    typeof activeMember?.role === "string" &&
+    isGuildRole(activeMember.role) &&
+    canKickGuildMembers(activeMember.role)
+
   const guildName = useMemo(
     () => guilds?.find((g) => g.slug === guildSlug)?.name,
     [guilds, guildSlug]
   )
 
   const title = isPending ? "Loading..." : (guildName ?? "Guild not found")
+
+  if (!canManageInvites) {
+    return (
+      <div className="flex h-[49px] w-full items-center border-b border-border px-4">
+        <h2 className="truncate text-[15px] font-bold tracking-tight">
+          {title}
+        </h2>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -57,7 +84,6 @@ export function GuildHeader() {
             <Link className="mr-2 size-4" />
             Manage Invites
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
         </DropdownMenuContent>
       </DropdownMenu>
 
