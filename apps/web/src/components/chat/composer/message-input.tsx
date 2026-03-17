@@ -108,6 +108,7 @@ interface MessageInputProps {
   clearAttachments: () => void
   getUploadedAttachments: () => NonNullable<Message["attachments"]>
   isUploading: boolean
+  onTyping?: () => void
 }
 
 interface SuggestionPopupListRef {
@@ -413,11 +414,14 @@ export function MessageInput({
   clearAttachments,
   getUploadedAttachments,
   isUploading,
+  onTyping,
 }: MessageInputProps) {
   const [plainText, setPlainText] = useState("")
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false)
   const mentionCandidatesRef = useRef<MentionCandidate[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const onTypingRef = useRef(onTyping)
+  onTypingRef.current = onTyping
 
   const placeholder =
     context.type === "channel"
@@ -505,6 +509,7 @@ export function MessageInput({
       },
       onUpdate: ({ editor: tiptapEditor }) => {
         setPlainText(tiptapEditor.getText({ blockSeparator: "\n" }))
+        onTypingRef.current?.()
       },
     },
     []

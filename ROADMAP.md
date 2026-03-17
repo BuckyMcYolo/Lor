@@ -37,7 +37,7 @@
 
 ## Phase 3 — Social Features
 
-- [ ] Shareable invite links (not just email invites)
+- [~] Shareable invite links (not just email invites) — schema, API, and UI implemented
 - [ ] Ally (friend) system with requests
 - [ ] User blocking
 - [ ] Privacy settings

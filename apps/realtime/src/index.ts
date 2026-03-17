@@ -1,6 +1,6 @@
 import { createServer } from "node:http"
 import { auth, type Session } from "@repo/auth"
-import { db, eq, schema } from "@repo/db"
+import { and, db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import type {
   ClientToServerEvents,
@@ -12,11 +12,13 @@ import {
   channelRoomPayloadSchema,
   deleteMessagePayloadSchema,
   editMessagePayloadSchema,
+  guildMemberJoinedPayloadSchema,
   guildRoom,
   markChannelReadPayloadSchema,
   presenceSubscribePayloadSchema,
   sendMessagePayloadSchema,
   toggleMessageReactionPayloadSchema,
+  typingStartPayloadSchema,
   userRoom,
 } from "@repo/realtime-types"
 import type { LinkUnfurlJobData } from "@repo/realtime-types/queues"
@@ -447,6 +449,66 @@ io.on("connection", (socket) => {
 
       socket.to(userRoom(socket.data.user.id)).emit("channel:read-state", state)
       ack?.({ ok: true, state })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("typing:start", async (payload) => {
+    try {
+      const parsed = typingStartPayloadSchema.parse(payload)
+      await assertUserCanAccessChannel(socket.data.user.id, parsed.channelId)
+      socket.to(channelRoom(parsed.channelId)).emit("typing:update", {
+        channelId: parsed.channelId,
+        userId: socket.data.user.id,
+        name: socket.data.user.name,
+      })
+    } catch {
+      // silently ignore — unauthorized or invalid payload
+    }
+  })
+
+  socket.on("guild:member:joined", async (payload, ack) => {
+    try {
+      const parsed = guildMemberJoinedPayloadSchema.parse(payload)
+
+      // Verify the user is actually a member of this guild
+      const membership = await db
+        .select({ guildId: schema.guildMember.guildId })
+        .from(schema.guildMember)
+        .where(
+          and(
+            eq(schema.guildMember.guildId, parsed.guildId),
+            eq(schema.guildMember.userId, socket.data.user.id)
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (!membership) {
+        ack?.({ ok: false, error: "Forbidden" })
+        return
+      }
+
+      // Join the guild room so the new member receives future events
+      await socket.join(guildRoom(parsed.guildId))
+
+      // Deduplicate guildIds
+      const currentGuildIds = socket.data.guildIds ?? []
+      if (!currentGuildIds.includes(parsed.guildId)) {
+        socket.data.guildIds = [...currentGuildIds, parsed.guildId]
+      }
+
+      // Broadcast to other guild members
+      socket.to(guildRoom(parsed.guildId)).emit("guild:member:joined", {
+        guildId: parsed.guildId,
+        userId: socket.data.user.id,
+        name: socket.data.user.name,
+        username: socket.data.user.username ?? null,
+        image: socket.data.user.image ?? null,
+      })
+
+      ack?.({ ok: true })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }
