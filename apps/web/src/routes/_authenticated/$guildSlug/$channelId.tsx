@@ -1,4 +1,9 @@
 import { authClient } from "@repo/auth/client"
+import {
+  type GuildRole,
+  isGuildRole,
+  roleHasPermissions,
+} from "@repo/auth/permissions"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useCallback, useEffect, useMemo } from "react"
@@ -14,6 +19,7 @@ import { useSocket } from "@/context/socket-context"
 import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
 import { useMessageEditing } from "@/hooks/use-message-editing"
+import { useMessagePinning } from "@/hooks/use-message-pinning"
 import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
@@ -29,7 +35,7 @@ function ChannelView() {
   const { guildSlug, channelId } = Route.useParams()
   const socket = useSocket()
   const queryClient = useQueryClient()
-  const { setView, clearView } = useRightSidebar()
+  const { view, setView, clearView } = useRightSidebar()
   const { data: session } = authClient.useSession()
   const currentUserId = session?.user.id
 
@@ -120,6 +126,35 @@ function ChannelView() {
     currentUser: session?.user,
   })
 
+  const { data: activeMember } = useQuery({
+    queryKey: ["active-guild-member", guildSlug],
+    queryFn: async () => {
+      const res = await authClient.organization.getActiveMember()
+      if (res.error) return null
+      return res.data
+    },
+  })
+
+  const canPin =
+    typeof activeMember?.role === "string" &&
+    isGuildRole(activeMember.role) &&
+    roleHasPermissions(activeMember.role as GuildRole, { message: ["pin"] })
+
+  const { handleTogglePin } = useMessagePinning<ListMessagesResponse>({
+    socket,
+    queryClient,
+    channelId,
+    guildSlug,
+  })
+
+  const togglePinnedMessages = useCallback(() => {
+    if (view?.type === "pinned-messages") {
+      setView({ type: "guild-members", guildSlug, channelId })
+    } else {
+      setView({ type: "pinned-messages", guildSlug, channelId })
+    }
+  }, [view, setView, guildSlug, channelId])
+
   const { replyingTo, setReplyingTo, clearReply } = useReplyState()
 
   const { typingUsers, emitTyping } = useTypingIndicator({
@@ -204,7 +239,10 @@ function ChannelView() {
       className="relative flex h-full flex-col overflow-hidden"
     >
       <DropZoneOverlay isDragActive={isDragActive} />
-      <ChatHeader context={context} />
+      <ChatHeader
+        context={context}
+        onTogglePinnedMessages={togglePinnedMessages}
+      />
       <MessageList
         context={context}
         messages={messagesData?.data ?? []}
@@ -213,6 +251,8 @@ function ChannelView() {
         onReply={setReplyingTo}
         onDelete={handleDelete}
         onEdit={handleEdit}
+        onTogglePin={handleTogglePin}
+        canPin={canPin}
         mentionCandidates={mentionCandidates}
         isLoading={messagesLoading}
       />

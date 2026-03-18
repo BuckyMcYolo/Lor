@@ -9,7 +9,7 @@ import {
 const statement = {
   ...defaultStatements,
   channel: ["create", "update", "delete"],
-  message: ["delete"], // delete others' messages (own messages are always deletable)
+  message: ["delete", "pin"], // delete/pin others' messages (own messages are always deletable)
   guildMember: ["kick", "ban", "timeout", "role:update"],
 } as const
 
@@ -17,14 +17,14 @@ const ac = createAccessControl(statement)
 
 const owner = ac.newRole({
   channel: ["create", "update", "delete"],
-  message: ["delete"],
+  message: ["delete", "pin"],
   guildMember: ["kick", "ban", "timeout", "role:update"],
   ...ownerAc.statements,
 })
 
 const admin = ac.newRole({
   channel: ["create", "update", "delete"],
-  message: ["delete"],
+  message: ["delete", "pin"],
   guildMember: ["kick", "ban", "timeout", "role:update"],
   ...adminAc.statements,
 })
@@ -32,7 +32,7 @@ const admin = ac.newRole({
 // Warden (moderator) — can create/update channels and moderate messages/members
 const warden = ac.newRole({
   channel: ["create", "update"],
-  message: ["delete"],
+  message: ["delete", "pin"],
   guildMember: ["kick", "ban", "timeout"],
   ...memberAc.statements,
 })

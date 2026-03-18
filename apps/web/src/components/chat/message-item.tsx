@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import { cn } from "@repo/ui/lib/utils"
 import { formatTime } from "@repo/utils/date"
+import { Pin } from "lucide-react"
 import { useCallback, useState } from "react"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
@@ -28,6 +29,8 @@ interface MessageItemProps {
   onReply?: (message: Message) => void
   onDelete?: (messageId: string) => void
   onEdit?: (messageId: string, content: string) => void
+  onTogglePin?: (messageId: string, currentlyPinned: boolean) => void
+  canPin?: boolean
   mentionCandidates?: MentionCandidate[]
 }
 
@@ -122,6 +125,8 @@ export function MessageItem({
   onReply,
   onDelete,
   onEdit,
+  onTogglePin,
+  canPin = false,
   mentionCandidates,
 }: MessageItemProps) {
   const author = message.author
@@ -160,6 +165,10 @@ export function MessageItem({
     setIsDeleteDialogOpen(false)
   }, [message.id, onDelete])
 
+  const handleTogglePin = useCallback(() => {
+    onTogglePin?.(message.id, message.pinned)
+  }, [message.id, message.pinned, onTogglePin])
+
   const handleEditRequest = useCallback(() => {
     setIsEditing(true)
   }, [])
@@ -194,10 +203,19 @@ export function MessageItem({
           onCopyText={handleCopyText}
           onEdit={isOwnMessage && onEdit ? handleEditRequest : undefined}
           onDelete={isOwnMessage && onDelete ? handleDeleteRequest : undefined}
+          onTogglePin={canPin ? handleTogglePin : undefined}
+          isPinned={message.pinned}
           canManageMessage={isOwnMessage}
+          canPin={canPin}
           onOverlayOpenChange={setIsActionBarPinned}
         />
       </div>
+      {message.pinned && (
+        <div className="mb-0.5 flex items-center gap-1.5 pl-[52px] text-xs text-muted-foreground">
+          <Pin className="size-3" />
+          <span>Pinned</span>
+        </div>
+      )}
       {isReply && (
         <ReplyPreview referencedMessage={message.referencedMessage} />
       )}

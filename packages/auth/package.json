@@ -7,9 +7,11 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@better-auth/redis-storage": "^1.5.5",
     "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
-    "better-auth": "^1.4.18"
+    "better-auth": "^1.4.18",
+    "ioredis": "^5.10.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"

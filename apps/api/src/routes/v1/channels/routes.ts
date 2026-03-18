@@ -18,8 +18,11 @@ import {
   listChannelsResponseSchema,
   listMessagesQuerySchema,
   listMessagesResponseSchema,
+  listPinnedMessagesResponseSchema,
+  messageIdParamsSchema,
   reorderChannelsRequestSchema,
   reorderChannelsResponseSchema,
+  togglePinResponseSchema,
   updateChannelRequestSchema,
   updateChannelResponseSchema,
 } from "./schema"
@@ -191,6 +194,51 @@ export const deleteChannel = createRoute({
   },
 })
 
+export const toggleMessagePin = createRoute({
+  path: "/guilds/{guildSlug}/channels/{channelId}/messages/{messageId}/pin",
+  method: "patch",
+  summary: "Toggle message pin",
+  description:
+    "Pins or unpins a message in the channel. Requires message:pin permission.",
+  tags: ["Channels"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: messageIdParamsSchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: togglePinResponseSchema,
+      description: "Pin toggled",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
+export const listPinnedMessages = createRoute({
+  path: "/guilds/{guildSlug}/channels/{channelId}/pins",
+  method: "get",
+  summary: "List pinned messages",
+  description: "Returns all pinned messages in a channel.",
+  tags: ["Channels"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: channelParamsSchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: listPinnedMessagesResponseSchema,
+      description: "Pinned messages",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export type ListChannelsRoute = typeof listChannels
 export type CreateChannelRoute = typeof createChannel
 export type ReorderChannelsRoute = typeof reorderChannels
@@ -198,3 +246,5 @@ export type GetChannelRoute = typeof getChannel
 export type UpdateChannelRoute = typeof updateChannel
 export type DeleteChannelRoute = typeof deleteChannel
 export type ListChannelMessagesRoute = typeof listChannelMessages
+export type ToggleMessagePinRoute = typeof toggleMessagePin
+export type ListPinnedMessagesRoute = typeof listPinnedMessages

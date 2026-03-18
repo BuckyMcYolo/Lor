@@ -1,8 +1,10 @@
+import { redisStorage } from "@better-auth/redis-storage"
 import { db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { betterAuth } from "better-auth/minimal"
 import { admin, organization, twoFactor, username } from "better-auth/plugins"
+import Redis from "ioredis"
 import {
   ac,
   admin as adminRole,
@@ -10,6 +12,8 @@ import {
   owner as ownerRole,
   warden,
 } from "./permissions"
+
+const redis = new Redis(env.REDIS_URL)
 
 const defaultGuildChannels = {
   uncategorized: [
@@ -85,6 +89,20 @@ export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_API_URL,
   database: drizzleAdapter(db, { provider: "pg", schema }),
   secret: env.BETTER_AUTH_SECRET,
+  secondaryStorage: redisStorage({ client: redis, keyPrefix: "townhall:" }),
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    storage: "secondary-storage",
+    customRules: {
+      "/sign-in/*": { window: 10, max: 5 },
+      "/sign-up/*": { window: 60, max: 5 },
+      "/forgot-password/*": { window: 60, max: 3 },
+      "/reset-password/*": { window: 60, max: 5 },
+      "/two-factor/*": { window: 10, max: 3 },
+    },
+  },
   user: {
     additionalFields: {
       onboardingCompleted: {
