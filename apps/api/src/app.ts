@@ -2,6 +2,7 @@ import { auth } from "@repo/auth"
 import { cors } from "hono/cors"
 import createApp from "@/lib/helpers/app/create-app"
 import configureOpenAPI from "@/lib/helpers/openapi/configure-openapi"
+import { globalRateLimit } from "@/middleware/rate-limit"
 import index from "@/routes/index.route"
 import channelsRouter from "@/routes/v1/channels/index"
 import dmsRouter from "@/routes/v1/dms/index"
@@ -19,6 +20,8 @@ app.use(
     credentials: true,
   })
 )
+
+app.use("*", globalRateLimit)
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => {
   return auth.handler(c.req.raw)

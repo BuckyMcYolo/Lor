@@ -47,3 +47,29 @@ export async function enforceGuildMessageRateLimit(
     `Rate limit exceeded. Try again in ${getRetryAfterSeconds(now)} seconds`
   )
 }
+
+const DM_RATE_LIMIT_PER_MINUTE = 45
+
+function getDmRateLimitKey(userId: string, timestamp: number) {
+  const currentWindow = Math.floor(timestamp / (WINDOW_SECONDS * 1000))
+  return `ratelimit:dm:user:${userId}:message:${currentWindow}`
+}
+
+export async function enforceDmMessageRateLimit(
+  redis: RedisClient,
+  userId: string
+) {
+  const now = Date.now()
+  const key = getDmRateLimitKey(userId, now)
+  const nextCount = await redis.incr(key)
+
+  if (nextCount === 1) {
+    await redis.expire(key, KEY_TTL_SECONDS)
+  }
+
+  if (nextCount <= DM_RATE_LIMIT_PER_MINUTE) return
+
+  throw new Error(
+    `Rate limit exceeded. Try again in ${getRetryAfterSeconds(now)} seconds`
+  )
+}

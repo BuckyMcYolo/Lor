@@ -41,7 +41,10 @@ import {
   markUserConnected,
   markUserDisconnected,
 } from "@/services/presence"
-import { enforceGuildMessageRateLimit } from "@/services/rate-limit"
+import {
+  enforceDmMessageRateLimit,
+  enforceGuildMessageRateLimit,
+} from "@/services/rate-limit"
 import { markChannelRead } from "@/services/read-states"
 
 type SocketData = {
@@ -132,6 +135,36 @@ const io = new Server<
     },
     credentials: true,
   },
+})
+
+const CONNECTION_RATE_WINDOW = 60
+const CONNECTION_RATE_MAX = 10
+const CONNECTION_RATE_TTL = 90
+
+io.use(async (socket, next) => {
+  const ip =
+    socket.handshake.headers["x-forwarded-for"]
+      ?.toString()
+      .split(",")[0]
+      ?.trim() ||
+    socket.handshake.address ||
+    "unknown"
+  const windowNum = Math.floor(Date.now() / (CONNECTION_RATE_WINDOW * 1000))
+  const key = `ratelimit:ws:connect:${ip}:${windowNum}`
+
+  try {
+    const count = await redisPresenceClient.incr(key)
+    if (count === 1) {
+      await redisPresenceClient.expire(key, CONNECTION_RATE_TTL)
+    }
+    if (count > CONNECTION_RATE_MAX) {
+      next(new Error("Too many connections. Try again later."))
+      return
+    }
+  } catch {
+    // allow connection if Redis is unavailable
+  }
+  next()
 })
 
 io.use(async (socket, next) => {
@@ -316,6 +349,11 @@ io.on("connection", (socket) => {
           userId: socket.data.user.id,
           role: accessibleChannel.memberRole,
         })
+      } else {
+        await enforceDmMessageRateLimit(
+          redisPresenceClient,
+          socket.data.user.id
+        )
       }
 
       const createdMessage = await createMessage({
