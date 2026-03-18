@@ -38,34 +38,38 @@ export function rateLimiter(config: RateLimitConfig) {
   const windowSeconds = config.window ?? WINDOW_SECONDS
 
   return async (c: Context<AppBindings>, next: Next) => {
-    const redis = await getRedisClient()
-    const identifier = config.keyExtractor ? config.keyExtractor(c) : getIp(c)
+    try {
+      const redis = await getRedisClient()
+      const identifier = config.keyExtractor ? config.keyExtractor(c) : getIp(c)
 
-    const windowNum = getWindowNumber(windowSeconds)
-    const key = `ratelimit:api:${config.prefix}:${identifier}:${windowNum}`
+      const windowNum = getWindowNumber(windowSeconds)
+      const key = `ratelimit:api:${config.prefix}:${identifier}:${windowNum}`
 
-    const count = await redis.incr(key)
-    if (count === 1) {
-      await redis.expire(
-        key,
-        config.window ? config.window + 30 : KEY_TTL_SECONDS
-      )
-    }
+      const count = await redis.incr(key)
+      if (count === 1) {
+        await redis.expire(
+          key,
+          config.window ? config.window + 30 : KEY_TTL_SECONDS
+        )
+      }
 
-    c.header("X-RateLimit-Limit", String(config.max))
-    c.header("X-RateLimit-Remaining", String(Math.max(0, config.max - count)))
+      c.header("X-RateLimit-Limit", String(config.max))
+      c.header("X-RateLimit-Remaining", String(Math.max(0, config.max - count)))
 
-    if (count > config.max) {
-      const retryAfter = getRetryAfterSeconds(windowSeconds)
-      c.header("Retry-After", String(retryAfter))
-      c.header("X-RateLimit-Remaining", "0")
-      return c.json(
-        {
-          success: false,
-          message: `Rate limit exceeded. Try again in ${retryAfter} seconds`,
-        },
-        HttpStatusCodes.TOO_MANY_REQUESTS
-      )
+      if (count > config.max) {
+        const retryAfter = getRetryAfterSeconds(windowSeconds)
+        c.header("Retry-After", String(retryAfter))
+        c.header("X-RateLimit-Remaining", "0")
+        return c.json(
+          {
+            success: false,
+            message: `Rate limit exceeded. Try again in ${retryAfter} seconds`,
+          },
+          HttpStatusCodes.TOO_MANY_REQUESTS
+        )
+      }
+    } catch (err) {
+      console.error("[rate-limit] Redis unavailable, failing open:", err)
     }
 
     await next()
