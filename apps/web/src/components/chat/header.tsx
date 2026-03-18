@@ -1,5 +1,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
-import { Hash } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@repo/ui/components/tooltip"
+import { Hash, Pin } from "lucide-react"
 
 export type ChatContext =
   | { type: "channel"; name: string; topic?: string }
@@ -11,7 +16,13 @@ function nameInitial(name: string) {
   return trimmed.length > 0 ? trimmed.charAt(0).toUpperCase() : "?"
 }
 
-export function ChatHeader({ context }: { context: ChatContext }) {
+export function ChatHeader({
+  context,
+  onTogglePinnedMessages,
+}: {
+  context: ChatContext
+  onTogglePinnedMessages?: () => void
+}) {
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
       {context.type === "channel" && (
@@ -40,6 +51,22 @@ export function ChatHeader({ context }: { context: ChatContext }) {
         <span className="text-sm text-muted-foreground">
           {context.memberCount} members
         </span>
+      )}
+      {context.type === "channel" && onTogglePinnedMessages && (
+        <div className="ml-auto">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onTogglePinnedMessages}
+                className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <Pin className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Pinned Messages</TooltipContent>
+          </Tooltip>
+        </div>
       )}
     </div>
   )

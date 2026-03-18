@@ -79,6 +79,27 @@ export {
   listMessagesResponseSchema,
 }
 
+// ── Pins ──────────────────────────────────────────
+
+export const messageIdParamsSchema = channelParamsSchema.extend({
+  messageId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "messageId", in: "path", required: true },
+      example: "00000000-0000-0000-0000-000000000000",
+    }),
+})
+
+export const togglePinResponseSchema = z.object({
+  success: z.literal(true),
+  pinned: z.boolean(),
+})
+
+export const listPinnedMessagesResponseSchema = z.object({
+  data: z.array(messageWithAuthorSchema),
+})
+
 // ── Reorder ──────────────────────────────────────────
 
 export const reorderChannelItemSchema = z.object({

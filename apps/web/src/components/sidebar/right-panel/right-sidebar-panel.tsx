@@ -1,6 +1,7 @@
 import { Image, MessageSquareQuote } from "lucide-react"
 import type { ReactNode } from "react"
 import { GuildMembersPanel } from "./guild-members-panel"
+import { PinnedMessagesPanel } from "./pinned-messages-panel"
 import type { RightSidebarView } from "./right-sidebar-types"
 
 function PlaceholderSidebar({
@@ -27,6 +28,7 @@ export function RightSidebarPanel({ view }: { view: RightSidebarView }) {
   return (
     <aside className="hidden h-full w-[360px] min-w-[360px] shrink-0 border-l border-border bg-card xl:flex">
       {view.type === "guild-members" && <GuildMembersPanel view={view} />}
+      {view.type === "pinned-messages" && <PinnedMessagesPanel view={view} />}
       {view.type === "thread" && (
         <PlaceholderSidebar
           title="Thread View"

@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
-import { MoreHorizontal, Reply } from "lucide-react"
+import { MoreHorizontal, Pin, PinOff, Reply } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { EmojiReactionPicker } from "./emoji-reaction-picker"
 
@@ -21,7 +21,10 @@ interface MessageActionBarProps {
   onCopyText?: () => void
   onEdit?: () => void
   onDelete?: () => void
+  onTogglePin?: () => void
+  isPinned?: boolean
   canManageMessage?: boolean
+  canPin?: boolean
   onOverlayOpenChange?: (open: boolean) => void
 }
 
@@ -31,7 +34,10 @@ export function MessageActionBar({
   onCopyText,
   onEdit,
   onDelete,
+  onTogglePin,
+  isPinned = false,
   canManageMessage = false,
+  canPin = false,
   onOverlayOpenChange,
 }: MessageActionBarProps) {
   const [isEmojiOpen, setIsEmojiOpen] = useState(false)
@@ -81,6 +87,30 @@ export function MessageActionBar({
         </TooltipTrigger>
         <TooltipContent side="top">Reply</TooltipContent>
       </Tooltip>
+
+      {canPin && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="size-7"
+              onClick={onTogglePin}
+              aria-label={isPinned ? "Unpin message" : "Pin message"}
+            >
+              {isPinned ? (
+                <PinOff className="size-4" />
+              ) : (
+                <Pin className="size-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            {isPinned ? "Unpin message" : "Pin message"}
+          </TooltipContent>
+        </Tooltip>
+      )}
 
       <DropdownMenu open={isMoreOpen} onOpenChange={handleMoreOpenChange}>
         <Tooltip open={isMoreOpen || suppressTooltip ? false : undefined}>

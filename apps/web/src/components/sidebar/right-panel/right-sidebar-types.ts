@@ -17,7 +17,14 @@ export type AttachmentsSidebarView = {
   channelId: string
 }
 
+export type PinnedMessagesSidebarView = {
+  type: "pinned-messages"
+  guildSlug: string
+  channelId: string
+}
+
 export type RightSidebarView =
   | GuildMembersSidebarView
   | ThreadSidebarView
   | AttachmentsSidebarView
+  | PinnedMessagesSidebarView

@@ -179,6 +179,7 @@ export async function createMessage(input: CreateMessageInput) {
     channelId: messageWithAuthor.channelId,
     content: messageWithAuthor.content,
     type: messageWithAuthor.type,
+    pinned: false,
     createdAt: messageWithAuthor.createdAt.toISOString(),
     author: {
       id: messageWithAuthor.authorId,

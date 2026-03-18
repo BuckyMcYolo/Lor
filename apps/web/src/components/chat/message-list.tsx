@@ -17,6 +17,8 @@ interface MessageListProps {
   onReply?: (message: Message) => void
   onDelete?: (messageId: string) => void
   onEdit?: (messageId: string, content: string) => void
+  onTogglePin?: (messageId: string, currentlyPinned: boolean) => void
+  canPin?: boolean
   mentionCandidates?: MentionCandidate[]
   isLoading?: boolean
   hasMore?: boolean
@@ -70,6 +72,8 @@ export function MessageList({
   onReply,
   onDelete,
   onEdit,
+  onTogglePin,
+  canPin,
   mentionCandidates,
   isLoading,
   hasMore,
@@ -187,6 +191,8 @@ export function MessageList({
                 onReply={onReply}
                 onDelete={onDelete}
                 onEdit={onEdit}
+                onTogglePin={onTogglePin}
+                canPin={canPin}
                 mentionCandidates={mentionCandidates}
               />
             </div>

@@ -131,6 +131,7 @@ export type RealtimeMessage = {
   // system/attachment-only message shapes from persisted history.
   content: string | null
   type: RealtimeMessageType
+  pinned: boolean
   createdAt: string
   author: RealtimeAuthor
   mentions: RealtimeMessageMention[]
@@ -140,6 +141,12 @@ export type RealtimeMessage = {
   referencedMessage: RealtimeReferencedMessage | null
   editedAt?: string
   nonce?: string
+}
+
+export type RealtimeMessagePinToggled = {
+  channelId: string
+  messageId: string
+  pinned: boolean
 }
 
 export type RealtimeMessageEmbedsUpdated = {
@@ -288,6 +295,7 @@ export interface ServerToClientEvents {
   }) => void
   "message:reaction:updated": (payload: RealtimeMessageReactionUpdated) => void
   "message:embeds:updated": (payload: RealtimeMessageEmbedsUpdated) => void
+  "message:pin:toggled": (payload: RealtimeMessagePinToggled) => void
   "notification:unread": (payload: UnreadNotification) => void
   "notification:mention": (payload: MentionNotification) => void
   "channel:read-state": (payload: ChannelReadState) => void

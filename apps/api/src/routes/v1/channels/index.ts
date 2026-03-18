@@ -10,5 +10,7 @@ const channelsRouter = createRouter()
   .openapi(routes.updateChannel, handlers.updateChannel)
   .openapi(routes.deleteChannel, handlers.deleteChannel)
   .openapi(routes.listChannelMessages, handlers.listChannelMessages)
+  .openapi(routes.toggleMessagePin, handlers.toggleMessagePin)
+  .openapi(routes.listPinnedMessages, handlers.listPinnedMessages)
 
 export default channelsRouter
