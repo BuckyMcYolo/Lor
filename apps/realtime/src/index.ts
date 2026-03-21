@@ -477,6 +477,7 @@ io.on("connection", (socket) => {
       const parsed = toggleMessageReactionPayloadSchema.parse(payload)
       const reactionUpdate = await toggleMessageReaction({
         userId: socket.data.user.id,
+        userName: socket.data.user.name,
         payload: parsed,
       })
 

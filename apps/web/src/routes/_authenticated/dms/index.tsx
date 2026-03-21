@@ -1,15 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { AlliesPage } from "@/components/allies/allies-page"
 
 export const Route = createFileRoute("/_authenticated/dms/")({
-  component: DMsHome,
+  component: AlliesPage,
 })
-
-function DMsHome() {
-  return (
-    <div className="flex flex-1 items-center justify-center">
-      <span className="text-sm text-muted-foreground">
-        Select a conversation to start chatting
-      </span>
-    </div>
-  )
-}

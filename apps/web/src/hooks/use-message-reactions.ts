@@ -18,6 +18,7 @@ interface UseMessageReactionsOptions {
   queryClient: QueryClient
   channelId: string
   currentUserId?: string
+  currentUserName?: string
 }
 
 export function useMessageReactions<TData extends MessagesQueryData>({
@@ -25,6 +26,7 @@ export function useMessageReactions<TData extends MessagesQueryData>({
   queryClient,
   channelId,
   currentUserId,
+  currentUserName,
 }: UseMessageReactionsOptions) {
   const updateMessageInCache = useCallback(
     (
@@ -44,13 +46,18 @@ export function useMessageReactions<TData extends MessagesQueryData>({
     [queryClient, channelId]
   )
 
+  const currentUser =
+    currentUserId && currentUserName
+      ? { id: currentUserId, name: currentUserName }
+      : undefined
+
   const toggleReactionLocal = useCallback(
     (messageId: string, emoji: string) => {
       updateMessageInCache(messageId, (message) =>
-        toggleReactionOptimistically(message, emoji)
+        toggleReactionOptimistically(message, emoji, currentUser)
       )
     },
-    [updateMessageInCache]
+    [updateMessageInCache, currentUser]
   )
 
   const applyReactionServerUpdate = useCallback(

@@ -364,8 +364,10 @@ export const listPinnedMessages: AppRouteHandler<
             messageId: messageReaction.messageId,
             emoji: messageReaction.emoji,
             userId: messageReaction.userId,
+            userName: user.name,
           })
           .from(messageReaction)
+          .innerJoin(user, eq(messageReaction.userId, user.id))
           .where(inArray(messageReaction.messageId, messageIds))
       : []
 
@@ -416,7 +418,15 @@ export const listPinnedMessages: AppRouteHandler<
 
   const reactionsByMessageId = new Map<
     string,
-    Map<string, { emoji: string; count: number; reactedByCurrentUser: boolean }>
+    Map<
+      string,
+      {
+        emoji: string
+        count: number
+        reactedByCurrentUser: boolean
+        reactors: Array<{ id: string; name: string }>
+      }
+    >
   >()
   for (const row of reactionRows) {
     const reactionsByEmoji =
@@ -425,8 +435,10 @@ export const listPinnedMessages: AppRouteHandler<
       emoji: row.emoji,
       count: 0,
       reactedByCurrentUser: false,
+      reactors: [],
     }
     existing.count += 1
+    existing.reactors.push({ id: row.userId, name: row.userName })
     if (row.userId === currentUser.id) {
       existing.reactedByCurrentUser = true
     }

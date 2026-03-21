@@ -40,6 +40,7 @@ import { MoreHorizontal, Users } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { UserProfilePopover } from "@/components/ui/user-profile-card"
 import { useSocket } from "@/context/socket-context"
 import { apiClient } from "@/lib/api-client"
 import type {
@@ -169,17 +170,26 @@ function MemberRow({
 
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-foreground/[0.04]">
-      <div className="relative shrink-0">
-        <UserAvatar name={member.name} src={member.image} size="sm" />
-        <span
-          className={cn(
-            "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-[2px] border-card",
-            statusStyles[member.status]
-          )}
-        />
-      </div>
+      <UserProfilePopover userId={member.userId} side="left" align="start">
+        <button type="button" className="relative shrink-0 cursor-pointer">
+          <UserAvatar name={member.name} src={member.image} size="sm" />
+          <span
+            className={cn(
+              "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-[2px] border-card",
+              statusStyles[member.status]
+            )}
+          />
+        </button>
+      </UserProfilePopover>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] font-medium">{member.name}</div>
+        <UserProfilePopover userId={member.userId} side="left" align="start">
+          <button
+            type="button"
+            className="cursor-pointer truncate text-[13px] font-medium hover:underline"
+          >
+            {member.name}
+          </button>
+        </UserProfilePopover>
         <div className="truncate text-[11px] text-muted-foreground">
           {formatRole(member.role)}
         </div>

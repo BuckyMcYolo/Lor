@@ -14,6 +14,12 @@ export const messageReactionSchema = z.object({
   emoji: z.string(),
   count: z.number().int().nonnegative(),
   reactedByCurrentUser: z.boolean(),
+  reactors: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+    })
+  ),
 })
 
 const httpsUrlSchema = z.string().regex(/^https?:\/\//i)

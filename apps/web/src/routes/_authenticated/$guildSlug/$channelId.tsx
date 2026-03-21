@@ -105,6 +105,7 @@ function ChannelView() {
     queryClient,
     channelId,
     currentUserId,
+    currentUserName: session?.user.name,
   })
 
   const { handleDelete } = useMessageDeletion<ListMessagesResponse>({

@@ -1,0 +1,285 @@
+import { authClient } from "@repo/auth/client"
+import { Badge } from "@repo/ui/components/badge"
+import { Button } from "@repo/ui/components/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@repo/ui/components/popover"
+import { Skeleton } from "@repo/ui/components/skeleton"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Check, Clock, UserMinus, UserPlus } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
+import { apiClient } from "@/lib/api-client"
+import type { UserProfile } from "@/lib/api-types"
+import { UserAvatar } from "./user-avatar"
+
+function ProfileCardContent({ userId }: { userId: string }) {
+  const queryClient = useQueryClient()
+  const { data: session } = authClient.useSession()
+
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["user-profile", userId],
+    queryFn: async () => {
+      const res = await apiClient.v1.users[":userId"].$get({
+        param: { userId },
+      })
+      if (!res.ok) throw new Error("Failed to fetch user profile")
+      return res.json()
+    },
+  })
+
+  const sendRequest = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.v1.allies.requests.$post({
+        json: { userId },
+      })
+      if (!res.ok) {
+        const body = await res.json()
+        throw new Error(
+          "message" in body ? body.message : "Failed to send ally request"
+        )
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["user-profile", userId],
+      })
+      void queryClient.invalidateQueries({ queryKey: ["ally-requests"] })
+      toast.success("Ally request sent")
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const acceptRequest = useMutation({
+    mutationFn: async (requestId: string) => {
+      const res = await apiClient.v1.allies.requests[":requestId"].accept.$post(
+        {
+          param: { requestId },
+        }
+      )
+      if (!res.ok) throw new Error("Failed to accept request")
+      return res.json()
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["user-profile", userId],
+      })
+      void queryClient.invalidateQueries({ queryKey: ["allies"] })
+      void queryClient.invalidateQueries({ queryKey: ["ally-requests"] })
+      toast.success("Ally request accepted")
+    },
+    onError: () => {
+      toast.error("Failed to accept request")
+    },
+  })
+
+  const removeAlly = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.v1.allies[":userId"].$delete({
+        param: { userId },
+      })
+      if (!res.ok) throw new Error("Failed to remove ally")
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["user-profile", userId],
+      })
+      void queryClient.invalidateQueries({ queryKey: ["allies"] })
+      toast.success("Ally removed")
+    },
+    onError: () => {
+      toast.error("Failed to remove ally")
+    },
+  })
+
+  if (isPending) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-24 rounded" />
+            <Skeleton className="h-3 w-16 rounded" />
+          </div>
+        </div>
+        <Skeleton className="h-8 w-full rounded" />
+      </div>
+    )
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        Failed to load profile.
+      </div>
+    )
+  }
+
+  const user = data.user
+  const isCurrentUser = session?.user?.id === userId
+  const isMutating =
+    sendRequest.isPending || acceptRequest.isPending || removeAlly.isPending
+
+  return (
+    <div className="space-y-3">
+      {/* Avatar + name + presence */}
+      <div className="relative flex items-center gap-3">
+        {isCurrentUser && (
+          <Badge
+            variant="secondary"
+            className="absolute -top-1 right-0 text-[10px]"
+          >
+            Me
+          </Badge>
+        )}
+        <div className="relative shrink-0">
+          <UserAvatar name={user.name} src={user.image} className="size-12" />
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-popover ${
+              user.presenceStatus === "online"
+                ? "bg-emerald-500"
+                : "bg-muted-foreground/40"
+            }`}
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold">{user.name}</div>
+          {user.username && (
+            <div className="truncate text-xs text-muted-foreground">
+              @{user.displayUsername ?? user.username}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Status */}
+      {user.status && (
+        <div className="text-xs text-muted-foreground">{user.status}</div>
+      )}
+
+      {/* Bio */}
+      {user.bio && (
+        <div className="border-t border-border pt-2 text-xs text-muted-foreground">
+          {user.bio}
+        </div>
+      )}
+
+      {/* Member since */}
+      <div className="border-t border-border pt-2 text-[11px] text-muted-foreground">
+        Member since{" "}
+        {new Date(user.createdAt).toLocaleDateString(undefined, {
+          month: "short",
+          year: "numeric",
+        })}
+      </div>
+
+      {/* Ally actions */}
+      {!isCurrentUser && (
+        <AllyActionButton
+          allyStatus={user.allyStatus}
+          allyRequestId={user.allyRequestId}
+          isMutating={isMutating}
+          onSendRequest={() => sendRequest.mutate()}
+          onAcceptRequest={(id) => acceptRequest.mutate(id)}
+          onRemoveAlly={() => removeAlly.mutate()}
+        />
+      )}
+    </div>
+  )
+}
+
+function AllyActionButton({
+  allyStatus,
+  allyRequestId,
+  isMutating,
+  onSendRequest,
+  onAcceptRequest,
+  onRemoveAlly,
+}: {
+  allyStatus: UserProfile["allyStatus"]
+  allyRequestId: string | null
+  isMutating: boolean
+  onSendRequest: () => void
+  onAcceptRequest: (requestId: string) => void
+  onRemoveAlly: () => void
+}) {
+  switch (allyStatus) {
+    case "none":
+      return (
+        <Button
+          size="sm"
+          className="w-full"
+          disabled={isMutating}
+          onClick={onSendRequest}
+        >
+          <UserPlus className="mr-1.5 size-3.5" />
+          Send Ally Request
+        </Button>
+      )
+    case "pending_outgoing":
+      return (
+        <Button size="sm" variant="secondary" className="w-full" disabled>
+          <Clock className="mr-1.5 size-3.5" />
+          Ally Request Sent
+        </Button>
+      )
+    case "pending_incoming":
+      return (
+        <Button
+          size="sm"
+          className="w-full"
+          disabled={isMutating || !allyRequestId}
+          onClick={() => allyRequestId && onAcceptRequest(allyRequestId)}
+        >
+          <Check className="mr-1.5 size-3.5" />
+          Accept Ally Request
+        </Button>
+      )
+    case "allies":
+      return (
+        <Button
+          size="sm"
+          variant="secondary"
+          className="w-full"
+          disabled={isMutating}
+          onClick={onRemoveAlly}
+        >
+          <UserMinus className="mr-1.5 size-3.5" />
+          Remove Ally
+        </Button>
+      )
+  }
+}
+
+export function UserProfilePopover({
+  userId,
+  children,
+  side = "right",
+  align = "start",
+}: {
+  userId: string
+  children: React.ReactNode
+  side?: "top" | "bottom" | "left" | "right"
+  align?: "start" | "center" | "end"
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent
+        side={side}
+        align={align}
+        className="w-72 p-4"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {open && <ProfileCardContent userId={userId} />}
+      </PopoverContent>
+    </Popover>
+  )
+}

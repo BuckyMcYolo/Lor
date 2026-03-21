@@ -9,10 +9,16 @@ import {
   AlertDialogTitle,
 } from "@repo/ui/components/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@repo/ui/components/tooltip"
 import { cn } from "@repo/ui/lib/utils"
 import { formatTime } from "@repo/utils/date"
 import { Pin } from "lucide-react"
 import { useCallback, useState } from "react"
+import { UserProfilePopover } from "@/components/ui/user-profile-card"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
 import { EmbedCard } from "./embed-card"
@@ -221,14 +227,18 @@ export function MessageItem({
       )}
       <div className="flex gap-3">
         {showHeader ? (
-          <Avatar size="lg" className="mt-0.5">
-            {author.image && (
-              <AvatarImage src={author.image} alt={author.name} />
-            )}
-            <AvatarFallback className="text-xs font-semibold">
-              {nameInitial(author.displayUsername ?? author.name)}
-            </AvatarFallback>
-          </Avatar>
+          <UserProfilePopover userId={author.id} side="right" align="start">
+            <button type="button" className="mt-0.5 cursor-pointer">
+              <Avatar size="lg">
+                {author.image && (
+                  <AvatarImage src={author.image} alt={author.name} />
+                )}
+                <AvatarFallback className="text-xs font-semibold">
+                  {nameInitial(author.displayUsername ?? author.name)}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </UserProfilePopover>
         ) : (
           <div className="w-10 shrink-0 text-right text-[10px] leading-6 text-muted-foreground opacity-0 transition-opacity duration-100 group-hover:opacity-100">
             <span className="whitespace-nowrap">
@@ -239,9 +249,14 @@ export function MessageItem({
         <div className="min-w-0 flex-1">
           {showHeader && (
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-semibold leading-snug">
-                {author.displayUsername ?? author.name}
-              </span>
+              <UserProfilePopover userId={author.id} side="right" align="start">
+                <button
+                  type="button"
+                  className="cursor-pointer text-sm font-semibold leading-snug hover:underline"
+                >
+                  {author.displayUsername ?? author.name}
+                </button>
+              </UserProfilePopover>
               <span className="text-xs text-muted-foreground">
                 {formatTime(message.createdAt)}
               </span>
@@ -273,23 +288,39 @@ export function MessageItem({
           )}
           {message.reactions.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
-              {message.reactions.map((reaction) => (
-                <button
-                  key={reaction.emoji}
-                  type="button"
-                  onClick={() => handleReact(reaction.emoji)}
-                  aria-pressed={reaction.reactedByCurrentUser}
-                  className={cn(
-                    "inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors",
-                    reaction.reactedByCurrentUser
-                      ? "border-primary/40 bg-primary/15 text-primary hover:bg-primary/20"
-                      : "border-border/70 bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
-                  )}
-                >
-                  <span>{reaction.emoji}</span>
-                  <span>{reaction.count}</span>
-                </button>
-              ))}
+              {message.reactions.map((reaction) => {
+                const names = reaction.reactors.map((r) =>
+                  r.id === currentUserId ? "You" : r.name
+                )
+                const tooltipText =
+                  names.length > 0
+                    ? `${names.join(", ")} reacted with ${reaction.emoji}`
+                    : `${reaction.count} reaction${reaction.count !== 1 ? "s" : ""}`
+
+                return (
+                  <Tooltip key={reaction.emoji}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => handleReact(reaction.emoji)}
+                        aria-pressed={reaction.reactedByCurrentUser}
+                        className={cn(
+                          "inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors",
+                          reaction.reactedByCurrentUser
+                            ? "border-primary/40 bg-primary/15 text-primary hover:bg-primary/20"
+                            : "border-border/70 bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+                        )}
+                      >
+                        <span>{reaction.emoji}</span>
+                        <span>{reaction.count}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p className="text-xs">{tooltipText}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )
+              })}
             </div>
           )}
         </div>

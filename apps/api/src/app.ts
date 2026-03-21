@@ -4,11 +4,13 @@ import createApp from "@/lib/helpers/app/create-app"
 import configureOpenAPI from "@/lib/helpers/openapi/configure-openapi"
 import { globalRateLimit } from "@/middleware/rate-limit"
 import index from "@/routes/index.route"
+import alliesRouter from "@/routes/v1/allies/index"
 import channelsRouter from "@/routes/v1/channels/index"
 import dmsRouter from "@/routes/v1/dms/index"
 import guildsRouter from "@/routes/v1/guilds/index"
 import invitesRouter from "@/routes/v1/invites/index"
 import uploadsRouter from "@/routes/v1/uploads/index"
+import usersRouter from "@/routes/v1/users/index"
 import waitlistRouter from "@/routes/waitlist/index"
 
 const app = createApp()
@@ -35,11 +37,13 @@ app.route("/", index)
 // Route mounting — chained for Hono RPC type inference
 const routes = app
   .route("/", waitlistRouter)
+  .route("/v1", alliesRouter)
   .route("/v1", channelsRouter)
   .route("/v1", guildsRouter)
   .route("/v1", invitesRouter)
   .route("/v1", dmsRouter)
   .route("/v1", uploadsRouter)
+  .route("/v1", usersRouter)
 
 export type AppType = typeof routes
 

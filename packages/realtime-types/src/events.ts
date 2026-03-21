@@ -98,6 +98,7 @@ export type RealtimeMessageReaction = {
   emoji: string
   count: number
   reactedByCurrentUser: boolean
+  reactors: Array<{ id: string; name: string }>
 }
 
 export type RealtimeAttachment = {
@@ -161,6 +162,7 @@ export type RealtimeMessageReactionUpdated = {
   emoji: string
   count: number
   actorUserId: string
+  actorName: string
   reactedByActor: boolean
 }
 
