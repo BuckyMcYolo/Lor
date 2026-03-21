@@ -37,7 +37,7 @@
 
 ## Phase 3 — Social Features
 
-- [~] Shareable invite links (not just email invites) — schema, API, and UI implemented
+- [x] Shareable invite links (not just email invites) — schema, API, and UI implemented
 - [ ] Ally (friend) system with requests
 - [ ] User blocking
 - [ ] Privacy settings
@@ -52,8 +52,8 @@
 ## Phase 5 — Polish
 
 - [ ] Message search
-- [ ] Typing indicators
-- [ ] Pinned messages panel
+- [x] Typing indicators
+- [x] Pinned messages panel
 - [ ] Thread support
 - [ ] Notification preferences
 - [ ] Error handling & loading state improvements

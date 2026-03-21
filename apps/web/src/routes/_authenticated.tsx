@@ -59,7 +59,9 @@ function AuthenticatedLayout() {
 
   // Only show onboarding if explicitly not completed AND no existing guilds
   // (guards against existing users whose flag defaulted to false)
+  const isInviteRoute = location.pathname.startsWith("/invite/")
   const showOnboarding =
+    !isInviteRoute &&
     session.user.onboardingCompleted === false &&
     guilds !== undefined &&
     guilds?.length === 0

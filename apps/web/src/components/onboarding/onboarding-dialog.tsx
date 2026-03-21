@@ -27,6 +27,21 @@ function normalizeSlugInput(value: string) {
     .replace(/[^a-z0-9-]/g, "")
 }
 
+function parseInviteCode(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  if (/^[A-Za-z0-9]+$/.test(trimmed)) {
+    return trimmed
+  }
+
+  const inviteMatch = trimmed.match(
+    /(?:^|\/)invite\/([A-Za-z0-9]+)(?:\/)?(?:[?#].*)?$/i
+  )
+
+  return inviteMatch?.[1] ?? null
+}
+
 export function OnboardingDialog({ open }: { open: boolean }) {
   const [step, setStep] = useState<Step>("welcome")
   const [name, setName] = useState("")
@@ -111,9 +126,19 @@ export function OnboardingDialog({ open }: { open: boolean }) {
     if (!inviteLink.trim()) return
     setError(null)
     setLoading(true)
-    // TODO: implement join via invite link API
-    setError("Joining via invite link is not yet supported.")
-    setLoading(false)
+
+    const inviteCode = parseInviteCode(inviteLink)
+
+    if (!inviteCode) {
+      setError("Enter a valid invite link or invite code.")
+      setLoading(false)
+      return
+    }
+
+    await navigate({
+      to: "/invite/$code",
+      params: { code: inviteCode },
+    })
   }
 
   return (
@@ -274,16 +299,16 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                 <DialogHeader className="mb-6 text-left">
                   <DialogTitle className="text-2xl">Join a Guild</DialogTitle>
                   <DialogDescription className="text-sm">
-                    Paste an invite link to join an existing guild.
+                    Paste an invite link or code to join an existing guild.
                   </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleJoin} className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="invite-link">Invite Link</Label>
+                    <Label htmlFor="invite-link">Invite Link or Code</Label>
                     <Input
                       id="invite-link"
-                      placeholder="https://townhall.gg/invite/abc123"
+                      placeholder="https://townhall.chat/invite/abc123 or abc123"
                       value={inviteLink}
                       onChange={(e) => setInviteLink(e.target.value)}
                       disabled={loading}
