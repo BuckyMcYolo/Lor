@@ -44,6 +44,19 @@ export const dmChannelSchema = selectChannelSchema.extend({
   lastMessage: lastMessageSchema.nullable(),
 })
 
+export const createDMRequestSchema = z.object({
+  userIds: z
+    .array(z.string().uuid())
+    .min(1, "At least one user is required")
+    .max(9, "Group DMs can have at most 10 members"),
+})
+
+export const createDMResponseSchema = z.object({
+  success: z.literal(true),
+  dm: dmChannelSchema,
+  created: z.boolean(),
+})
+
 export const listDMsResponseSchema = paginatedResponseSchema(dmChannelSchema)
 
 export const getDMResponseSchema = dmChannelSchema

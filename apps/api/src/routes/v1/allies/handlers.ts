@@ -353,13 +353,19 @@ export const acceptAllyRequest: AppRouteHandler<
   const [updated] = await db
     .update(schema.allyRequest)
     .set({ status: "accepted", updatedAt: new Date() })
-    .where(eq(schema.allyRequest.id, requestId))
+    .where(
+      and(
+        eq(schema.allyRequest.id, requestId),
+        eq(schema.allyRequest.receiverId, currentUser.id),
+        eq(schema.allyRequest.status, "pending")
+      )
+    )
     .returning()
 
   if (!updated) {
     return c.json(
-      { success: false, message: "Failed to accept ally request" },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR
+      { success: false, message: "Request is no longer pending" },
+      HttpStatusCodes.BAD_REQUEST
     )
   }
 
@@ -441,10 +447,24 @@ export const declineAllyRequest: AppRouteHandler<
     )
   }
 
-  await db
+  const updated = await db
     .update(schema.allyRequest)
     .set({ status: "declined", updatedAt: new Date() })
-    .where(eq(schema.allyRequest.id, requestId))
+    .where(
+      and(
+        eq(schema.allyRequest.id, requestId),
+        eq(schema.allyRequest.receiverId, currentUser.id),
+        eq(schema.allyRequest.status, "pending")
+      )
+    )
+    .returning()
+
+  if (updated.length === 0) {
+    return c.json(
+      { success: false, message: "Request is no longer pending" },
+      HttpStatusCodes.BAD_REQUEST
+    )
+  }
 
   return c.json({ success: true }, HttpStatusCodes.OK)
 }

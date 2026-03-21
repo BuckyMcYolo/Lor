@@ -3,13 +3,16 @@ import { Separator } from "@repo/ui/components/separator"
 import { cn } from "@repo/ui/lib/utils"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { Inbox, Plus, Users } from "lucide-react"
+import { useState } from "react"
 import { SearchBar } from "../channel-panel/search-bar"
 import { UserBar } from "../channel-panel/user-bar"
 import { DMList } from "./dm-list"
+import { NewDMDialog } from "./new-dm-dialog"
 
 export function DMPanel() {
   const navigate = useNavigate()
   const { dmId } = useParams({ strict: false })
+  const [newDMOpen, setNewDMOpen] = useState(false)
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
@@ -47,6 +50,7 @@ export function DMPanel() {
         <button
           type="button"
           className="text-muted-foreground hover:text-foreground"
+          onClick={() => setNewDMOpen(true)}
         >
           <Plus className="size-4" />
         </button>
@@ -55,6 +59,7 @@ export function DMPanel() {
         <DMList />
       </ScrollArea>
       <UserBar />
+      <NewDMDialog open={newDMOpen} onOpenChange={setNewDMOpen} />
     </div>
   )
 }

@@ -1,10 +1,21 @@
 import { db } from "@repo/db"
-import { channel, channelMember, message, user } from "@repo/db/schema"
-import { and, count, desc, eq, inArray, ne } from "drizzle-orm"
+import {
+  allyRequest,
+  channel,
+  channelMember,
+  message,
+  user,
+} from "@repo/db/schema"
+import { and, count, desc, eq, inArray, ne, or, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
-import type { GetDMRoute, ListDMMessagesRoute, ListDMsRoute } from "./routes"
+import type {
+  CreateDMRoute,
+  GetDMRoute,
+  ListDMMessagesRoute,
+  ListDMsRoute,
+} from "./routes"
 
 const emptyPage = (page: number) => ({
   itemsTotal: 0,
@@ -42,6 +53,188 @@ async function fetchDMMembershipChannel(dmId: string, userId: string) {
     )
     .limit(1)
     .then((rows) => rows[0] ?? null)
+}
+
+export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
+  const currentUser = c.var.user
+  const { userIds } = c.req.valid("json")
+
+  // Deduplicate and remove self
+  const targetUserIds = [...new Set(userIds)].filter(
+    (id) => id !== currentUser.id
+  )
+
+  if (targetUserIds.length === 0) {
+    return c.json(
+      { success: false, message: "Cannot create a DM with yourself" },
+      HttpStatusCodes.BAD_REQUEST
+    )
+  }
+
+  // Verify all target users are allies of the current user
+  const allyRows = await db
+    .select({
+      senderId: allyRequest.senderId,
+      receiverId: allyRequest.receiverId,
+    })
+    .from(allyRequest)
+    .where(
+      and(
+        eq(allyRequest.status, "accepted"),
+        or(
+          and(
+            eq(allyRequest.senderId, currentUser.id),
+            inArray(allyRequest.receiverId, targetUserIds)
+          ),
+          and(
+            inArray(allyRequest.senderId, targetUserIds),
+            eq(allyRequest.receiverId, currentUser.id)
+          )
+        )
+      )
+    )
+
+  const allyUserIds = new Set(
+    allyRows.map((r) =>
+      r.senderId === currentUser.id ? r.receiverId : r.senderId
+    )
+  )
+
+  const nonAllyIds = targetUserIds.filter((id) => !allyUserIds.has(id))
+  if (nonAllyIds.length > 0) {
+    return c.json(
+      { success: false, message: "You can only create DMs with your allies" },
+      HttpStatusCodes.FORBIDDEN
+    )
+  }
+
+  const allMemberIds = [currentUser.id, ...targetUserIds].sort()
+  const isDirect = targetUserIds.length === 1
+
+  // For 1-on-1 DMs, check if one already exists between these two users
+  if (isDirect) {
+    const existingDM = await db
+      .select({ id: channel.id })
+      .from(channel)
+      .where(eq(channel.type, "dm"))
+      .innerJoin(channelMember, eq(channelMember.channelId, channel.id))
+      .then(async () => {
+        // Find channels where both users are members and type is "dm"
+        const candidates = await db
+          .select({
+            channelId: channelMember.channelId,
+            memberCount: sql<number>`count(*)::int`,
+          })
+          .from(channelMember)
+          .innerJoin(channel, eq(channel.id, channelMember.channelId))
+          .where(
+            and(
+              eq(channel.type, "dm"),
+              inArray(channelMember.userId, allMemberIds)
+            )
+          )
+          .groupBy(channelMember.channelId)
+          .having(sql`count(*) = ${allMemberIds.length}`)
+
+        // Verify the channel has exactly 2 members (not more)
+        for (const candidate of candidates) {
+          const totalMembers = await db
+            .select({ total: count() })
+            .from(channelMember)
+            .where(eq(channelMember.channelId, candidate.channelId))
+            .then((rows) => rows[0]?.total ?? 0)
+
+          if (totalMembers === allMemberIds.length) {
+            return candidate.channelId
+          }
+        }
+
+        return null
+      })
+
+    if (existingDM) {
+      return returnDMResponse(c, existingDM, currentUser.id, false)
+    }
+  }
+
+  // Create new DM/group DM
+  const now = new Date()
+  const [newChannel] = await db
+    .insert(channel)
+    .values({
+      type: isDirect ? "dm" : "group_dm",
+      guildId: null,
+      ownerId: isDirect ? null : currentUser.id,
+      position: 0,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning()
+
+  if (!newChannel) {
+    return c.json(
+      { success: false, message: "Failed to create DM" },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR
+    )
+  }
+
+  // Add all members
+  await db.insert(channelMember).values(
+    allMemberIds.map((userId) => ({
+      channelId: newChannel.id,
+      userId,
+    }))
+  )
+
+  return returnDMResponse(c, newChannel.id, currentUser.id, true)
+}
+
+async function returnDMResponse(
+  c: Parameters<AppRouteHandler<CreateDMRoute>>[0],
+  channelId: string,
+  currentUserId: string,
+  created: boolean
+) {
+  const [ch, members] = await Promise.all([
+    db
+      .select()
+      .from(channel)
+      .where(eq(channel.id, channelId))
+      .limit(1)
+      .then((rows) => rows[0]),
+    db
+      .select({
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        displayUsername: user.displayUsername,
+        image: user.image,
+      })
+      .from(channelMember)
+      .innerJoin(user, eq(channelMember.userId, user.id))
+      .where(
+        and(
+          eq(channelMember.channelId, channelId),
+          ne(channelMember.userId, currentUserId)
+        )
+      ),
+  ])
+
+  if (!ch) {
+    return c.json(
+      { success: false, message: "Failed to fetch DM" },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR
+    )
+  }
+
+  return c.json(
+    {
+      success: true,
+      dm: { ...ch, members, lastMessage: null },
+      created,
+    },
+    HttpStatusCodes.OK
+  )
 }
 
 export const listDMs: AppRouteHandler<ListDMsRoute> = async (c) => {

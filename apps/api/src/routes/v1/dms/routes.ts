@@ -2,6 +2,8 @@ import { createRoute } from "@hono/zod-openapi"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import jsonContent from "@/lib/helpers/openapi/json-content"
 import {
+  badRequestSchema,
+  forbiddenSchema,
   internalServerErrorSchema,
   notFoundSchema,
   paginationQuerySchema,
@@ -9,12 +11,42 @@ import {
 } from "@/lib/helpers/openapi/schemas"
 import { sessionAuthMiddleware } from "@/middleware/session-auth"
 import {
+  createDMRequestSchema,
+  createDMResponseSchema,
   dmParamsSchema,
   getDMResponseSchema,
   listDMMessagesQuerySchema,
   listDMMessagesResponseSchema,
   listDMsResponseSchema,
 } from "./schema"
+
+export const createDM = createRoute({
+  path: "/dms",
+  method: "post",
+  summary: "Create or find a DM",
+  description:
+    "Creates a new DM or group DM with the specified users, or returns an existing one. For 1-on-1 DMs, requires the target user to be an ally. For group DMs, requires all target users to be allies of the creator.",
+  tags: ["DMs"],
+  middleware: [sessionAuthMiddleware] as const,
+  request: {
+    body: jsonContent({
+      schema: createDMRequestSchema,
+      description: "User IDs to create DM with",
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: createDMResponseSchema,
+      description: "DM channel created or found",
+    }),
+    [HttpStatusCodes.BAD_REQUEST]: badRequestSchema,
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
+export type CreateDMRoute = typeof createDM
 
 export const listDMs = createRoute({
   path: "/dms",

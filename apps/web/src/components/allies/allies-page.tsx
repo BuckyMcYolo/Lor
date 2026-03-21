@@ -17,6 +17,7 @@ import {
 import { useState } from "react"
 import { toast } from "sonner"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { useCreateDM } from "@/hooks/use-create-dm"
 import { apiClient } from "@/lib/api-client"
 import type { Ally, AllyRequest } from "@/lib/api-types"
 
@@ -41,10 +42,12 @@ function AlliesSkeleton() {
 
 function AllyRow({
   ally,
+  onMessage,
   onRemove,
   isRemoving,
 }: {
   ally: Ally
+  onMessage: (userId: string) => void
   onRemove: (userId: string) => void
   isRemoving: boolean
 }) {
@@ -64,8 +67,8 @@ function AllyRow({
           variant="ghost"
           size="icon"
           className="size-8"
-          title="Send a Raven"
-          disabled
+          title="Send DM"
+          onClick={() => onMessage(ally.id)}
         >
           <MessageCircle className="size-4" />
         </Button>
@@ -155,11 +158,16 @@ function OutgoingRequestRow({ request }: { request: AllyRequest }) {
 
 export function AlliesPage() {
   const queryClient = useQueryClient()
+  const createDM = useCreateDM()
   const [tab, setTab] = useState<Tab>("all")
   const [search, setSearch] = useState("")
   const [addUsername, setAddUsername] = useState("")
 
-  const { data: allies, isPending: alliesLoading } = useQuery({
+  const {
+    data: allies,
+    isPending: alliesLoading,
+    isError: alliesError,
+  } = useQuery({
     queryKey: ["allies"],
     queryFn: async () => {
       const res = await apiClient.v1.allies.$get()
@@ -168,7 +176,11 @@ export function AlliesPage() {
     },
   })
 
-  const { data: requests, isPending: requestsLoading } = useQuery({
+  const {
+    data: requests,
+    isPending: requestsLoading,
+    isError: requestsError,
+  } = useQuery({
     queryKey: ["ally-requests"],
     queryFn: async () => {
       const res = await apiClient.v1.allies.requests.$get()
@@ -200,10 +212,10 @@ export function AlliesPage() {
           "message" in body ? body.message : "Failed to send ally request"
         )
       }
-      return res.json()
+      return { data: await res.json(), targetUserId: userId }
     },
-    onSuccess: () => {
-      invalidate()
+    onSuccess: ({ targetUserId }) => {
+      invalidate(targetUserId)
       setAddUsername("")
       toast.success("Ally request sent")
     },
@@ -213,17 +225,23 @@ export function AlliesPage() {
   })
 
   const acceptRequest = useMutation({
-    mutationFn: async (requestId: string) => {
+    mutationFn: async ({
+      requestId,
+      senderId,
+    }: {
+      requestId: string
+      senderId: string
+    }) => {
       const res = await apiClient.v1.allies.requests[":requestId"].accept.$post(
         {
           param: { requestId },
         }
       )
       if (!res.ok) throw new Error("Failed to accept request")
-      return res.json()
+      return { data: await res.json(), senderId }
     },
-    onSuccess: () => {
-      invalidate()
+    onSuccess: ({ senderId }) => {
+      invalidate(senderId)
       toast.success("Ally request accepted")
     },
     onError: () => {
@@ -232,16 +250,23 @@ export function AlliesPage() {
   })
 
   const declineRequest = useMutation({
-    mutationFn: async (requestId: string) => {
+    mutationFn: async ({
+      requestId,
+      senderId,
+    }: {
+      requestId: string
+      senderId: string
+    }) => {
       const res = await apiClient.v1.allies.requests[
         ":requestId"
       ].decline.$post({
         param: { requestId },
       })
       if (!res.ok) throw new Error("Failed to decline request")
+      return { senderId }
     },
-    onSuccess: () => {
-      invalidate()
+    onSuccess: ({ senderId }) => {
+      invalidate(senderId)
       toast.success("Ally request declined")
     },
     onError: () => {
@@ -346,6 +371,10 @@ export function AlliesPage() {
 
               {alliesLoading ? (
                 <AlliesSkeleton />
+              ) : alliesError ? (
+                <div className="px-4 py-8 text-center text-sm text-destructive">
+                  Failed to load allies.
+                </div>
               ) : filteredAllies.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                   {search
@@ -361,6 +390,7 @@ export function AlliesPage() {
                     <AllyRow
                       key={ally.id}
                       ally={ally}
+                      onMessage={(userId) => createDM.mutate([userId])}
                       onRemove={(userId) => removeAlly.mutate(userId)}
                       isRemoving={removingAllyId === ally.id}
                     />
@@ -404,6 +434,10 @@ export function AlliesPage() {
 
               {requestsLoading ? (
                 <AlliesSkeleton />
+              ) : requestsError ? (
+                <div className="px-4 py-8 text-center text-sm text-destructive">
+                  Failed to load requests.
+                </div>
               ) : (
                 <>
                   {incomingRequests.length > 0 && (
@@ -415,8 +449,18 @@ export function AlliesPage() {
                         <IncomingRequestRow
                           key={request.id}
                           request={request}
-                          onAccept={(id) => acceptRequest.mutate(id)}
-                          onDecline={(id) => declineRequest.mutate(id)}
+                          onAccept={(id) =>
+                            acceptRequest.mutate({
+                              requestId: id,
+                              senderId: request.sender.id,
+                            })
+                          }
+                          onDecline={(id) =>
+                            declineRequest.mutate({
+                              requestId: id,
+                              senderId: request.sender.id,
+                            })
+                          }
                           isPending={
                             acceptRequest.isPending || declineRequest.isPending
                           }

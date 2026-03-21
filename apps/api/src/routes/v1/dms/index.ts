@@ -3,6 +3,7 @@ import * as handlers from "./handlers"
 import * as routes from "./routes"
 
 const dmsRouter = createRouter()
+  .openapi(routes.createDM, handlers.createDM)
   .openapi(routes.listDMs, handlers.listDMs)
   .openapi(routes.getDM, handlers.getDM)
   .openapi(routes.listDMMessages, handlers.listDMMessages)
