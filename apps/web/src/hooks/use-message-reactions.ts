@@ -47,7 +47,7 @@ export function useMessageReactions<TData extends MessagesQueryData>({
   )
 
   const currentUser =
-    currentUserId && currentUserName
+    currentUserId != null && currentUserName != null
       ? { id: currentUserId, name: currentUserName }
       : undefined
 

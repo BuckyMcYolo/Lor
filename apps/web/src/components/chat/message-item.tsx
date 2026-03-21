@@ -289,7 +289,8 @@ export function MessageItem({
           {message.reactions.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {message.reactions.map((reaction) => {
-                const names = reaction.reactors.map((r) =>
+                const reactors = reaction.reactors ?? []
+                const names = reactors.map((r) =>
                   r.id === currentUserId ? "You" : r.name
                 )
                 const tooltipText =

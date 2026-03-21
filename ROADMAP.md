@@ -31,14 +31,14 @@
 ## Phase 2 — Permissions & Moderation
 
 - [ ] Granular permission system (beyond owner/admin/member)
-- [~] Member management UI (kick, banish, silence, role assignment) (in progress in this PR)
+- [x] Member management UI (kick, banish, silence, role assignment)
 - [ ] Rate limiting enforcement (API-level + per-channel)
 - [ ] Audit logs
 
 ## Phase 3 — Social Features
 
 - [x] Shareable invite links (not just email invites) — schema, API, and UI implemented
-- [ ] Ally (friend) system with requests
+- [x] Ally (friend) system with requests — schema, API, allies page, user profile popover with ally actions
 - [ ] User blocking
 - [ ] Privacy settings
 
@@ -79,6 +79,7 @@
 
 ## Backlog (Short-Term Hardening)
 
+- [x] Fix stale presence after server restart (heartbeat TTL + reconciliation sweep).
 - [ ] Add explicit error logging in `initializeConnection` before disconnecting a socket (include `socket.id` + `userId` context).
 - [ ] Update onboarding `normalizeSlugInput` to collapse repeated hyphens while typing.
 - [ ] Use `DM_CHANNEL_TYPES` constant everywhere in DM route filters to avoid drift.

@@ -136,8 +136,10 @@ export function toggleReactionOptimistically(
         count: nextCount,
         reactedByCurrentUser: false,
         reactors: currentUser
-          ? currentReaction.reactors.filter((r) => r.id !== currentUser.id)
-          : currentReaction.reactors,
+          ? (currentReaction.reactors ?? []).filter(
+              (r) => r.id !== currentUser.id
+            )
+          : (currentReaction.reactors ?? []),
       }
     }
   } else {
@@ -146,8 +148,8 @@ export function toggleReactionOptimistically(
       count: currentReaction.count + 1,
       reactedByCurrentUser: true,
       reactors: currentUser
-        ? [...currentReaction.reactors, currentUser]
-        : currentReaction.reactors,
+        ? [...(currentReaction.reactors ?? []), currentUser]
+        : (currentReaction.reactors ?? []),
     }
   }
 

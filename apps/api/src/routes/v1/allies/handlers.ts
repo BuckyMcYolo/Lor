@@ -130,10 +130,54 @@ export const sendAllyRequest: AppRouteHandler<SendAllyRequestRoute> = async (
         HttpStatusCodes.BAD_REQUEST
       )
     }
-    // Status is "declined" — delete the old request so a fresh one can be created
-    await db
-      .delete(schema.allyRequest)
-      .where(eq(schema.allyRequest.id, existing.id))
+    // Status is "declined" — replace atomically to avoid race conditions
+    const [request] = await db.transaction(async (tx) => {
+      await tx
+        .delete(schema.allyRequest)
+        .where(eq(schema.allyRequest.id, existing.id))
+      return tx
+        .insert(schema.allyRequest)
+        .values({
+          senderId: currentUser.id,
+          receiverId: targetUserId,
+        })
+        .returning()
+    })
+
+    if (!request) {
+      return c.json(
+        { success: false, message: "Failed to create ally request" },
+        HttpStatusCodes.INTERNAL_SERVER_ERROR
+      )
+    }
+
+    const sender = await db
+      .select({
+        id: schema.user.id,
+        name: schema.user.name,
+        username: schema.user.username,
+        displayUsername: schema.user.displayUsername,
+        image: schema.user.image,
+      })
+      .from(schema.user)
+      .where(eq(schema.user.id, currentUser.id))
+      .limit(1)
+      .then((rows) => rows[0])
+
+    if (!sender) {
+      return c.json(
+        { success: false, message: "Failed to fetch user data" },
+        HttpStatusCodes.INTERNAL_SERVER_ERROR
+      )
+    }
+
+    return c.json(
+      {
+        success: true,
+        request: toAllyRequestResponse(request, sender, targetUser),
+      },
+      HttpStatusCodes.OK
+    )
   }
 
   const [request] = await db

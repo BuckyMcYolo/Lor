@@ -177,9 +177,16 @@ export function AlliesPage() {
     },
   })
 
-  const invalidate = () => {
+  const [removingAllyId, setRemovingAllyId] = useState<string | null>(null)
+
+  const invalidate = (affectedUserId?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["allies"] })
     void queryClient.invalidateQueries({ queryKey: ["ally-requests"] })
+    if (affectedUserId) {
+      void queryClient.invalidateQueries({
+        queryKey: ["user-profile", affectedUserId],
+      })
+    }
   }
 
   const sendRequest = useMutation({
@@ -244,16 +251,20 @@ export function AlliesPage() {
 
   const removeAlly = useMutation({
     mutationFn: async (userId: string) => {
+      setRemovingAllyId(userId)
       const res = await apiClient.v1.allies[":userId"].$delete({
         param: { userId },
       })
       if (!res.ok) throw new Error("Failed to remove ally")
+      return userId
     },
-    onSuccess: () => {
-      invalidate()
+    onSuccess: (userId) => {
+      setRemovingAllyId(null)
+      invalidate(userId)
       toast.success("Ally removed")
     },
     onError: () => {
+      setRemovingAllyId(null)
       toast.error("Failed to remove ally")
     },
   })
@@ -351,7 +362,7 @@ export function AlliesPage() {
                       key={ally.id}
                       ally={ally}
                       onRemove={(userId) => removeAlly.mutate(userId)}
-                      isRemoving={removeAlly.isPending}
+                      isRemoving={removingAllyId === ally.id}
                     />
                   ))}
                 </div>
