@@ -40,6 +40,8 @@ import {
   listOnlineUserIds,
   markUserConnected,
   markUserDisconnected,
+  reconcilePresence,
+  refreshPresenceHeartbeat,
 } from "@/services/presence"
 import {
   enforceDmMessageRateLimit,
@@ -238,6 +240,21 @@ async function initializeConnection(socket: RealtimeSocket) {
         })
       }
     }
+
+    // Refresh TTL on the socket set so it expires if this server crashes
+    await refreshPresenceHeartbeat(redisPresenceClient, socket.data.user.id)
+
+    // Keep refreshing while connected
+    const heartbeatInterval = setInterval(() => {
+      void refreshPresenceHeartbeat(
+        redisPresenceClient,
+        socket.data.user.id
+      ).catch(() => {})
+    }, 30 * 1000)
+
+    socket.once("disconnect", () => {
+      clearInterval(heartbeatInterval)
+    })
 
     socket.emit("presence:ready", {
       userId: socket.data.user.id,
@@ -615,6 +632,13 @@ async function bootstrap() {
   ])
 
   io.adapter(createAdapter(redisPubClient, redisSubClient))
+
+  // Periodically clean up stale presence entries (crashed servers)
+  setInterval(() => {
+    void reconcilePresence(redisPresenceClient).catch((error) => {
+      console.error("[realtime] presence reconciliation failed:", error)
+    })
+  }, 30 * 1000)
 
   httpServer.listen(realtimePort, () => {
     console.log(`Realtime server running on port ${realtimePort}`)
