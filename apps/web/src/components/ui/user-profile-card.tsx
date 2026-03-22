@@ -23,7 +23,16 @@ import {
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Ban, Check, Clock, ShieldOff, UserMinus, UserPlus } from "lucide-react"
+import { useNavigate } from "@tanstack/react-router"
+import {
+  Ban,
+  Check,
+  Clock,
+  MessageCircle,
+  ShieldOff,
+  UserMinus,
+  UserPlus,
+} from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api-client"
@@ -153,6 +162,30 @@ function ProfileCardContent({ userId }: { userId: string }) {
     },
   })
 
+  const navigate = useNavigate()
+
+  const createDM = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.v1.dms.$post({
+        json: { userIds: [userId] },
+      })
+      if (!res.ok) {
+        const body = await res.json()
+        throw new Error(
+          "message" in body ? body.message : "Failed to create DM"
+        )
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ["dms"] })
+      void navigate({ to: "/dms/$dmId", params: { dmId: data.dm.id } })
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
   const [confirmBlock, setConfirmBlock] = useState(false)
   const [confirmRemoveAlly, setConfirmRemoveAlly] = useState(false)
 
@@ -191,7 +224,8 @@ function ProfileCardContent({ userId }: { userId: string }) {
     acceptRequest.isPending ||
     removeAlly.isPending ||
     blockUser.isPending ||
-    unblockUser.isPending
+    unblockUser.isPending ||
+    createDM.isPending
 
   return (
     <div className="space-y-3">
@@ -250,6 +284,26 @@ function ProfileCardContent({ userId }: { userId: string }) {
       {!isCurrentUser && (
         <>
           <div className="flex items-center gap-1.5">
+            {/* Send DM */}
+            {!isBlockedByMe && !isBlockedByThem && (
+              <div className="flex-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 w-full"
+                      disabled={isMutating}
+                      onClick={() => createDM.mutate()}
+                    >
+                      <MessageCircle className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Send DM</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+
             {/* Ally action */}
             {!isBlockedByMe && !isBlockedByThem && (
               <div className="flex-1">
@@ -391,6 +445,7 @@ function AllyActionIconButton({
           <TooltipTrigger asChild>
             <Button
               size="sm"
+              variant="secondary"
               className="h-8 w-full"
               disabled={isMutating}
               onClick={onSendRequest}
@@ -423,6 +478,7 @@ function AllyActionIconButton({
           <TooltipTrigger asChild>
             <Button
               size="sm"
+              variant="secondary"
               className="h-8 w-full"
               disabled={isMutating || !allyRequestId}
               onClick={() => allyRequestId && onAcceptRequest(allyRequestId)}

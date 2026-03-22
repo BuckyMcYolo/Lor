@@ -38,6 +38,7 @@ import {
 import { useMemo, useState } from "react"
 import { useSettings } from "@/context/settings-context"
 import { MyAccountSettings } from "./my-account-settings"
+import { PrivacySafetySettings } from "./privacy-safety-settings"
 
 interface SettingsNav {
   name: string
@@ -125,6 +126,8 @@ export function SettingsDialog() {
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
               {activeItem === "My Account" ? (
                 <MyAccountSettings />
+              ) : activeItem === "Privacy & Safety" ? (
+                <PrivacySafetySettings />
               ) : (
                 <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
                   {activeItem} settings coming soon.

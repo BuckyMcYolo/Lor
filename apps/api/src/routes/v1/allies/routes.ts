@@ -41,6 +41,7 @@ export const sendAllyRequest = createRoute({
     }),
     [HttpStatusCodes.BAD_REQUEST]: badRequestSchema,
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
     [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
   },

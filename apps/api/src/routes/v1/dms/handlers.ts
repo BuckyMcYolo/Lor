@@ -6,6 +6,7 @@ import {
   message,
   user,
   userBlock,
+  userPrivacySettings,
 } from "@repo/db/schema"
 import { and, count, desc, eq, inArray, ne, or, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
@@ -97,41 +98,74 @@ export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
     )
   }
 
-  // Verify all target users are allies of the current user
-  const allyRows = await db
+  // Fetch target users' privacy settings
+  const targetPrivacyRows = await db
     .select({
-      senderId: allyRequest.senderId,
-      receiverId: allyRequest.receiverId,
+      userId: userPrivacySettings.userId,
+      dmPrivacy: userPrivacySettings.dmPrivacy,
     })
-    .from(allyRequest)
-    .where(
-      and(
-        eq(allyRequest.status, "accepted"),
-        or(
-          and(
-            eq(allyRequest.senderId, currentUser.id),
-            inArray(allyRequest.receiverId, targetUserIds)
-          ),
-          and(
-            inArray(allyRequest.senderId, targetUserIds),
-            eq(allyRequest.receiverId, currentUser.id)
+    .from(userPrivacySettings)
+    .where(inArray(userPrivacySettings.userId, targetUserIds))
+
+  const privacyByUserId = new Map(
+    targetPrivacyRows.map((r) => [r.userId, r.dmPrivacy])
+  )
+
+  // Check if any target user has DMs set to "no_one"
+  const noOneIds = targetUserIds.filter(
+    (id) => privacyByUserId.get(id) === "no_one"
+  )
+  if (noOneIds.length > 0) {
+    return c.json(
+      { success: false, message: "This user is not accepting direct messages" },
+      HttpStatusCodes.FORBIDDEN
+    )
+  }
+
+  // For users with "allies_only" privacy, verify ally relationship
+  const alliesOnlyIds = targetUserIds.filter(
+    (id) => privacyByUserId.get(id) === "allies_only"
+  )
+
+  if (alliesOnlyIds.length > 0) {
+    const allyRows = await db
+      .select({
+        senderId: allyRequest.senderId,
+        receiverId: allyRequest.receiverId,
+      })
+      .from(allyRequest)
+      .where(
+        and(
+          eq(allyRequest.status, "accepted"),
+          or(
+            and(
+              eq(allyRequest.senderId, currentUser.id),
+              inArray(allyRequest.receiverId, alliesOnlyIds)
+            ),
+            and(
+              inArray(allyRequest.senderId, alliesOnlyIds),
+              eq(allyRequest.receiverId, currentUser.id)
+            )
           )
         )
       )
+
+    const allyUserIds = new Set(
+      allyRows.map((r) =>
+        r.senderId === currentUser.id ? r.receiverId : r.senderId
+      )
     )
 
-  const allyUserIds = new Set(
-    allyRows.map((r) =>
-      r.senderId === currentUser.id ? r.receiverId : r.senderId
-    )
-  )
-
-  const nonAllyIds = targetUserIds.filter((id) => !allyUserIds.has(id))
-  if (nonAllyIds.length > 0) {
-    return c.json(
-      { success: false, message: "You can only create DMs with your allies" },
-      HttpStatusCodes.FORBIDDEN
-    )
+    const nonAllyIds = alliesOnlyIds.filter((id) => !allyUserIds.has(id))
+    if (nonAllyIds.length > 0) {
+      return c.json(
+        {
+          success: false,
+          message: "This user only accepts DMs from allies",
+        },
+        HttpStatusCodes.FORBIDDEN
+      )
+    }
   }
 
   const allMemberIds = [currentUser.id, ...targetUserIds].sort()

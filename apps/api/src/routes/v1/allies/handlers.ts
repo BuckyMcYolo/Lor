@@ -120,6 +120,26 @@ export const sendAllyRequest: AppRouteHandler<SendAllyRequestRoute> = async (
     )
   }
 
+  // Check target user's privacy settings for ally requests
+  const targetPrivacy = await db
+    .select({
+      allyRequestPrivacy: schema.userPrivacySettings.allyRequestPrivacy,
+    })
+    .from(schema.userPrivacySettings)
+    .where(eq(schema.userPrivacySettings.userId, targetUserId))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (targetPrivacy?.allyRequestPrivacy === "no_one") {
+    return c.json(
+      {
+        success: false,
+        message: "This user is not accepting ally requests",
+      },
+      HttpStatusCodes.FORBIDDEN
+    )
+  }
+
   // Check for existing relationship (in either direction)
   const existing = await db
     .select({
