@@ -99,14 +99,24 @@ export function MyAccountSettings() {
       }
 
       setUsernameAvailability("checking")
+      const checked = trimmed
       usernameCheckTimer.current = setTimeout(async () => {
         try {
           const { data } = await authClient.isUsernameAvailable({
-            username: trimmed,
+            username: checked,
           })
-          setUsernameAvailability(data?.available ? "available" : "taken")
+          // Only update if input hasn't changed since we started checking
+          setUsernameAvailability((prev) =>
+            prev === "checking"
+              ? data?.available
+                ? "available"
+                : "taken"
+              : prev
+          )
         } catch {
-          setUsernameAvailability("idle")
+          setUsernameAvailability((prev) =>
+            prev === "checking" ? "idle" : prev
+          )
         }
       }, 500)
     },

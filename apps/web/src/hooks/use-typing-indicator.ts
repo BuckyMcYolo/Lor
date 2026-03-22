@@ -59,6 +59,14 @@ export function useTypingIndicator({
       })
     }
 
+    // Prune any currently visible typers who are now blocked
+    if (blockedUserIds && blockedUserIds.size > 0) {
+      setTypingUsers((prev) => {
+        const filtered = prev.filter((u) => !blockedUserIds.has(u.userId))
+        return filtered.length === prev.length ? prev : filtered
+      })
+    }
+
     socket.on("typing:update", onTypingUpdate)
 
     return () => {
