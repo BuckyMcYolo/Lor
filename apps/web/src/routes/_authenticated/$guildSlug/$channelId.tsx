@@ -40,6 +40,17 @@ function ChannelView() {
   const currentUserId = session?.user.id
 
   useEffect(() => {
+    if (!guildSlug || !channelId) return
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`last-channel:${guildSlug}`, channelId)
+      }
+    } catch {
+      // localStorage may be unavailable in restricted environments
+    }
+  }, [guildSlug, channelId])
+
+  useEffect(() => {
     setView({
       type: "guild-members",
       guildSlug,
@@ -105,6 +116,7 @@ function ChannelView() {
     queryClient,
     channelId,
     currentUserId,
+    currentUserName: session?.user.name,
   })
 
   const { handleDelete } = useMessageDeletion<ListMessagesResponse>({

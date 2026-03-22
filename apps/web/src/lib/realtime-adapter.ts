@@ -57,10 +57,26 @@ export function applyReactionUpdateToMessage(
       : ((reactionIndex >= 0 ? nextReactions[reactionIndex] : undefined)
           ?.reactedByCurrentUser ?? false)
 
+  // Update reactors list based on the actor's action
+  const existingReactors = [
+    ...((reactionIndex >= 0 ? nextReactions[reactionIndex] : undefined)
+      ?.reactors ?? []),
+  ]
+  const actorInList = existingReactors.findIndex(
+    (r) => r.id === update.actorUserId
+  )
+
+  if (update.reactedByActor && actorInList === -1) {
+    existingReactors.push({ id: update.actorUserId, name: update.actorName })
+  } else if (!update.reactedByActor && actorInList !== -1) {
+    existingReactors.splice(actorInList, 1)
+  }
+
   const nextReaction = {
     emoji: update.emoji,
     count: update.count,
     reactedByCurrentUser,
+    reactors: existingReactors,
   }
 
   if (reactionIndex === -1) {
@@ -81,7 +97,8 @@ export function applyReactionUpdateToMessage(
  */
 export function toggleReactionOptimistically(
   message: Message,
-  emoji: string
+  emoji: string,
+  currentUser?: { id: string; name: string }
 ): Message {
   const existingReactions = message.reactions ?? []
   const reactionIndex = existingReactions.findIndex(
@@ -93,7 +110,12 @@ export function toggleReactionOptimistically(
       ...message,
       reactions: [
         ...existingReactions,
-        { emoji, count: 1, reactedByCurrentUser: true },
+        {
+          emoji,
+          count: 1,
+          reactedByCurrentUser: true,
+          reactors: currentUser ? [currentUser] : [],
+        },
       ],
     }
   }
@@ -113,6 +135,11 @@ export function toggleReactionOptimistically(
         ...currentReaction,
         count: nextCount,
         reactedByCurrentUser: false,
+        reactors: currentUser
+          ? (currentReaction.reactors ?? []).filter(
+              (r) => r.id !== currentUser.id
+            )
+          : (currentReaction.reactors ?? []),
       }
     }
   } else {
@@ -120,6 +147,9 @@ export function toggleReactionOptimistically(
       ...currentReaction,
       count: currentReaction.count + 1,
       reactedByCurrentUser: true,
+      reactors: currentUser
+        ? [...(currentReaction.reactors ?? []), currentUser]
+        : (currentReaction.reactors ?? []),
     }
   }
 

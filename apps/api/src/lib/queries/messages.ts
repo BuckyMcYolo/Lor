@@ -76,8 +76,10 @@ export async function fetchMessagePage(
             messageId: messageReaction.messageId,
             emoji: messageReaction.emoji,
             userId: messageReaction.userId,
+            userName: user.name,
           })
           .from(messageReaction)
+          .innerJoin(user, eq(messageReaction.userId, user.id))
           .where(inArray(messageReaction.messageId, messageIds))
       : []
 
@@ -138,6 +140,7 @@ export async function fetchMessagePage(
         emoji: string
         count: number
         reactedByCurrentUser: boolean
+        reactors: Array<{ id: string; name: string }>
       }
     >
   >()
@@ -161,9 +164,14 @@ export async function fetchMessagePage(
       emoji: reactionRow.emoji,
       count: 0,
       reactedByCurrentUser: false,
+      reactors: [],
     }
 
     existingReaction.count += 1
+    existingReaction.reactors.push({
+      id: reactionRow.userId,
+      name: reactionRow.userName,
+    })
     if (reactionRow.userId === currentUserId) {
       existingReaction.reactedByCurrentUser = true
     }

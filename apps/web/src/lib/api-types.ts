@@ -64,6 +64,31 @@ export type InvitePreviewResponse = InferResponseType<
   200
 >
 
+// ── Allies ──────────────────────────────────────────
+
+type AlliesClient = Client["v1"]["allies"]
+
+export type ListAlliesResponse = InferResponseType<AlliesClient["$get"], 200>
+export type Ally = ListAlliesResponse["allies"][number]
+
+type AllyRequestsClient = Client["v1"]["allies"]["requests"]
+
+export type ListAllyRequestsResponse = InferResponseType<
+  AllyRequestsClient["$get"],
+  200
+>
+export type AllyRequest = ListAllyRequestsResponse["incoming"][number]
+
+// ── Users ──────────────────────────────────────────
+
+type UserProfileClient = Client["v1"]["users"][":userId"]
+
+export type GetUserProfileResponse = InferResponseType<
+  UserProfileClient["$get"],
+  200
+>
+export type UserProfile = GetUserProfileResponse["user"]
+
 // ── Guild Members ──────────────────────────────────────────
 
 type GuildMembersClient = Client["v1"]["guilds"][":guildSlug"]["members"]

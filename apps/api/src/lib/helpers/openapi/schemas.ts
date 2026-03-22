@@ -44,6 +44,13 @@ export const payloadTooLargeSchema = jsonContent({
   description: "Payload too large",
 })
 
+export const badRequestSchema = jsonContent({
+  schema: errorSchema.openapi({
+    example: { success: false, message: "Bad request" },
+  }),
+  description: "Bad request",
+})
+
 export const notFoundSchema = jsonContent({
   schema: errorSchema.openapi({
     example: { success: false, message: "Not found" },

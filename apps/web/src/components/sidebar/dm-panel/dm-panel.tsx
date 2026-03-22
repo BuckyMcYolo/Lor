@@ -2,14 +2,17 @@ import { ScrollArea } from "@repo/ui/components/scroll-area"
 import { Separator } from "@repo/ui/components/separator"
 import { cn } from "@repo/ui/lib/utils"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { Inbox, Plus, Users } from "lucide-react"
+import { Plus, Users } from "lucide-react"
+import { useState } from "react"
 import { SearchBar } from "../channel-panel/search-bar"
 import { UserBar } from "../channel-panel/user-bar"
 import { DMList } from "./dm-list"
+import { NewDMDialog } from "./new-dm-dialog"
 
 export function DMPanel() {
   const navigate = useNavigate()
   const { dmId } = useParams({ strict: false })
+  const [newDMOpen, setNewDMOpen] = useState(false)
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
@@ -28,16 +31,6 @@ export function DMPanel() {
           <Users className="size-4 shrink-0" />
           Allies
         </button>
-        {/* TODO: implement navigateToMessageRequests */}
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-[14px] font-medium text-muted-foreground opacity-50 cursor-not-allowed"
-        >
-          <Inbox className="size-4 shrink-0" />
-          Message Requests
-        </button>
       </div>
       <Separator className="mx-2 mt-3 w-auto" />
       <div className="mt-3 flex items-center justify-between px-4 pb-1">
@@ -46,7 +39,9 @@ export function DMPanel() {
         </span>
         <button
           type="button"
+          aria-label="New direct message"
           className="text-muted-foreground hover:text-foreground"
+          onClick={() => setNewDMOpen(true)}
         >
           <Plus className="size-4" />
         </button>
@@ -55,6 +50,7 @@ export function DMPanel() {
         <DMList />
       </ScrollArea>
       <UserBar />
+      <NewDMDialog open={newDMOpen} onOpenChange={setNewDMOpen} />
     </div>
   )
 }

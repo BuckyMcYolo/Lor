@@ -69,6 +69,7 @@ function DMConversation() {
     queryClient,
     channelId: dmId,
     currentUserId,
+    currentUserName: session?.user.name,
   })
 
   const { handleDelete } = useMessageDeletion<ListDMMessagesResponse>({

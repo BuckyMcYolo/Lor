@@ -40,6 +40,7 @@ type EditMessageInput = {
 
 type ToggleMessageReactionInput = {
   userId: string
+  userName: string
   payload: ToggleMessageReactionPayload
 }
 
@@ -377,6 +378,7 @@ export async function toggleMessageReaction(input: ToggleMessageReactionInput) {
       emoji: input.payload.emoji,
       count: reactionCount,
       actorUserId: input.userId,
+      actorName: input.userName,
       reactedByActor: nextReactionState,
     },
     channel: channelRecord,

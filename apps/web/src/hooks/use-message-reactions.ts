@@ -1,6 +1,6 @@
 import type { RealtimeMessageReactionUpdated } from "@repo/realtime-types"
 import type { QueryClient } from "@tanstack/react-query"
-import { useCallback, useEffect } from "react"
+import { useCallback, useEffect, useMemo } from "react"
 import {
   applyReactionUpdateToMessage,
   toggleReactionOptimistically,
@@ -18,6 +18,7 @@ interface UseMessageReactionsOptions {
   queryClient: QueryClient
   channelId: string
   currentUserId?: string
+  currentUserName?: string
 }
 
 export function useMessageReactions<TData extends MessagesQueryData>({
@@ -25,6 +26,7 @@ export function useMessageReactions<TData extends MessagesQueryData>({
   queryClient,
   channelId,
   currentUserId,
+  currentUserName,
 }: UseMessageReactionsOptions) {
   const updateMessageInCache = useCallback(
     (
@@ -44,13 +46,21 @@ export function useMessageReactions<TData extends MessagesQueryData>({
     [queryClient, channelId]
   )
 
+  const currentUser = useMemo(
+    () =>
+      currentUserId != null && currentUserName != null
+        ? { id: currentUserId, name: currentUserName }
+        : undefined,
+    [currentUserId, currentUserName]
+  )
+
   const toggleReactionLocal = useCallback(
     (messageId: string, emoji: string) => {
       updateMessageInCache(messageId, (message) =>
-        toggleReactionOptimistically(message, emoji)
+        toggleReactionOptimistically(message, emoji, currentUser)
       )
     },
-    [updateMessageInCache]
+    [updateMessageInCache, currentUser]
   )
 
   const applyReactionServerUpdate = useCallback(
