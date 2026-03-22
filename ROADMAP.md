@@ -39,6 +39,7 @@
 
 - [x] Shareable invite links (not just email invites) — schema, API, and UI implemented
 - [x] Ally (friend) system with requests — schema, API, allies page, user profile popover with ally actions
+- [x] Direct messages — create 1:1 and group DMs with allies, new DM dialog
 - [ ] User blocking
 - [ ] Privacy settings
 
@@ -55,7 +56,11 @@
 - [x] Typing indicators
 - [x] Pinned messages panel
 - [ ] Thread support
+- [ ] Desktop notifications (browser Notification API for mentions, DMs, etc.)
 - [ ] Notification preferences
+- [x] Reaction tooltips (who reacted with each emoji)
+- [x] User profile popover (bio, status, online indicator, ally actions)
+- [x] Remember last visited channel per guild (localStorage)
 - [ ] Error handling & loading state improvements
 - [ ] Other settings pages
 

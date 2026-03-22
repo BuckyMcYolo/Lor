@@ -27,6 +27,12 @@ export const userProfileResponseSchema = z.object({
     "allies",
   ]),
   allyRequestId: z.string().uuid().nullable(),
+  blockStatus: z.enum([
+    "none",
+    "blocked_by_me",
+    "blocked_by_them",
+    "mutual_block",
+  ]),
 })
 
 export const getUserProfileResponseSchema = z.object({

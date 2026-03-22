@@ -5,6 +5,7 @@ import configureOpenAPI from "@/lib/helpers/openapi/configure-openapi"
 import { globalRateLimit } from "@/middleware/rate-limit"
 import index from "@/routes/index.route"
 import alliesRouter from "@/routes/v1/allies/index"
+import blocksRouter from "@/routes/v1/blocks/index"
 import channelsRouter from "@/routes/v1/channels/index"
 import dmsRouter from "@/routes/v1/dms/index"
 import guildsRouter from "@/routes/v1/guilds/index"
@@ -38,6 +39,7 @@ app.route("/", index)
 const routes = app
   .route("/", waitlistRouter)
   .route("/v1", alliesRouter)
+  .route("/v1", blocksRouter)
   .route("/v1", channelsRouter)
   .route("/v1", guildsRouter)
   .route("/v1", invitesRouter)

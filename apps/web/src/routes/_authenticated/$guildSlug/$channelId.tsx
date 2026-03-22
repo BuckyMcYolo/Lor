@@ -16,6 +16,7 @@ import { MessageList } from "@/components/chat/message-list"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
+import { useBlockedUserIds } from "@/hooks/use-blocked-users"
 import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
 import { useMessageEditing } from "@/hooks/use-message-editing"
@@ -38,6 +39,7 @@ function ChannelView() {
   const { view, setView, clearView } = useRightSidebar()
   const { data: session } = authClient.useSession()
   const currentUserId = session?.user.id
+  const blockedUserIds = useBlockedUserIds()
 
   useEffect(() => {
     if (!guildSlug || !channelId) return
@@ -173,6 +175,7 @@ function ChannelView() {
     socket,
     channelId,
     currentUserId,
+    blockedUserIds,
   })
 
   // Clear reply state when switching channels
@@ -259,6 +262,7 @@ function ChannelView() {
         context={context}
         messages={messagesData?.data ?? []}
         currentUserId={currentUserId}
+        blockedUserIds={blockedUserIds}
         onReact={handleReact}
         onReply={setReplyingTo}
         onDelete={handleDelete}

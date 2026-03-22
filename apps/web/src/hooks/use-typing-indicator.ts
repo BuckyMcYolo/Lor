@@ -15,10 +15,12 @@ export function useTypingIndicator({
   socket,
   channelId,
   currentUserId,
+  blockedUserIds,
 }: {
   socket: AppSocket | null
   channelId: string
   currentUserId: string | undefined
+  blockedUserIds?: Set<string>
 }) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const lastEmitRef = useRef(0)
@@ -40,6 +42,7 @@ export function useTypingIndicator({
     const onTypingUpdate = (payload: TypingIndicatorEvent) => {
       if (payload.channelId !== channelId) return
       if (payload.userId === currentUserId) return
+      if (blockedUserIds?.has(payload.userId)) return
 
       setTypingUsers((prev) => {
         const expiresAt = Date.now() + TYPING_EXPIRE_MS

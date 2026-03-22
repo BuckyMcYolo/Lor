@@ -19,6 +19,7 @@ import {
   Check,
   MessageCircle,
   Search,
+  ShieldOff,
   UserMinus,
   UserPlus,
   Users,
@@ -27,11 +28,12 @@ import {
 import { useState } from "react"
 import { toast } from "sonner"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { useBlockedUsers } from "@/hooks/use-blocked-users"
 import { useCreateDM } from "@/hooks/use-create-dm"
 import { apiClient } from "@/lib/api-client"
-import type { Ally, AllyRequest } from "@/lib/api-types"
+import type { Ally, AllyRequest, BlockedUser } from "@/lib/api-types"
 
-type Tab = "all" | "pending"
+type Tab = "all" | "pending" | "blocked"
 
 function AlliesSkeleton() {
   return (
@@ -166,6 +168,40 @@ function OutgoingRequestRow({ request }: { request: AllyRequest }) {
   )
 }
 
+function BlockedUserRow({
+  user,
+  onUnblock,
+  isUnblocking,
+}: {
+  user: BlockedUser
+  onUnblock: (userId: string) => void
+  isUnblocking: boolean
+}) {
+  return (
+    <div className="group flex items-center gap-3 rounded-lg px-4 py-2 hover:bg-foreground/[0.04]">
+      <UserAvatar name={user.name} src={user.image} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium">{user.name}</div>
+        {user.username && (
+          <div className="truncate text-xs text-muted-foreground">
+            @{user.displayUsername ?? user.username}
+          </div>
+        )}
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground hover:text-foreground"
+        onClick={() => onUnblock(user.id)}
+        disabled={isUnblocking}
+      >
+        <ShieldOff className="mr-1.5 size-4" />
+        Unblock
+      </Button>
+    </div>
+  )
+}
+
 export function AlliesPage() {
   const queryClient = useQueryClient()
   const createDM = useCreateDM()
@@ -199,8 +235,15 @@ export function AlliesPage() {
     },
   })
 
+  const {
+    data: blockedData,
+    isPending: blockedLoading,
+    isError: blockedError,
+  } = useBlockedUsers()
+
   const [removingAllyId, setRemovingAllyId] = useState<string | null>(null)
   const [confirmRemoveAlly, setConfirmRemoveAlly] = useState<Ally | null>(null)
+  const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null)
 
   const invalidate = (affectedUserId?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["allies"] })
@@ -305,6 +348,29 @@ export function AlliesPage() {
     },
   })
 
+  const unblockUser = useMutation({
+    mutationFn: async (userId: string) => {
+      setUnblockingUserId(userId)
+      const res = await apiClient.v1.blocks[":userId"].$delete({
+        param: { userId },
+      })
+      if (!res.ok) throw new Error("Failed to unblock user")
+      return userId
+    },
+    onSuccess: (userId) => {
+      setUnblockingUserId(null)
+      void queryClient.invalidateQueries({ queryKey: ["blocked-users"] })
+      void queryClient.invalidateQueries({
+        queryKey: ["user-profile", userId],
+      })
+      toast.success("User unblocked")
+    },
+    onError: () => {
+      setUnblockingUserId(null)
+      toast.error("Failed to unblock user")
+    },
+  })
+
   const handleSendRequest = (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = addUsername.trim()
@@ -360,6 +426,18 @@ export function AlliesPage() {
                 {pendingCount}
               </Badge>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("blocked")}
+            className={cn(
+              "rounded-md px-3 py-1 text-sm font-medium transition-colors",
+              tab === "blocked"
+                ? "bg-foreground/[0.08] text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Blocked
           </button>
         </div>
       </div>
@@ -504,6 +582,33 @@ export function AlliesPage() {
               )}
             </>
           )}
+
+          {tab === "blocked" &&
+            (blockedLoading ? (
+              <AlliesSkeleton />
+            ) : blockedError ? (
+              <div className="px-4 py-8 text-center text-sm text-destructive">
+                Failed to load blocked users.
+              </div>
+            ) : (blockedData?.blockedUsers ?? []).length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                You haven't blocked anyone.
+              </div>
+            ) : (
+              <div>
+                <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Blocked — {blockedData?.blockedUsers.length}
+                </div>
+                {blockedData?.blockedUsers.map((user) => (
+                  <BlockedUserRow
+                    key={user.id}
+                    user={user}
+                    onUnblock={(userId) => unblockUser.mutate(userId)}
+                    isUnblocking={unblockingUserId === user.id}
+                  />
+                ))}
+              </div>
+            ))}
         </div>
       </ScrollArea>
       <AlertDialog

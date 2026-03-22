@@ -5,6 +5,7 @@ import {
   channelMember,
   message,
   user,
+  userBlock,
 } from "@repo/db/schema"
 import { and, count, desc, eq, inArray, ne, or, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
@@ -68,6 +69,31 @@ export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
     return c.json(
       { success: false, message: "Cannot create a DM with yourself" },
       HttpStatusCodes.BAD_REQUEST
+    )
+  }
+
+  // Check if any target user has a block relationship with the current user
+  const blockRows = await db
+    .select({ id: userBlock.id })
+    .from(userBlock)
+    .where(
+      or(
+        and(
+          eq(userBlock.blockerId, currentUser.id),
+          inArray(userBlock.blockedId, targetUserIds)
+        ),
+        and(
+          inArray(userBlock.blockerId, targetUserIds),
+          eq(userBlock.blockedId, currentUser.id)
+        )
+      )
+    )
+    .limit(1)
+
+  if (blockRows.length > 0) {
+    return c.json(
+      { success: false, message: "Unable to create conversation" },
+      HttpStatusCodes.FORBIDDEN
     )
   }
 

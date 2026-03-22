@@ -13,6 +13,7 @@ interface MessageListProps {
   context: ChatContext
   messages: Message[]
   currentUserId?: string
+  blockedUserIds?: Set<string>
   onReact?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
   onDelete?: (messageId: string) => void
@@ -68,6 +69,7 @@ export function MessageList({
   context,
   messages,
   currentUserId,
+  blockedUserIds,
   onReact,
   onReply,
   onDelete,
@@ -187,6 +189,7 @@ export function MessageList({
                 message={msg}
                 showHeader={showHeader}
                 currentUserId={currentUserId}
+                isBlocked={blockedUserIds?.has(msg.authorId) ?? false}
                 onReact={onReact}
                 onReply={onReply}
                 onDelete={onDelete}

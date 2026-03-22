@@ -28,6 +28,7 @@ import { Queue } from "bullmq"
 import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
+import { isDMBlockedForUser } from "@/services/blocks"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
 import {
   createMessage,
@@ -371,6 +372,21 @@ io.on("connection", (socket) => {
           redisPresenceClient,
           socket.data.user.id
         )
+
+        // Block enforcement for 1:1 DMs only (group DMs use client-side filtering)
+        if (accessibleChannel.type === "dm") {
+          const blocked = await isDMBlockedForUser(
+            parsed.channelId,
+            socket.data.user.id
+          )
+          if (blocked) {
+            ack?.({
+              ok: false,
+              error: "Cannot send messages in this conversation",
+            })
+            return
+          }
+        }
       }
 
       const createdMessage = await createMessage({
@@ -513,7 +529,20 @@ io.on("connection", (socket) => {
   socket.on("typing:start", async (payload) => {
     try {
       const parsed = typingStartPayloadSchema.parse(payload)
-      await assertUserCanAccessChannel(socket.data.user.id, parsed.channelId)
+      const accessibleChannel = await assertUserCanAccessChannel(
+        socket.data.user.id,
+        parsed.channelId
+      )
+
+      // Suppress typing in 1:1 DMs if blocked
+      if (accessibleChannel.type === "dm") {
+        const blocked = await isDMBlockedForUser(
+          parsed.channelId,
+          socket.data.user.id
+        )
+        if (blocked) return
+      }
+
       socket.to(channelRoom(parsed.channelId)).emit("typing:update", {
         channelId: parsed.channelId,
         userId: socket.data.user.id,

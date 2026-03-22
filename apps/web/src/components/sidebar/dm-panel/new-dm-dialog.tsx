@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Check, Search } from "lucide-react"
 import { useState } from "react"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { useBlockedUserIds } from "@/hooks/use-blocked-users"
 import { useCreateDM } from "@/hooks/use-create-dm"
 import { apiClient } from "@/lib/api-client"
 import type { Ally } from "@/lib/api-types"
@@ -28,6 +29,7 @@ export function NewDMDialog({
   const [search, setSearch] = useState("")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const createDM = useCreateDM()
+  const blockedUserIds = useBlockedUserIds()
 
   const {
     data: allies,
@@ -43,8 +45,10 @@ export function NewDMDialog({
     enabled: open,
   })
 
-  const filteredAllies = (allies?.allies ?? []).filter((ally) =>
-    ally.name.toLowerCase().includes(search.toLowerCase())
+  const filteredAllies = (allies?.allies ?? []).filter(
+    (ally) =>
+      ally.name.toLowerCase().includes(search.toLowerCase()) &&
+      !blockedUserIds.has(ally.id)
   )
 
   const toggleAlly = (id: string) => {

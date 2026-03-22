@@ -79,6 +79,16 @@ export type ListAllyRequestsResponse = InferResponseType<
 >
 export type AllyRequest = ListAllyRequestsResponse["incoming"][number]
 
+// ── Blocks ──────────────────────────────────────────
+
+type BlocksClient = Client["v1"]["blocks"]
+
+export type ListBlockedUsersResponse = InferResponseType<
+  BlocksClient["$get"],
+  200
+>
+export type BlockedUser = ListBlockedUsersResponse["blockedUsers"][number]
+
 // ── Users ──────────────────────────────────────────
 
 type UserProfileClient = Client["v1"]["users"][":userId"]
