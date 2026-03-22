@@ -1,6 +1,6 @@
 import { createServer } from "node:http"
 import { auth, type Session } from "@repo/auth"
-import { and, db, eq, inArray, schema } from "@repo/db"
+import { and, db, eq, inArray, or, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import type {
   ClientToServerEvents,
@@ -380,14 +380,16 @@ io.on("connection", (socket) => {
               .where(
                 and(
                   eq(schema.allyRequest.status, "accepted"),
-                  inArray(schema.allyRequest.senderId, [
-                    requestingUserId,
-                    ...alliesOnlyIds,
-                  ]),
-                  inArray(schema.allyRequest.receiverId, [
-                    requestingUserId,
-                    ...alliesOnlyIds,
-                  ])
+                  or(
+                    and(
+                      eq(schema.allyRequest.senderId, requestingUserId),
+                      inArray(schema.allyRequest.receiverId, alliesOnlyIds)
+                    ),
+                    and(
+                      eq(schema.allyRequest.receiverId, requestingUserId),
+                      inArray(schema.allyRequest.senderId, alliesOnlyIds)
+                    )
+                  )
                 )
               )
 
