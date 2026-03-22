@@ -111,82 +111,92 @@ export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
   const allMemberIds = [currentUser.id, ...targetUserIds].sort()
   const isDirect = targetUserIds.length === 1
 
-  // For 1-on-1 DMs, check if one already exists between these two users
+  // For 1-on-1 DMs, check if one already exists
   if (isDirect) {
-    const existingDM = await db
-      .select({ id: channel.id })
-      .from(channel)
-      .where(eq(channel.type, "dm"))
-      .innerJoin(channelMember, eq(channelMember.channelId, channel.id))
-      .then(async () => {
-        // Find channels where both users are members and type is "dm"
-        const candidates = await db
-          .select({
-            channelId: channelMember.channelId,
-            memberCount: sql<number>`count(*)::int`,
-          })
-          .from(channelMember)
-          .innerJoin(channel, eq(channel.id, channelMember.channelId))
-          .where(
-            and(
-              eq(channel.type, "dm"),
-              inArray(channelMember.userId, allMemberIds)
-            )
-          )
-          .groupBy(channelMember.channelId)
-          .having(sql`count(*) = ${allMemberIds.length}`)
-
-        // Verify the channel has exactly 2 members (not more)
-        for (const candidate of candidates) {
-          const totalMembers = await db
-            .select({ total: count() })
-            .from(channelMember)
-            .where(eq(channelMember.channelId, candidate.channelId))
-            .then((rows) => rows[0]?.total ?? 0)
-
-          if (totalMembers === allMemberIds.length) {
-            return candidate.channelId
-          }
-        }
-
-        return null
+    const candidates = await db
+      .select({
+        channelId: channelMember.channelId,
       })
+      .from(channelMember)
+      .innerJoin(channel, eq(channel.id, channelMember.channelId))
+      .where(
+        and(eq(channel.type, "dm"), inArray(channelMember.userId, allMemberIds))
+      )
+      .groupBy(channelMember.channelId)
+      .having(sql`count(*) = ${allMemberIds.length}`)
 
-    if (existingDM) {
-      return returnDMResponse(c, existingDM, currentUser.id, false)
+    // Verify the channel has exactly 2 members (not more)
+    for (const candidate of candidates) {
+      const totalMembers = await db
+        .select({ total: count() })
+        .from(channelMember)
+        .where(eq(channelMember.channelId, candidate.channelId))
+        .then((rows) => rows[0]?.total ?? 0)
+
+      if (totalMembers === allMemberIds.length) {
+        return returnDMResponse(c, candidate.channelId, currentUser.id, false)
+      }
     }
   }
 
-  // Create new DM/group DM
-  const now = new Date()
-  const [newChannel] = await db
-    .insert(channel)
-    .values({
-      type: isDirect ? "dm" : "group_dm",
-      guildId: null,
-      ownerId: isDirect ? null : currentUser.id,
-      position: 0,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning()
+  // Create new DM/group DM in a transaction to prevent races
+  const newChannelId = await db.transaction(async (tx) => {
+    // Re-check for 1:1 DMs inside the transaction
+    if (isDirect) {
+      const candidates = await tx
+        .select({ channelId: channelMember.channelId })
+        .from(channelMember)
+        .innerJoin(channel, eq(channel.id, channelMember.channelId))
+        .where(
+          and(
+            eq(channel.type, "dm"),
+            inArray(channelMember.userId, allMemberIds)
+          )
+        )
+        .groupBy(channelMember.channelId)
+        .having(sql`count(*) = ${allMemberIds.length}`)
 
-  if (!newChannel) {
-    return c.json(
-      { success: false, message: "Failed to create DM" },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR
+      for (const candidate of candidates) {
+        const totalMembers = await tx
+          .select({ total: count() })
+          .from(channelMember)
+          .where(eq(channelMember.channelId, candidate.channelId))
+          .then((rows) => rows[0]?.total ?? 0)
+
+        if (totalMembers === allMemberIds.length) {
+          return candidate.channelId
+        }
+      }
+    }
+
+    const now = new Date()
+    const [newChannel] = await tx
+      .insert(channel)
+      .values({
+        type: isDirect ? "dm" : "group_dm",
+        guildId: null,
+        ownerId: isDirect ? null : currentUser.id,
+        position: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning()
+
+    if (!newChannel) {
+      throw new Error("Failed to create DM channel")
+    }
+
+    await tx.insert(channelMember).values(
+      allMemberIds.map((userId) => ({
+        channelId: newChannel.id,
+        userId,
+      }))
     )
-  }
 
-  // Add all members
-  await db.insert(channelMember).values(
-    allMemberIds.map((userId) => ({
-      channelId: newChannel.id,
-      userId,
-    }))
-  )
+    return newChannel.id
+  })
 
-  return returnDMResponse(c, newChannel.id, currentUser.id, true)
+  return returnDMResponse(c, newChannelId, currentUser.id, true)
 }
 
 async function returnDMResponse(

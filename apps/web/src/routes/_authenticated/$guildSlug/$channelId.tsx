@@ -40,6 +40,10 @@ function ChannelView() {
   const currentUserId = session?.user.id
 
   useEffect(() => {
+    localStorage.setItem(`last-channel:${guildSlug}`, channelId)
+  }, [guildSlug, channelId])
+
+  useEffect(() => {
     setView({
       type: "guild-members",
       guildSlug,

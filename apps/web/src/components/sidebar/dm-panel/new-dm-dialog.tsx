@@ -29,7 +29,11 @@ export function NewDMDialog({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const createDM = useCreateDM()
 
-  const { data: allies, isPending } = useQuery({
+  const {
+    data: allies,
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: ["allies"],
     queryFn: async () => {
       const res = await apiClient.v1.allies.$get()
@@ -105,6 +109,10 @@ export function NewDMDialog({
           {isPending ? (
             <div className="py-4 text-center text-sm text-muted-foreground">
               Loading allies...
+            </div>
+          ) : isError ? (
+            <div className="py-4 text-center text-sm text-destructive">
+              Failed to load allies.
             </div>
           ) : filteredAllies.length === 0 ? (
             <div className="py-4 text-center text-sm text-muted-foreground">

@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@repo/ui/components/alert-dialog"
 import { Badge } from "@repo/ui/components/badge"
 import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
@@ -190,6 +200,7 @@ export function AlliesPage() {
   })
 
   const [removingAllyId, setRemovingAllyId] = useState<string | null>(null)
+  const [confirmRemoveAlly, setConfirmRemoveAlly] = useState<Ally | null>(null)
 
   const invalidate = (affectedUserId?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["allies"] })
@@ -391,7 +402,7 @@ export function AlliesPage() {
                       key={ally.id}
                       ally={ally}
                       onMessage={(userId) => createDM.mutate([userId])}
-                      onRemove={(userId) => removeAlly.mutate(userId)}
+                      onRemove={() => setConfirmRemoveAlly(ally)}
                       isRemoving={removingAllyId === ally.id}
                     />
                   ))}
@@ -495,6 +506,43 @@ export function AlliesPage() {
           )}
         </div>
       </ScrollArea>
+      <AlertDialog
+        open={confirmRemoveAlly !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRemoveAlly(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove ally</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove{" "}
+              <span className="font-semibold text-foreground">
+                {confirmRemoveAlly?.name}
+              </span>{" "}
+              as an ally?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeAlly.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={removeAlly.isPending}
+              onClick={(e) => {
+                e.preventDefault()
+                if (!confirmRemoveAlly) return
+                removeAlly.mutate(confirmRemoveAlly.id, {
+                  onSuccess: () => setConfirmRemoveAlly(null),
+                })
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
