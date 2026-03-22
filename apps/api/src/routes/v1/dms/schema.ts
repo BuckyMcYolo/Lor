@@ -79,6 +79,13 @@ export const searchDMMessagesQuerySchema = paginationQuerySchema.extend({
       param: { name: "query", in: "query", required: true },
       example: "hello",
     }),
+  dmId: z
+    .string()
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "dmId", in: "query" },
+    }),
 })
 
 const dmSearchResultSchema = z.object({

@@ -27,7 +27,13 @@ type SearchResponse = {
   data: SearchResult[]
 }
 
-export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
+export function HeaderSearch({
+  mode,
+  channelId,
+}: {
+  mode: "guild" | "dm"
+  channelId: string
+}) {
   const { guildSlug } = useParams({ strict: false })
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
@@ -72,30 +78,26 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
   }, [])
 
   const { data, isPending } = useQuery({
-    queryKey: [
-      mode === "guild" ? "guild-search" : "dm-search",
-      guildSlug,
-      debouncedQuery,
-    ],
+    queryKey: ["header-search", channelId, debouncedQuery],
     queryFn: async (): Promise<SearchResponse> => {
       if (mode === "dm") {
         const res = await apiClient.v1.dms.search.$get({
-          query: { query: debouncedQuery },
+          query: { query: debouncedQuery, dmId: channelId },
         })
         if (!res.ok) throw new Error("Search failed")
         return res.json()
       }
       const res = await apiClient.v1.guilds[":guildSlug"].search.$get({
         param: { guildSlug: guildSlug as string },
-        query: { query: debouncedQuery },
+        query: { query: debouncedQuery, channelId },
       })
       if (!res.ok) throw new Error("Search failed")
       return res.json()
     },
-    enabled: debouncedQuery.length > 0 && (mode === "dm" || !!guildSlug),
+    enabled: debouncedQuery.length > 0,
   })
 
-  const handleResultClick = (channelId: string, messageId: string) => {
+  const handleResultClick = (msgId: string) => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current)
       debounceTimer.current = null
@@ -103,57 +105,75 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
     setIsOpen(false)
     setQuery("")
     setDebouncedQuery("")
+    // Same channel — just scroll to message via search param
     if (mode === "dm") {
       void navigate({
         to: "/dms/$dmId",
         params: { dmId: channelId },
-        search: { msgId: messageId },
+        search: { msgId },
       })
     } else {
       void navigate({
         to: "/$guildSlug/$channelId",
         params: { guildSlug: guildSlug as string, channelId },
-        search: { msgId: messageId },
+        search: { msgId },
       })
     }
   }
 
-  const handleClear = () => {
+  const handleClose = () => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current)
       debounceTimer.current = null
     }
     setQuery("")
     setDebouncedQuery("")
-    inputRef.current?.focus()
+    setIsOpen(false)
+  }
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen(true)
+          setTimeout(() => inputRef.current?.focus(), 0)
+        }}
+        className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+      >
+        <Search className="size-4" />
+      </button>
+    )
   }
 
   return (
-    <div ref={containerRef} className="relative px-3 pt-3 pb-1">
-      <div className="flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2.5 text-[13px]">
-        <Search className="size-3.5 shrink-0 text-muted-foreground" />
+    <div ref={containerRef} className="relative">
+      <div className="flex h-7 w-56 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs">
+        <Search className="size-3 shrink-0 text-muted-foreground" />
         <input
           ref={inputRef}
           type="text"
-          placeholder={mode === "dm" ? "Search all DMs" : "Search all channels"}
+          placeholder={
+            mode === "dm"
+              ? "Search this conversation..."
+              : "Search this channel..."
+          }
           value={query}
           onChange={(e) => handleQueryChange(e.target.value)}
-          onFocus={() => setIsOpen(true)}
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          onKeyDown={(e) => e.key === "Escape" && handleClose()}
+          className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
         />
-        {query && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handleClose}
+          className="shrink-0 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-3" />
+        </button>
       </div>
 
-      {isOpen && debouncedQuery.length > 0 && (
-        <div className="absolute right-3 left-3 z-50 mt-1 max-h-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+      {debouncedQuery.length > 0 && (
+        <div className="absolute right-0 z-50 mt-1 max-h-72 w-80 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
           {isPending && (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
@@ -168,8 +188,8 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
             <button
               key={msg.id}
               type="button"
-              className="w-full border-b border-border/50 px-3 py-2.5 text-left transition-colors hover:bg-accent last:border-b-0"
-              onClick={() => handleResultClick(msg.channelId, msg.id)}
+              className="w-full border-b border-border/50 px-3 py-2 text-left transition-colors hover:bg-accent last:border-b-0"
+              onClick={() => handleResultClick(msg.id)}
             >
               <div className="flex items-center gap-1.5">
                 <Avatar size="sm">
@@ -185,10 +205,6 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
                 <span className="text-[11px] font-semibold">
                   {msg.author.displayUsername ?? msg.author.name}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
-                  in {mode === "guild" ? "#" : ""}
-                  {msg.channelName}
-                </span>
                 <span className="ml-auto text-[10px] text-muted-foreground">
                   {formatTime(msg.createdAt)}
                 </span>
@@ -199,8 +215,8 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
             </button>
           ))}
           {data && data.itemsTotal > data.data.length && (
-            <div className="py-2 text-center text-[10px] text-muted-foreground">
-              {data.itemsTotal} results found — showing first {data.data.length}
+            <div className="py-1.5 text-center text-[10px] text-muted-foreground">
+              {data.itemsTotal} results — showing first {data.data.length}
             </div>
           )}
         </div>

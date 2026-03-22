@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
   type AnyPgColumn,
   boolean,
@@ -63,6 +63,10 @@ export const message = pgTable(
     ),
     index("message_authorId_idx").on(table.authorId),
     index("message_referencedMessageId_idx").on(table.referencedMessageId),
+    index("message_content_trgm_idx").using(
+      "gin",
+      sql`${table.content} gin_trgm_ops`
+    ),
   ]
 )
 

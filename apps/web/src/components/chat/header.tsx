@@ -5,6 +5,7 @@ import {
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
 import { Hash, Pin } from "lucide-react"
+import { HeaderSearch } from "./header-search"
 
 export type ChatContext =
   | { type: "channel"; name: string; topic?: string }
@@ -18,9 +19,11 @@ function nameInitial(name: string) {
 
 export function ChatHeader({
   context,
+  channelId,
   onTogglePinnedMessages,
 }: {
   context: ChatContext
+  channelId: string
   onTogglePinnedMessages?: () => void
 }) {
   return (
@@ -52,8 +55,12 @@ export function ChatHeader({
           {context.memberCount} members
         </span>
       )}
-      {context.type === "channel" && onTogglePinnedMessages && (
-        <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-1">
+        <HeaderSearch
+          mode={context.type === "channel" ? "guild" : "dm"}
+          channelId={channelId}
+        />
+        {context.type === "channel" && onTogglePinnedMessages && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -66,8 +73,8 @@ export function ChatHeader({
             </TooltipTrigger>
             <TooltipContent>Pinned Messages</TooltipContent>
           </Tooltip>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

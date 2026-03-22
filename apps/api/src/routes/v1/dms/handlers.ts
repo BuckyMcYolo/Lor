@@ -567,7 +567,7 @@ export const searchDMMessages: AppRouteHandler<SearchDMMessagesRoute> = async (
   c
 ) => {
   const currentUser = c.var.user
-  const { query, page, perPage } = c.req.valid("query")
+  const { query, page, perPage, dmId } = c.req.valid("query")
   const offset = (page - 1) * perPage
 
   // Get all DM channel IDs the user is a member of
@@ -582,7 +582,8 @@ export const searchDMMessages: AppRouteHandler<SearchDMMessagesRoute> = async (
     .where(
       and(
         eq(channelMember.userId, currentUser.id),
-        inArray(channel.type, ["dm", "group_dm"])
+        inArray(channel.type, ["dm", "group_dm"]),
+        dmId ? eq(channel.id, dmId) : undefined
       )
     )
 
@@ -603,22 +604,27 @@ export const searchDMMessages: AppRouteHandler<SearchDMMessagesRoute> = async (
     .innerJoin(user, eq(channelMember.userId, user.id))
     .where(inArray(channelMember.channelId, dmChannelIds))
 
+  const membersByChannel = new Map<string, typeof dmMembers>()
+  for (const m of dmMembers) {
+    const list = membersByChannel.get(m.channelId) ?? []
+    list.push(m)
+    membersByChannel.set(m.channelId, list)
+  }
+
   const channelNameMap = new Map<string, string>()
   for (const ch of dmChannels) {
     if (ch.type === "group_dm" && ch.name) {
       channelNameMap.set(ch.id, ch.name)
     } else {
-      const otherMembers = dmMembers.filter(
-        (m) => m.channelId === ch.id && m.userId !== currentUser.id
+      const others = (membersByChannel.get(ch.id) ?? []).filter(
+        (m) => m.userId !== currentUser.id
       )
-      channelNameMap.set(
-        ch.id,
-        otherMembers.map((m) => m.name).join(", ") || "DM"
-      )
+      channelNameMap.set(ch.id, others.map((m) => m.name).join(", ") || "DM")
     }
   }
 
-  const searchPattern = `%${query}%`
+  const escaped = query.replace(/[%_\\]/g, (ch) => `\\${ch}`)
+  const searchPattern = `%${escaped}%`
   const whereConditions = and(
     inArray(message.channelId, dmChannelIds),
     ilike(message.content, searchPattern)

@@ -28,12 +28,30 @@ import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
 import type { ListMessagesResponse } from "@/lib/api-types"
 
+type ChannelSearchParams = {
+  msgId?: string
+}
+
 export const Route = createFileRoute("/_authenticated/$guildSlug/$channelId")({
   component: ChannelView,
+  validateSearch: (search: Record<string, unknown>): ChannelSearchParams => ({
+    msgId: typeof search.msgId === "string" ? search.msgId : undefined,
+  }),
 })
+
+function scrollToMessage(messageId: string) {
+  const el = document.querySelector(`[data-message-id="${messageId}"]`)
+  if (!el) return false
+  el.scrollIntoView({ behavior: "smooth", block: "center" })
+  el.classList.add("bg-primary/10")
+  setTimeout(() => el.classList.remove("bg-primary/10"), 2000)
+  return true
+}
 
 function ChannelView() {
   const { guildSlug, channelId } = Route.useParams()
+  const { msgId } = Route.useSearch()
+  const navigate = Route.useNavigate()
   const socket = useSocket()
   const queryClient = useQueryClient()
   const { view, setView, clearView } = useRightSidebar()
@@ -90,6 +108,18 @@ function ChannelView() {
     },
     enabled: !!data,
   })
+
+  // Scroll to a specific message when navigating from search
+  useEffect(() => {
+    if (!msgId || messagesLoading || !messagesData?.data.length) return
+    // Give DOM time to render
+    const timer = setTimeout(() => {
+      if (scrollToMessage(msgId)) {
+        void navigate({ search: {}, replace: true })
+      }
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [msgId, messagesLoading, messagesData, navigate])
 
   const { data: guildMembersData } = useQuery({
     queryKey: ["guild-members", guildSlug],
@@ -256,6 +286,7 @@ function ChannelView() {
       <DropZoneOverlay isDragActive={isDragActive} />
       <ChatHeader
         context={context}
+        channelId={channelId}
         onTogglePinnedMessages={togglePinnedMessages}
       />
       <MessageList

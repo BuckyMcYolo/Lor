@@ -512,7 +512,8 @@ export const searchMessages: AppRouteHandler<SearchMessagesRoute> = async (
     return c.json(emptyResult, HttpStatusCodes.OK)
   }
 
-  const searchPattern = `%${query}%`
+  const escaped = query.replace(/[%_\\]/g, (ch) => `\\${ch}`)
+  const searchPattern = `%${escaped}%`
   const whereConditions = and(
     inArray(schema.message.channelId, searchChannelIds),
     ilike(schema.message.content, searchPattern)
