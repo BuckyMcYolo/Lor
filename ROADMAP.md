@@ -56,7 +56,7 @@
 - [x] Typing indicators
 - [x] Pinned messages panel
 - [ ] Thread support
-- [ ] Desktop notifications (browser Notification API for mentions, DMs, etc.)
+- [ ] Desktop app (Tauri) with native notifications for mentions, DMs, etc.
 - [ ] Notification preferences
 - [x] Reaction tooltips (who reacted with each emoji)
 - [x] User profile popover (bio, status, online indicator, ally actions)
