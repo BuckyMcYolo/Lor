@@ -40,7 +40,14 @@ function ChannelView() {
   const currentUserId = session?.user.id
 
   useEffect(() => {
-    localStorage.setItem(`last-channel:${guildSlug}`, channelId)
+    if (!guildSlug || !channelId) return
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`last-channel:${guildSlug}`, channelId)
+      }
+    } catch {
+      // localStorage may be unavailable in restricted environments
+    }
   }, [guildSlug, channelId])
 
   useEffect(() => {
