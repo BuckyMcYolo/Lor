@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import { formatTime } from "@repo/utils/date"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft, Pin } from "lucide-react"
+import { ArrowLeft, PanelRight, Pin } from "lucide-react"
 import { MessageMarkdown } from "@/components/chat/message-markdown"
 import { apiClient } from "@/lib/api-client"
 import { useRightSidebar } from "./right-sidebar-context"
@@ -17,7 +17,7 @@ export function PinnedMessagesPanel({
 }: {
   view: PinnedMessagesSidebarView
 }) {
-  const { setView } = useRightSidebar()
+  const { setView, toggleCollapsed } = useRightSidebar()
 
   const goBack = () => {
     setView({
@@ -52,6 +52,13 @@ export function PinnedMessagesPanel({
         </button>
         <Pin className="size-4 text-muted-foreground" />
         <span className="text-sm font-semibold">Pinned Messages</span>
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className="ml-auto rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <PanelRight className="size-4" />
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto">
         {isPending && (

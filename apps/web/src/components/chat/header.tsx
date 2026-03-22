@@ -4,7 +4,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
-import { Hash, Pin } from "lucide-react"
+import { Hash, PanelRight, Pin } from "lucide-react"
+import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { HeaderSearch } from "./header-search"
 
 export type ChatContext =
@@ -26,6 +27,8 @@ export function ChatHeader({
   channelId: string
   onTogglePinnedMessages?: () => void
 }) {
+  const { isCollapsed, toggleCollapsed } = useRightSidebar()
+
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
       {context.type === "channel" && (
@@ -72,6 +75,20 @@ export function ChatHeader({
               </button>
             </TooltipTrigger>
             <TooltipContent>Pinned Messages</TooltipContent>
+          </Tooltip>
+        )}
+        {isCollapsed && context.type === "channel" && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <PanelRight className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Show Members</TooltipContent>
           </Tooltip>
         )}
       </div>

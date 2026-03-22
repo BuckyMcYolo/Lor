@@ -26,7 +26,7 @@ function PlaceholderSidebar({
 
 export function RightSidebarPanel({ view }: { view: RightSidebarView }) {
   return (
-    <aside className="hidden h-full w-[360px] min-w-[360px] shrink-0 border-l border-border bg-card xl:flex">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-card">
       {view.type === "guild-members" && <GuildMembersPanel view={view} />}
       {view.type === "pinned-messages" && <PinnedMessagesPanel view={view} />}
       {view.type === "thread" && (
@@ -43,6 +43,6 @@ export function RightSidebarPanel({ view }: { view: RightSidebarView }) {
           icon={<Image className="size-5" />}
         />
       )}
-    </aside>
+    </div>
   )
 }
