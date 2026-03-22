@@ -64,7 +64,7 @@ export function useTypingIndicator({
     return () => {
       socket.off("typing:update", onTypingUpdate)
     }
-  }, [socket, channelId, currentUserId])
+  }, [socket, channelId, currentUserId, blockedUserIds])
 
   // Cleanup expired entries
   useEffect(() => {

@@ -66,6 +66,7 @@ export function MyAccountSettings() {
     return () => {
       if (avatarPreviewRef.current)
         URL.revokeObjectURL(avatarPreviewRef.current)
+      if (usernameCheckTimer.current) clearTimeout(usernameCheckTimer.current)
     }
   }, [])
 
@@ -250,9 +251,7 @@ export function MyAccountSettings() {
       avatarFile !== null)
 
   const isUsernameValid =
-    !usernameChanged ||
-    usernameAvailability === "available" ||
-    usernameAvailability === "idle"
+    !usernameChanged || usernameAvailability === "available"
 
   const isValid = name.trim().length > 0 && isUsernameValid
 

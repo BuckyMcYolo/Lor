@@ -1,5 +1,6 @@
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
+  check,
   index,
   pgTable,
   timestamp,
@@ -28,6 +29,10 @@ export const userBlock = pgTable(
     ),
     index("userBlock_blockerId_idx").on(table.blockerId),
     index("userBlock_blockedId_idx").on(table.blockedId),
+    check(
+      "user_block_no_self_block",
+      sql`${table.blockerId} <> ${table.blockedId}`
+    ),
   ]
 )
 

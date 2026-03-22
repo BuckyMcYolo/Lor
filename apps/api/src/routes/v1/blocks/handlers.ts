@@ -1,4 +1,4 @@
-import { and, db, eq, or, schema } from "@repo/db"
+import { and, db, desc, eq, or, schema } from "@repo/db"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
@@ -33,32 +33,20 @@ export const blockUser: AppRouteHandler<BlockUserRoute> = async (c) => {
     )
   }
 
-  // Check if already blocked
-  const existingBlock = await db
-    .select({ id: schema.userBlock.id })
-    .from(schema.userBlock)
-    .where(
-      and(
-        eq(schema.userBlock.blockerId, currentUser.id),
-        eq(schema.userBlock.blockedId, targetUserId)
-      )
-    )
-    .limit(1)
-    .then((rows) => rows[0])
-
-  if (existingBlock) {
-    return c.json(
-      { success: false, message: "User is already blocked" },
-      HttpStatusCodes.BAD_REQUEST
-    )
-  }
-
   // Atomically: insert block + remove any ally relationship
-  await db.transaction(async (tx) => {
-    await tx.insert(schema.userBlock).values({
-      blockerId: currentUser.id,
-      blockedId: targetUserId,
-    })
+  const result = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(schema.userBlock)
+      .values({
+        blockerId: currentUser.id,
+        blockedId: targetUserId,
+      })
+      .onConflictDoNothing()
+      .returning()
+
+    if (inserted.length === 0) {
+      return { alreadyBlocked: true }
+    }
 
     // Delete any ally request between the two users (in either direction)
     await tx
@@ -75,7 +63,16 @@ export const blockUser: AppRouteHandler<BlockUserRoute> = async (c) => {
           )
         )
       )
+
+    return { alreadyBlocked: false }
   })
+
+  if (result.alreadyBlocked) {
+    return c.json(
+      { success: false, message: "User is already blocked" },
+      HttpStatusCodes.BAD_REQUEST
+    )
+  }
 
   return c.json({ success: true }, HttpStatusCodes.OK)
 }
@@ -121,6 +118,7 @@ export const listBlockedUsers: AppRouteHandler<ListBlockedUsersRoute> = async (
     .from(schema.userBlock)
     .innerJoin(schema.user, eq(schema.userBlock.blockedId, schema.user.id))
     .where(eq(schema.userBlock.blockerId, currentUser.id))
+    .orderBy(desc(schema.userBlock.createdAt))
 
   return c.json(
     {

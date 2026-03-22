@@ -17,7 +17,7 @@ import {
 import { cn } from "@repo/ui/lib/utils"
 import { formatTime } from "@repo/utils/date"
 import { Pin } from "lucide-react"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { UserProfilePopover } from "@/components/ui/user-profile-card"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
@@ -142,6 +142,11 @@ export function MessageItem({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showBlockedContent, setShowBlockedContent] = useState(false)
+
+  useEffect(() => {
+    setShowBlockedContent(false)
+  }, [message.id])
+
   const isOwnMessage = !!currentUserId && currentUserId === message.authorId
   const isReply = message.type === "reply"
 
