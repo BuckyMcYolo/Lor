@@ -1,5 +1,10 @@
 import { z } from "@hono/zod-openapi"
 import { assignableGuildRoles } from "@repo/auth/permissions"
+import { messageAuthorSchema } from "@/lib/helpers/openapi/message-schemas"
+import {
+  paginatedResponseSchema,
+  paginationQuerySchema,
+} from "@/lib/helpers/openapi/schemas"
 import { guildSlugParamsSchema } from "@/routes/v1/channels/schema"
 
 export { guildSlugParamsSchema }
@@ -100,3 +105,36 @@ export const timeoutGuildMemberResponseSchema = z.object({
   success: z.literal(true),
   member: guildMemberPresenceSchema,
 })
+
+// ── Search ──────────────────────────────────────────────
+
+export const searchMessagesQuerySchema = paginationQuerySchema.extend({
+  query: z
+    .string()
+    .min(1)
+    .max(100)
+    .openapi({
+      param: { name: "query", in: "query", required: true },
+      example: "hello",
+    }),
+  channelId: z
+    .string()
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "channelId", in: "query" },
+    }),
+})
+
+const searchResultMessageSchema = z.object({
+  id: z.string().uuid(),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  channelId: z.string().uuid(),
+  channelName: z.string(),
+  author: messageAuthorSchema,
+})
+
+export const searchMessagesResponseSchema = paginatedResponseSchema(
+  searchResultMessageSchema
+)

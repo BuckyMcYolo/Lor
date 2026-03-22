@@ -41,7 +41,7 @@
 - [x] Ally (friend) system with requests — schema, API, allies page, user profile popover with ally actions
 - [x] Direct messages — create 1:1 and group DMs with allies, new DM dialog
 - [x] User blocking — schema, API (block/unblock/list), realtime DM enforcement, blocked tab on allies page, block/unblock in profile popover, message collapse with click-to-reveal, typing/DM filtering
-- [ ] Privacy settings
+- [x] Privacy settings — user_privacy_settings table, API (get/update), DM/ally request/presence enforcement, Privacy & Safety settings UI, profile popover DM button
 
 ## Phase 4 — Tests & CI/CD
 
@@ -52,7 +52,7 @@
 
 ## Phase 5 — Polish
 
-- [ ] Message search
+- [x] Message search — guild-wide and DM search APIs, interactive search bar dropdown in both guild and DM panels
 - [x] Typing indicators
 - [x] Pinned messages panel
 - [ ] Thread support
@@ -76,7 +76,7 @@
 ## Phase 7 — v2 Features
 
 - [ ] Voice/video (Voice Chambers)
-- [ ] Bots & webhooks
+- [ ] Bots & webhooks (including inbound channel webhooks for integrations like GitHub PR notifications with @mentions)
 - [ ] Custom emojis (Sigils & Crests)
 - [ ] Server discovery
 - [ ] Forum channel posts

@@ -4,6 +4,7 @@ import * as routes from "@/routes/v1/guilds/routes"
 
 const guildsRouter = createRouter()
   .openapi(routes.listGuildMembers, handlers.listGuildMembers)
+  .openapi(routes.searchMessages, handlers.searchMessages)
   .openapi(routes.updateGuildMemberRole, handlers.updateGuildMemberRole)
   .openapi(routes.kickGuildMember, handlers.kickGuildMember)
   .openapi(routes.banGuildMember, handlers.banGuildMember)

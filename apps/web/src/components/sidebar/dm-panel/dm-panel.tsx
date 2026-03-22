@@ -16,7 +16,7 @@ export function DMPanel() {
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
-      <SearchBar />
+      <SearchBar mode="dm" />
       <div className="space-y-0.5 px-2 pt-3">
         <button
           type="button"

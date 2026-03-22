@@ -2,7 +2,7 @@ import {
   getGuildAuthorityPosition,
   getGuildRolePosition,
 } from "@repo/auth/permissions"
-import { and, db, eq, schema } from "@repo/db"
+import { and, count, db, desc, eq, ilike, inArray, schema } from "@repo/db"
 import { PRESENCE_ONLINE_USERS_SET_KEY } from "@repo/realtime-types"
 import { asc } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
@@ -17,6 +17,7 @@ import type {
   ClearGuildMemberTimeoutRoute,
   KickGuildMemberRoute,
   ListGuildMembersRoute,
+  SearchMessagesRoute,
   TimeoutGuildMemberRoute,
   UpdateGuildMemberRoleRoute,
 } from "@/routes/v1/guilds/routes"
@@ -463,6 +464,107 @@ export const clearGuildMemberTimeout: AppRouteHandler<
         guild.ownerId,
         onlineUserIds
       ),
+    },
+    HttpStatusCodes.OK
+  )
+}
+
+// ── Search ──────────────────────────────────────────────
+
+export const searchMessages: AppRouteHandler<SearchMessagesRoute> = async (
+  c
+) => {
+  const guild = c.var.guild
+  const { query, channelId, page, perPage } = c.req.valid("query")
+  const offset = (page - 1) * perPage
+
+  const guildChannels = await db
+    .select({
+      id: schema.channel.id,
+      name: schema.channel.name,
+    })
+    .from(schema.channel)
+    .where(
+      and(
+        eq(schema.channel.guildId, guild.id),
+        inArray(schema.channel.type, ["text", "announcement", "forum"])
+      )
+    )
+
+  const emptyResult = {
+    itemsTotal: 0,
+    currentPage: page,
+    nextPage: null,
+    prevPage: null,
+    data: [],
+  }
+
+  if (guildChannels.length === 0) {
+    return c.json(emptyResult, HttpStatusCodes.OK)
+  }
+
+  const channelMap = new Map(guildChannels.map((ch) => [ch.id, ch.name]))
+  const searchChannelIds = channelId
+    ? guildChannels.filter((ch) => ch.id === channelId).map((ch) => ch.id)
+    : guildChannels.map((ch) => ch.id)
+
+  if (searchChannelIds.length === 0) {
+    return c.json(emptyResult, HttpStatusCodes.OK)
+  }
+
+  const searchPattern = `%${query}%`
+  const whereConditions = and(
+    inArray(schema.message.channelId, searchChannelIds),
+    ilike(schema.message.content, searchPattern)
+  )
+
+  const [countResult, messages] = await Promise.all([
+    db.select({ total: count() }).from(schema.message).where(whereConditions),
+    db
+      .select({
+        id: schema.message.id,
+        content: schema.message.content,
+        createdAt: schema.message.createdAt,
+        channelId: schema.message.channelId,
+        author: {
+          id: schema.user.id,
+          name: schema.user.name,
+          username: schema.user.username,
+          displayUsername: schema.user.displayUsername,
+          image: schema.user.image,
+        },
+      })
+      .from(schema.message)
+      .innerJoin(schema.user, eq(schema.message.authorId, schema.user.id))
+      .where(whereConditions)
+      .orderBy(desc(schema.message.createdAt))
+      .limit(perPage)
+      .offset(offset),
+  ])
+
+  const itemsTotal = countResult[0]?.total ?? 0
+  const totalPages = Math.ceil(itemsTotal / perPage)
+
+  return c.json(
+    {
+      itemsTotal,
+      currentPage: page,
+      nextPage: page < totalPages ? page + 1 : null,
+      prevPage: page > 1 ? page - 1 : null,
+      data: messages.map((msg) => ({
+        id: msg.id,
+        content: msg.content ?? "",
+        createdAt: msg.createdAt.toISOString(),
+        channelId: msg.channelId,
+        channelName: channelMap.get(msg.channelId) ?? "unknown",
+        author: {
+          id: msg.author.id,
+          name: msg.author.name,
+          username: msg.author.username,
+          displayUsername: msg.author.displayUsername,
+          image: msg.author.image,
+        },
+      })),
     },
     HttpStatusCodes.OK
   )
