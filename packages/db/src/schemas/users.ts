@@ -14,6 +14,8 @@ import { guild } from "./guilds"
 import { invitation } from "./invitations"
 import { session } from "./sessions"
 import { twoFactor } from "./two-factors"
+import { userBlock } from "./user-blocks"
+import { userPrivacySettings } from "./user-privacy-settings"
 
 export const user = pgTable("user", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -38,7 +40,7 @@ export const user = pgTable("user", {
   status: varchar("status", { length: 128 }),
 })
 
-export const userRelations = relations(user, ({ many }) => ({
+export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),
   guilds: many(guild), // can be owners of many guilds
@@ -56,4 +58,11 @@ export const userRelations = relations(user, ({ many }) => ({
   }),
   invitations: many(invitation),
   twoFactors: many(twoFactor),
+  blockedUsers: many(userBlock, {
+    relationName: "userBlockBlocker",
+  }),
+  blockedByUsers: many(userBlock, {
+    relationName: "userBlockBlocked",
+  }),
+  privacySettings: one(userPrivacySettings),
 }))

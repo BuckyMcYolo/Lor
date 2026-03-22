@@ -1,6 +1,6 @@
 import { createServer } from "node:http"
 import { auth, type Session } from "@repo/auth"
-import { and, db, eq, schema } from "@repo/db"
+import { and, db, eq, inArray, or, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import type {
   ClientToServerEvents,
@@ -28,6 +28,7 @@ import { Queue } from "bullmq"
 import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
+import { isDMBlockedForUser } from "@/services/blocks"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
 import {
   createMessage,
@@ -232,12 +233,26 @@ async function initializeConnection(socket: RealtimeSocket) {
     }
 
     if (becameOnline && isCurrentSocketAlive) {
-      for (const guildId of guildIds) {
-        io.to(guildRoom(guildId)).emit("presence:user:update", {
-          guildId,
-          userId: socket.data.user.id,
-          status: "online",
+      // Check user's online status privacy before broadcasting
+      const privacyRow = await db
+        .select({
+          onlineStatusPrivacy: schema.userPrivacySettings.onlineStatusPrivacy,
         })
+        .from(schema.userPrivacySettings)
+        .where(eq(schema.userPrivacySettings.userId, socket.data.user.id))
+        .limit(1)
+        .then((rows) => rows[0])
+
+      const onlinePrivacy = privacyRow?.onlineStatusPrivacy ?? "everyone"
+
+      if (onlinePrivacy !== "no_one") {
+        for (const guildId of guildIds) {
+          io.to(guildRoom(guildId)).emit("presence:user:update", {
+            guildId,
+            userId: socket.data.user.id,
+            status: "online",
+          })
+        }
       }
     }
 
@@ -319,11 +334,88 @@ io.on("connection", (socket) => {
         userIds
       )
 
+      // Filter online users by their privacy settings
+      const requestingUserId = socket.data.user.id
+      let visibleOnlineUserIds = onlineUserIds
+
+      if (onlineUserIds.length > 0) {
+        // Fetch privacy settings for online users (excluding the requester)
+        const otherOnlineIds = onlineUserIds.filter(
+          (id) => id !== requestingUserId
+        )
+
+        if (otherOnlineIds.length > 0) {
+          const privacyRows = await db
+            .select({
+              userId: schema.userPrivacySettings.userId,
+              onlineStatusPrivacy:
+                schema.userPrivacySettings.onlineStatusPrivacy,
+            })
+            .from(schema.userPrivacySettings)
+            .where(inArray(schema.userPrivacySettings.userId, otherOnlineIds))
+
+          const privacyByUserId = new Map(
+            privacyRows.map((r) => [r.userId, r.onlineStatusPrivacy])
+          )
+
+          // Find users with "allies_only" privacy
+          const alliesOnlyIds = otherOnlineIds.filter(
+            (id) => privacyByUserId.get(id) === "allies_only"
+          )
+
+          // Find users with "no_one" privacy
+          const noOneIds = new Set(
+            otherOnlineIds.filter((id) => privacyByUserId.get(id) === "no_one")
+          )
+
+          // Check ally relationships for "allies_only" users
+          let allyIds = new Set<string>()
+          if (alliesOnlyIds.length > 0) {
+            const allyRows = await db
+              .select({
+                senderId: schema.allyRequest.senderId,
+                receiverId: schema.allyRequest.receiverId,
+              })
+              .from(schema.allyRequest)
+              .where(
+                and(
+                  eq(schema.allyRequest.status, "accepted"),
+                  or(
+                    and(
+                      eq(schema.allyRequest.senderId, requestingUserId),
+                      inArray(schema.allyRequest.receiverId, alliesOnlyIds)
+                    ),
+                    and(
+                      eq(schema.allyRequest.receiverId, requestingUserId),
+                      inArray(schema.allyRequest.senderId, alliesOnlyIds)
+                    )
+                  )
+                )
+              )
+
+            allyIds = new Set(
+              allyRows.map((r) =>
+                r.senderId === requestingUserId ? r.receiverId : r.senderId
+              )
+            )
+          }
+
+          visibleOnlineUserIds = onlineUserIds.filter((id) => {
+            if (id === requestingUserId) return true
+            if (noOneIds.has(id)) return false
+            if (privacyByUserId.get(id) === "allies_only") {
+              return allyIds.has(id)
+            }
+            return true // "everyone" or no settings (default)
+          })
+        }
+      }
+
       ack?.({
         ok: true,
         snapshot: {
           guildId: parsed.guildId,
-          onlineUserIds,
+          onlineUserIds: visibleOnlineUserIds,
         },
       })
     } catch (error) {
@@ -371,6 +463,21 @@ io.on("connection", (socket) => {
           redisPresenceClient,
           socket.data.user.id
         )
+
+        // Block enforcement for 1:1 DMs only (group DMs use client-side filtering)
+        if (accessibleChannel.type === "dm") {
+          const blocked = await isDMBlockedForUser(
+            parsed.channelId,
+            socket.data.user.id
+          )
+          if (blocked) {
+            ack?.({
+              ok: false,
+              error: "Cannot send messages in this conversation",
+            })
+            return
+          }
+        }
       }
 
       const createdMessage = await createMessage({
@@ -513,7 +620,20 @@ io.on("connection", (socket) => {
   socket.on("typing:start", async (payload) => {
     try {
       const parsed = typingStartPayloadSchema.parse(payload)
-      await assertUserCanAccessChannel(socket.data.user.id, parsed.channelId)
+      const accessibleChannel = await assertUserCanAccessChannel(
+        socket.data.user.id,
+        parsed.channelId
+      )
+
+      // Suppress typing in 1:1 DMs if blocked
+      if (accessibleChannel.type === "dm") {
+        const blocked = await isDMBlockedForUser(
+          parsed.channelId,
+          socket.data.user.id
+        )
+        if (blocked) return
+      }
+
       socket.to(channelRoom(parsed.channelId)).emit("typing:update", {
         channelId: parsed.channelId,
         userId: socket.data.user.id,
@@ -583,12 +703,26 @@ io.on("connection", (socket) => {
 
         if (!becameOffline) return
 
-        for (const guildId of socket.data.guildIds ?? []) {
-          io.to(guildRoom(guildId)).emit("presence:user:update", {
-            guildId,
-            userId: socket.data.user.id,
-            status: "offline",
+        // Check user's online status privacy before broadcasting
+        const privacyRow = await db
+          .select({
+            onlineStatusPrivacy: schema.userPrivacySettings.onlineStatusPrivacy,
           })
+          .from(schema.userPrivacySettings)
+          .where(eq(schema.userPrivacySettings.userId, socket.data.user.id))
+          .limit(1)
+          .then((rows) => rows[0])
+
+        const onlinePrivacy = privacyRow?.onlineStatusPrivacy ?? "everyone"
+
+        if (onlinePrivacy !== "no_one") {
+          for (const guildId of socket.data.guildIds ?? []) {
+            io.to(guildRoom(guildId)).emit("presence:user:update", {
+              guildId,
+              userId: socket.data.user.id,
+              status: "offline",
+            })
+          }
         }
       } catch (error) {
         console.error("[realtime] disconnect presence cleanup failed:", {

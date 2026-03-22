@@ -15,10 +15,12 @@ export function useTypingIndicator({
   socket,
   channelId,
   currentUserId,
+  blockedUserIds,
 }: {
   socket: AppSocket | null
   channelId: string
   currentUserId: string | undefined
+  blockedUserIds?: Set<string>
 }) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const lastEmitRef = useRef(0)
@@ -40,6 +42,7 @@ export function useTypingIndicator({
     const onTypingUpdate = (payload: TypingIndicatorEvent) => {
       if (payload.channelId !== channelId) return
       if (payload.userId === currentUserId) return
+      if (blockedUserIds?.has(payload.userId)) return
 
       setTypingUsers((prev) => {
         const expiresAt = Date.now() + TYPING_EXPIRE_MS
@@ -56,12 +59,20 @@ export function useTypingIndicator({
       })
     }
 
+    // Prune any currently visible typers who are now blocked
+    if (blockedUserIds && blockedUserIds.size > 0) {
+      setTypingUsers((prev) => {
+        const filtered = prev.filter((u) => !blockedUserIds.has(u.userId))
+        return filtered.length === prev.length ? prev : filtered
+      })
+    }
+
     socket.on("typing:update", onTypingUpdate)
 
     return () => {
       socket.off("typing:update", onTypingUpdate)
     }
-  }, [socket, channelId, currentUserId])
+  }, [socket, channelId, currentUserId, blockedUserIds])
 
   // Cleanup expired entries
   useEffect(() => {

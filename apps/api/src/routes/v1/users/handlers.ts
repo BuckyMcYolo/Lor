@@ -46,6 +46,44 @@ export const getUserProfile: AppRouteHandler<GetUserProfileRoute> = async (
     // fail open — default to offline
   }
 
+  // Check block relationship
+  let blockStatus:
+    | "none"
+    | "blocked_by_me"
+    | "blocked_by_them"
+    | "mutual_block" = "none"
+
+  if (currentUser.id !== userId) {
+    const blocks = await db
+      .select({
+        blockerId: schema.userBlock.blockerId,
+      })
+      .from(schema.userBlock)
+      .where(
+        or(
+          and(
+            eq(schema.userBlock.blockerId, currentUser.id),
+            eq(schema.userBlock.blockedId, userId)
+          ),
+          and(
+            eq(schema.userBlock.blockerId, userId),
+            eq(schema.userBlock.blockedId, currentUser.id)
+          )
+        )
+      )
+
+    const blockedByMe = blocks.some((b) => b.blockerId === currentUser.id)
+    const blockedByThem = blocks.some((b) => b.blockerId === userId)
+
+    if (blockedByMe && blockedByThem) {
+      blockStatus = "mutual_block"
+    } else if (blockedByMe) {
+      blockStatus = "blocked_by_me"
+    } else if (blockedByThem) {
+      blockStatus = "blocked_by_them"
+    }
+  }
+
   // Check ally relationship
   const allyRequest = await db
     .select({
@@ -101,6 +139,7 @@ export const getUserProfile: AppRouteHandler<GetUserProfileRoute> = async (
         presenceStatus,
         allyStatus,
         allyRequestId,
+        blockStatus,
       },
     },
     HttpStatusCodes.OK

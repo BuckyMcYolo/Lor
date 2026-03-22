@@ -39,7 +39,8 @@
 
 - [x] Shareable invite links (not just email invites) — schema, API, and UI implemented
 - [x] Ally (friend) system with requests — schema, API, allies page, user profile popover with ally actions
-- [ ] User blocking
+- [x] Direct messages — create 1:1 and group DMs with allies, new DM dialog
+- [x] User blocking — schema, API (block/unblock/list), realtime DM enforcement, blocked tab on allies page, block/unblock in profile popover, message collapse with click-to-reveal, typing/DM filtering
 - [ ] Privacy settings
 
 ## Phase 4 — Tests & CI/CD
@@ -55,8 +56,13 @@
 - [x] Typing indicators
 - [x] Pinned messages panel
 - [ ] Thread support
+- [ ] Desktop notifications (browser Notification API for mentions, DMs, etc.)
 - [ ] Notification preferences
+- [x] Reaction tooltips (who reacted with each emoji)
+- [x] User profile popover (bio, status, online indicator, ally actions)
+- [x] Remember last visited channel per guild (localStorage)
 - [ ] Error handling & loading state improvements
+- [x] Username editing in account settings (with availability check)
 - [ ] Other settings pages
 
 ## Phase 6 — Infrastructure

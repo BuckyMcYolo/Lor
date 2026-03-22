@@ -17,7 +17,7 @@ import {
 import { cn } from "@repo/ui/lib/utils"
 import { formatTime } from "@repo/utils/date"
 import { Pin } from "lucide-react"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { UserProfilePopover } from "@/components/ui/user-profile-card"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
@@ -31,6 +31,7 @@ interface MessageItemProps {
   message: Message
   showHeader: boolean
   currentUserId?: string
+  isBlocked?: boolean
   onReact?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
   onDelete?: (messageId: string) => void
@@ -127,6 +128,7 @@ export function MessageItem({
   message,
   showHeader,
   currentUserId,
+  isBlocked = false,
   onReact,
   onReply,
   onDelete,
@@ -139,6 +141,12 @@ export function MessageItem({
   const [isActionBarPinned, setIsActionBarPinned] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [showBlockedContent, setShowBlockedContent] = useState(false)
+
+  useEffect(() => {
+    setShowBlockedContent(false)
+  }, [message.id])
+
   const isOwnMessage = !!currentUserId && currentUserId === message.authorId
   const isReply = message.type === "reply"
 
@@ -190,6 +198,20 @@ export function MessageItem({
   const handleEditCancel = useCallback(() => {
     setIsEditing(false)
   }, [])
+
+  if (isBlocked && !showBlockedContent) {
+    return (
+      <div data-message-id={message.id} className="px-4 py-1">
+        <button
+          type="button"
+          className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+          onClick={() => setShowBlockedContent(true)}
+        >
+          Blocked message — click to reveal
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div

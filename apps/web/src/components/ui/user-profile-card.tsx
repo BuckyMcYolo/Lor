@@ -1,4 +1,14 @@
 import { authClient } from "@repo/auth/client"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@repo/ui/components/alert-dialog"
 import { Badge } from "@repo/ui/components/badge"
 import { Button } from "@repo/ui/components/button"
 import {
@@ -7,8 +17,22 @@ import {
   PopoverTrigger,
 } from "@repo/ui/components/popover"
 import { Skeleton } from "@repo/ui/components/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@repo/ui/components/tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Check, Clock, UserMinus, UserPlus } from "lucide-react"
+import { useNavigate } from "@tanstack/react-router"
+import {
+  Ban,
+  Check,
+  Clock,
+  MessageCircle,
+  ShieldOff,
+  UserMinus,
+  UserPlus,
+} from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api-client"
@@ -97,6 +121,74 @@ function ProfileCardContent({ userId }: { userId: string }) {
     },
   })
 
+  const blockUser = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.v1.blocks.$post({
+        json: { userId },
+      })
+      if (!res.ok) throw new Error("Failed to block user")
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["user-profile", userId],
+      })
+      void queryClient.invalidateQueries({ queryKey: ["allies"] })
+      void queryClient.invalidateQueries({ queryKey: ["ally-requests"] })
+      void queryClient.invalidateQueries({ queryKey: ["blocked-users"] })
+      void queryClient.invalidateQueries({ queryKey: ["dms"] })
+      toast.success("User blocked")
+    },
+    onError: () => {
+      toast.error("Failed to block user")
+    },
+  })
+
+  const unblockUser = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.v1.blocks[":userId"].$delete({
+        param: { userId },
+      })
+      if (!res.ok) throw new Error("Failed to unblock user")
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["user-profile", userId],
+      })
+      void queryClient.invalidateQueries({ queryKey: ["blocked-users"] })
+      toast.success("User unblocked")
+    },
+    onError: () => {
+      toast.error("Failed to unblock user")
+    },
+  })
+
+  const navigate = useNavigate()
+
+  const createDM = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.v1.dms.$post({
+        json: { userIds: [userId] },
+      })
+      if (!res.ok) {
+        const body = await res.json()
+        throw new Error(
+          "message" in body ? body.message : "Failed to create DM"
+        )
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ["dms"] })
+      void navigate({ to: "/dms/$dmId", params: { dmId: data.dm.id } })
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const [confirmBlock, setConfirmBlock] = useState(false)
+  const [confirmRemoveAlly, setConfirmRemoveAlly] = useState(false)
+
   if (isPending) {
     return (
       <div className="space-y-3">
@@ -122,8 +214,18 @@ function ProfileCardContent({ userId }: { userId: string }) {
 
   const user = data.user
   const isCurrentUser = session?.user?.id === userId
+  const isBlockedByMe =
+    user.blockStatus === "blocked_by_me" || user.blockStatus === "mutual_block"
+  const isBlockedByThem =
+    user.blockStatus === "blocked_by_them" ||
+    user.blockStatus === "mutual_block"
   const isMutating =
-    sendRequest.isPending || acceptRequest.isPending || removeAlly.isPending
+    sendRequest.isPending ||
+    acceptRequest.isPending ||
+    removeAlly.isPending ||
+    blockUser.isPending ||
+    unblockUser.isPending ||
+    createDM.isPending
 
   return (
     <div className="space-y-3">
@@ -158,12 +260,12 @@ function ProfileCardContent({ userId }: { userId: string }) {
       </div>
 
       {/* Status */}
-      {user.status && (
+      {user.status && !isBlockedByThem && (
         <div className="text-xs text-muted-foreground">{user.status}</div>
       )}
 
       {/* Bio */}
-      {user.bio && (
+      {user.bio && !isBlockedByThem && (
         <div className="border-t border-border pt-2 text-xs text-muted-foreground">
           {user.bio}
         </div>
@@ -178,22 +280,150 @@ function ProfileCardContent({ userId }: { userId: string }) {
         })}
       </div>
 
-      {/* Ally actions */}
+      {/* Actions row */}
       {!isCurrentUser && (
-        <AllyActionButton
-          allyStatus={user.allyStatus}
-          allyRequestId={user.allyRequestId}
-          isMutating={isMutating}
-          onSendRequest={() => sendRequest.mutate()}
-          onAcceptRequest={(id) => acceptRequest.mutate(id)}
-          onRemoveAlly={() => removeAlly.mutate()}
-        />
+        <>
+          <div className="flex items-center gap-1.5">
+            {/* Send DM */}
+            {!isBlockedByMe && !isBlockedByThem && (
+              <div className="flex-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 w-full"
+                      disabled={isMutating}
+                      onClick={() => createDM.mutate()}
+                    >
+                      <MessageCircle className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Send DM</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+
+            {/* Ally action */}
+            {!isBlockedByMe && !isBlockedByThem && (
+              <div className="flex-1">
+                <AllyActionIconButton
+                  allyStatus={user.allyStatus}
+                  allyRequestId={user.allyRequestId}
+                  isMutating={isMutating}
+                  onSendRequest={() => sendRequest.mutate()}
+                  onAcceptRequest={(id) => acceptRequest.mutate(id)}
+                  onRemoveAlly={() => setConfirmRemoveAlly(true)}
+                />
+              </div>
+            )}
+
+            {/* Block / Unblock */}
+            <div className="flex-1">
+              {isBlockedByMe ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 w-full"
+                      disabled={isMutating}
+                      onClick={() => unblockUser.mutate()}
+                    >
+                      <ShieldOff className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Unblock</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-8 w-full"
+                      disabled={isMutating}
+                      onClick={() => setConfirmBlock(true)}
+                    >
+                      <Ban className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Block</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </div>
+
+          <AlertDialog open={confirmBlock} onOpenChange={setConfirmBlock}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Block {user.name}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  They won't be able to send you ally requests or direct
+                  messages. Any existing ally relationship will be removed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={blockUser.isPending}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={blockUser.isPending}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    blockUser.mutate(undefined, {
+                      onSuccess: () => setConfirmBlock(false),
+                    })
+                  }}
+                >
+                  Block
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog
+            open={confirmRemoveAlly}
+            onOpenChange={setConfirmRemoveAlly}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove ally</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to remove{" "}
+                  <span className="font-semibold text-foreground">
+                    {user.name}
+                  </span>{" "}
+                  as an ally?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={removeAlly.isPending}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={removeAlly.isPending}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    removeAlly.mutate(undefined, {
+                      onSuccess: () => setConfirmRemoveAlly(false),
+                    })
+                  }}
+                >
+                  Remove
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       )}
     </div>
   )
 }
 
-function AllyActionButton({
+function AllyActionIconButton({
   allyStatus,
   allyRequestId,
   isMutating,
@@ -211,47 +441,70 @@ function AllyActionButton({
   switch (allyStatus) {
     case "none":
       return (
-        <Button
-          size="sm"
-          className="w-full"
-          disabled={isMutating}
-          onClick={onSendRequest}
-        >
-          <UserPlus className="mr-1.5 size-3.5" />
-          Send Ally Request
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-full"
+              disabled={isMutating}
+              onClick={onSendRequest}
+            >
+              <UserPlus className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Send Ally Request</TooltipContent>
+        </Tooltip>
       )
     case "pending_outgoing":
       return (
-        <Button size="sm" variant="secondary" className="w-full" disabled>
-          <Clock className="mr-1.5 size-3.5" />
-          Ally Request Sent
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-full"
+              disabled
+            >
+              <Clock className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Ally Request Sent</TooltipContent>
+        </Tooltip>
       )
     case "pending_incoming":
       return (
-        <Button
-          size="sm"
-          className="w-full"
-          disabled={isMutating || !allyRequestId}
-          onClick={() => allyRequestId && onAcceptRequest(allyRequestId)}
-        >
-          <Check className="mr-1.5 size-3.5" />
-          Accept Ally Request
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-full"
+              disabled={isMutating || !allyRequestId}
+              onClick={() => allyRequestId && onAcceptRequest(allyRequestId)}
+            >
+              <Check className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Accept Ally Request</TooltipContent>
+        </Tooltip>
       )
     case "allies":
       return (
-        <Button
-          size="sm"
-          variant="secondary"
-          className="w-full"
-          disabled={isMutating}
-          onClick={onRemoveAlly}
-        >
-          <UserMinus className="mr-1.5 size-3.5" />
-          Remove Ally
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-full"
+              disabled={isMutating}
+              onClick={onRemoveAlly}
+            >
+              <UserMinus className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Remove Ally</TooltipContent>
+        </Tooltip>
       )
   }
 }

@@ -97,7 +97,7 @@ export const MentionSuggestionList = forwardRef<
             selectItem(index)
           }}
         >
-          @{item.label}
+          @{item.displayUsername ?? item.username ?? item.label}
         </button>
       ))}
     </div>

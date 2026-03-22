@@ -94,6 +94,52 @@ export const sendAllyRequest: AppRouteHandler<SendAllyRequestRoute> = async (
     )
   }
 
+  // Check if either user has blocked the other
+  const blockExists = await db
+    .select({ id: schema.userBlock.id })
+    .from(schema.userBlock)
+    .where(
+      or(
+        and(
+          eq(schema.userBlock.blockerId, currentUser.id),
+          eq(schema.userBlock.blockedId, targetUserId)
+        ),
+        and(
+          eq(schema.userBlock.blockerId, targetUserId),
+          eq(schema.userBlock.blockedId, currentUser.id)
+        )
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (blockExists) {
+    return c.json(
+      { success: false, message: "Unable to send ally request" },
+      HttpStatusCodes.BAD_REQUEST
+    )
+  }
+
+  // Check target user's privacy settings for ally requests
+  const targetPrivacy = await db
+    .select({
+      allyRequestPrivacy: schema.userPrivacySettings.allyRequestPrivacy,
+    })
+    .from(schema.userPrivacySettings)
+    .where(eq(schema.userPrivacySettings.userId, targetUserId))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (targetPrivacy?.allyRequestPrivacy === "no_one") {
+    return c.json(
+      {
+        success: false,
+        message: "This user is not accepting ally requests",
+      },
+      HttpStatusCodes.FORBIDDEN
+    )
+  }
+
   // Check for existing relationship (in either direction)
   const existing = await db
     .select({
