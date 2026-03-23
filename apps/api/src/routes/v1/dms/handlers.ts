@@ -8,7 +8,7 @@ import {
   userBlock,
   userPrivacySettings,
 } from "@repo/db/schema"
-import { and, count, desc, eq, inArray, ne, or, sql } from "drizzle-orm"
+import { and, count, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
@@ -17,6 +17,7 @@ import type {
   GetDMRoute,
   ListDMMessagesRoute,
   ListDMsRoute,
+  SearchDMMessagesRoute,
 } from "./routes"
 
 const emptyPage = (page: number) => ({
@@ -556,6 +557,127 @@ export const listDMMessages: AppRouteHandler<ListDMMessagesRoute> = async (
 
   return c.json(
     await fetchMessagePage(ch.id, page, perPage, currentUser.id),
+    HttpStatusCodes.OK
+  )
+}
+
+// ── Search ──────────────────────────────────────────────
+
+export const searchDMMessages: AppRouteHandler<SearchDMMessagesRoute> = async (
+  c
+) => {
+  const currentUser = c.var.user
+  const { query, page, perPage, dmId } = c.req.valid("query")
+  const offset = (page - 1) * perPage
+
+  // Get all DM channel IDs the user is a member of
+  const dmChannels = await db
+    .select({
+      id: channel.id,
+      name: channel.name,
+      type: channel.type,
+    })
+    .from(channelMember)
+    .innerJoin(channel, eq(channelMember.channelId, channel.id))
+    .where(
+      and(
+        eq(channelMember.userId, currentUser.id),
+        inArray(channel.type, ["dm", "group_dm"]),
+        dmId ? eq(channel.id, dmId) : undefined
+      )
+    )
+
+  if (dmChannels.length === 0) {
+    return c.json(emptyPage(page), HttpStatusCodes.OK)
+  }
+
+  const dmChannelIds = dmChannels.map((ch) => ch.id)
+
+  // For DMs, get member names to use as channel labels
+  const dmMembers = await db
+    .select({
+      channelId: channelMember.channelId,
+      name: user.name,
+      userId: user.id,
+    })
+    .from(channelMember)
+    .innerJoin(user, eq(channelMember.userId, user.id))
+    .where(inArray(channelMember.channelId, dmChannelIds))
+
+  const membersByChannel = new Map<string, typeof dmMembers>()
+  for (const m of dmMembers) {
+    const list = membersByChannel.get(m.channelId) ?? []
+    list.push(m)
+    membersByChannel.set(m.channelId, list)
+  }
+
+  const channelNameMap = new Map<string, string>()
+  for (const ch of dmChannels) {
+    if (ch.type === "group_dm" && ch.name) {
+      channelNameMap.set(ch.id, ch.name)
+    } else {
+      const others = (membersByChannel.get(ch.id) ?? []).filter(
+        (m) => m.userId !== currentUser.id
+      )
+      channelNameMap.set(ch.id, others.map((m) => m.name).join(", ") || "DM")
+    }
+  }
+
+  const escaped = query.replace(/[%_\\]/g, (ch) => `\\${ch}`)
+  const searchPattern = `%${escaped}%`
+  const whereConditions = and(
+    inArray(message.channelId, dmChannelIds),
+    ilike(message.content, searchPattern)
+  )
+
+  const [countResult, messages] = await Promise.all([
+    db.select({ total: count() }).from(message).where(whereConditions),
+    db
+      .select({
+        id: message.id,
+        content: message.content,
+        createdAt: message.createdAt,
+        channelId: message.channelId,
+        author: {
+          id: user.id,
+          name: user.name,
+          username: user.username,
+          displayUsername: user.displayUsername,
+          image: user.image,
+        },
+      })
+      .from(message)
+      .innerJoin(user, eq(message.authorId, user.id))
+      .where(whereConditions)
+      .orderBy(desc(message.createdAt))
+      .limit(perPage)
+      .offset(offset),
+  ])
+
+  const itemsTotal = countResult[0]?.total ?? 0
+  const totalPages = Math.ceil(itemsTotal / perPage)
+
+  return c.json(
+    {
+      itemsTotal,
+      currentPage: page,
+      nextPage: page < totalPages ? page + 1 : null,
+      prevPage: page > 1 ? page - 1 : null,
+      data: messages.map((msg) => ({
+        id: msg.id,
+        content: msg.content ?? "",
+        createdAt: msg.createdAt.toISOString(),
+        channelId: msg.channelId,
+        channelName: channelNameMap.get(msg.channelId) ?? "DM",
+        author: {
+          id: msg.author.id,
+          name: msg.author.name,
+          username: msg.author.username,
+          displayUsername: msg.author.displayUsername,
+          image: msg.author.image,
+        },
+      })),
+    },
     HttpStatusCodes.OK
   )
 }

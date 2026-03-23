@@ -21,12 +21,30 @@ import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
 import type { ListDMMessagesResponse } from "@/lib/api-types"
 
+type DMSearchParams = {
+  msgId?: string
+}
+
 export const Route = createFileRoute("/_authenticated/dms/$dmId")({
   component: DMConversation,
+  validateSearch: (search: Record<string, unknown>): DMSearchParams => ({
+    msgId: typeof search.msgId === "string" ? search.msgId : undefined,
+  }),
 })
+
+function scrollToMessage(messageId: string) {
+  const el = document.querySelector(`[data-message-id="${messageId}"]`)
+  if (!el) return false
+  el.scrollIntoView({ behavior: "smooth", block: "center" })
+  el.classList.add("bg-primary/10")
+  setTimeout(() => el.classList.remove("bg-primary/10"), 2000)
+  return true
+}
 
 function DMConversation() {
   const { dmId } = Route.useParams()
+  const { msgId } = Route.useSearch()
+  const navigate = Route.useNavigate()
   const socket = useSocket()
   const queryClient = useQueryClient()
   const { data: session } = authClient.useSession()
@@ -54,6 +72,17 @@ function DMConversation() {
     },
     enabled: !!dm,
   })
+
+  // Scroll to a specific message when navigating from search
+  useEffect(() => {
+    if (!msgId || messagesLoading || !messagesData?.data.length) return
+    const timer = setTimeout(() => {
+      if (scrollToMessage(msgId)) {
+        void navigate({ search: {}, replace: true })
+      }
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [msgId, messagesLoading, messagesData, navigate])
 
   // Join/leave the DM channel room for real-time messages
   useEffect(() => {
@@ -182,7 +211,7 @@ function DMConversation() {
       className="relative flex h-full flex-col overflow-hidden"
     >
       <DropZoneOverlay isDragActive={isDragActive} />
-      <ChatHeader context={context} />
+      <ChatHeader context={context} channelId={dmId} />
       <MessageList
         context={context}
         messages={messagesData?.data ?? []}

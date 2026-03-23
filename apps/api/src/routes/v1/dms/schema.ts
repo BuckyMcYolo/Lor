@@ -3,8 +3,12 @@ import { selectChannelSchema } from "@repo/db/schema"
 import {
   listMessagesQuerySchema,
   listMessagesResponseSchema,
+  messageAuthorSchema,
 } from "@/lib/helpers/openapi/message-schemas"
-import { paginatedResponseSchema } from "@/lib/helpers/openapi/schemas"
+import {
+  paginatedResponseSchema,
+  paginationQuerySchema,
+} from "@/lib/helpers/openapi/schemas"
 
 export const dmParamsSchema = z.object({
   dmId: z
@@ -63,3 +67,35 @@ export const getDMResponseSchema = dmChannelSchema
 
 export const listDMMessagesQuerySchema = listMessagesQuerySchema
 export const listDMMessagesResponseSchema = listMessagesResponseSchema
+
+// ── Search ──────────────────────────────────────────────
+
+export const searchDMMessagesQuerySchema = paginationQuerySchema.extend({
+  query: z
+    .string()
+    .min(1)
+    .max(100)
+    .openapi({
+      param: { name: "query", in: "query", required: true },
+      example: "hello",
+    }),
+  dmId: z
+    .string()
+    .uuid()
+    .optional()
+    .openapi({
+      param: { name: "dmId", in: "query" },
+    }),
+})
+
+const dmSearchResultSchema = z.object({
+  id: z.string().uuid(),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  channelId: z.string().uuid(),
+  channelName: z.string(),
+  author: messageAuthorSchema,
+})
+
+export const searchDMMessagesResponseSchema =
+  paginatedResponseSchema(dmSearchResultSchema)

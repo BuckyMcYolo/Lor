@@ -4,7 +4,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
-import { Hash, Pin } from "lucide-react"
+import { Hash, PanelRight, Pin } from "lucide-react"
+import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
+import { HeaderSearch } from "./header-search"
 
 export type ChatContext =
   | { type: "channel"; name: string; topic?: string }
@@ -18,11 +20,15 @@ function nameInitial(name: string) {
 
 export function ChatHeader({
   context,
+  channelId,
   onTogglePinnedMessages,
 }: {
   context: ChatContext
+  channelId: string
   onTogglePinnedMessages?: () => void
 }) {
+  const { isCollapsed, toggleCollapsed } = useRightSidebar()
+
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
       {context.type === "channel" && (
@@ -52,8 +58,12 @@ export function ChatHeader({
           {context.memberCount} members
         </span>
       )}
-      {context.type === "channel" && onTogglePinnedMessages && (
-        <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-1">
+        <HeaderSearch
+          mode={context.type === "channel" ? "guild" : "dm"}
+          channelId={channelId}
+        />
+        {context.type === "channel" && onTogglePinnedMessages && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -66,8 +76,22 @@ export function ChatHeader({
             </TooltipTrigger>
             <TooltipContent>Pinned Messages</TooltipContent>
           </Tooltip>
-        </div>
-      )}
+        )}
+        {isCollapsed && context.type === "channel" && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <PanelRight className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Show Members</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
     </div>
   )
 }

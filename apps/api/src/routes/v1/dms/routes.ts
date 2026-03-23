@@ -18,6 +18,8 @@ import {
   listDMMessagesQuerySchema,
   listDMMessagesResponseSchema,
   listDMsResponseSchema,
+  searchDMMessagesQuerySchema,
+  searchDMMessagesResponseSchema,
 } from "./schema"
 
 export const createDM = createRoute({
@@ -112,6 +114,28 @@ export const listDMMessages = createRoute({
   },
 })
 
+export const searchDMMessages = createRoute({
+  path: "/dms/search",
+  method: "get",
+  summary: "Search DM messages",
+  description:
+    "Searches messages across all DM and group DM conversations for the authenticated user.",
+  tags: ["DMs"],
+  middleware: [sessionAuthMiddleware] as const,
+  request: {
+    query: searchDMMessagesQuerySchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: searchDMMessagesResponseSchema,
+      description: "Search results",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export type ListDMsRoute = typeof listDMs
 export type GetDMRoute = typeof getDM
 export type ListDMMessagesRoute = typeof listDMMessages
+export type SearchDMMessagesRoute = typeof searchDMMessages

@@ -15,6 +15,8 @@ import {
   guildSlugParamsSchema,
   listGuildMembersResponseSchema,
   moderateGuildMemberResponseSchema,
+  searchMessagesQuerySchema,
+  searchMessagesResponseSchema,
   timeoutGuildMemberRequestSchema,
   timeoutGuildMemberResponseSchema,
   updateGuildMemberRoleRequestSchema,
@@ -182,3 +184,29 @@ export const clearGuildMemberTimeout = createRoute({
 })
 
 export type ClearGuildMemberTimeoutRoute = typeof clearGuildMemberTimeout
+
+export const searchMessages = createRoute({
+  path: "/guilds/{guildSlug}/search",
+  method: "get",
+  summary: "Search messages in a guild",
+  description:
+    "Searches messages across all channels in a guild. Optionally filter by channel.",
+  tags: ["Guilds"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: guildSlugParamsSchema,
+    query: searchMessagesQuerySchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: searchMessagesResponseSchema,
+      description: "Search results",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
+export type SearchMessagesRoute = typeof searchMessages

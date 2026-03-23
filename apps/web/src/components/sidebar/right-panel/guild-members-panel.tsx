@@ -36,7 +36,7 @@ import { ScrollArea } from "@repo/ui/components/scroll-area"
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { MoreHorizontal, Users } from "lucide-react"
+import { MoreHorizontal, PanelRight } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { UserAvatar } from "@/components/ui/user-avatar"
@@ -55,6 +55,7 @@ import {
   canUpdateGuildMemberRoles,
   formatGuildRole,
 } from "@/lib/permissions"
+import { useRightSidebar } from "./right-sidebar-context"
 import type { GuildMembersSidebarView } from "./right-sidebar-types"
 
 const statusStyles: Record<GuildMemberPresence["status"], string> = {
@@ -303,6 +304,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const socket = useSocket()
   const queryClient = useQueryClient()
   const { data: session } = authClient.useSession()
+  const { toggleCollapsed } = useRightSidebar()
   const [moderationDialog, setModerationDialog] =
     useState<ModerationDialogState>(null)
   const queryKey = useMemo(
@@ -613,7 +615,6 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const members = data?.members ?? []
   const onlineMembers = members.filter((member) => member.status !== "offline")
   const offlineMembers = members.filter((member) => member.status === "offline")
-  const guildName = data?.guildName?.trim() || "Guild"
   const isModerationDialogOpen = moderationDialog !== null
   const moderationDialogTitle =
     moderationDialog?.type === "kick" ? "Kick member" : "Ban member"
@@ -632,14 +633,17 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   return (
     <>
       <div className="flex h-full w-full flex-col bg-card">
-        <div className="border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Users className="size-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">{guildName} Members</span>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {members.length} total members
-          </p>
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+          <span className="text-sm text-muted-foreground">
+            {members.length} members
+          </span>
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <PanelRight className="size-4" />
+          </button>
         </div>
 
         {hasActiveMemberError && (
