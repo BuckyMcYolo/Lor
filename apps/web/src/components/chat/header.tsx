@@ -88,7 +88,7 @@ export function ChatHeader({
                 <PanelRight className="size-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>Show Members</TooltipContent>
+            <TooltipContent>Show Panel</TooltipContent>
           </Tooltip>
         )}
       </div>
