@@ -56,8 +56,10 @@
 - [x] Typing indicators
 - [x] Pinned messages panel
 - [ ] Thread support
-- [ ] Desktop app (Tauri) with native notifications for mentions, DMs, etc.
-- [ ] Notification preferences
+- [x] Desktop app (Tauri) — native window wrapper, notification plugin wired up
+- [x] Desktop/browser notifications — notification:bootstrap on connect, unread state context, auto-mark-as-read, browser Notification API + Tauri native notifications
+- [x] Notification preferences — user_notification_settings table, API (get/update), settings UI (desktop/DM notification levels, permission request)
+- [x] Unread indicators (Discord-style) — channel/DM text highlights, mention badges, left-side unread pill
 - [x] Reaction tooltips (who reacted with each emoji)
 - [x] User profile popover (bio, status, online indicator, ally actions)
 - [x] Remember last visited channel per guild (localStorage)

@@ -48,7 +48,7 @@ import {
   enforceDmMessageRateLimit,
   enforceGuildMessageRateLimit,
 } from "@/services/rate-limit"
-import { markChannelRead } from "@/services/read-states"
+import { getUnreadStatesForUser, markChannelRead } from "@/services/read-states"
 
 type SocketData = {
   user: Session["user"]
@@ -278,6 +278,19 @@ async function initializeConnection(socket: RealtimeSocket) {
         guilds: guildPresenceRooms,
       },
     })
+
+    // Bootstrap unread state asynchronously (non-blocking)
+    getUnreadStatesForUser(socket.data.user.id)
+      .then((bootstrap) => {
+        socket.emit("notification:bootstrap", bootstrap)
+      })
+      .catch((err) => {
+        console.error("Failed to bootstrap unread states:", {
+          socketId: socket.id,
+          userId: socket.data.user.id,
+          error: err,
+        })
+      })
 
     return true
   } catch (error) {
@@ -610,7 +623,10 @@ io.on("connection", (socket) => {
         lastReadMessageId: parsed.lastReadMessageId,
       })
 
+      // Broadcast to other tabs/devices for this user
       socket.to(userRoom(socket.data.user.id)).emit("channel:read-state", state)
+      // Also send back to the requesting socket
+      socket.emit("channel:read-state", state)
       ack?.({ ok: true, state })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })

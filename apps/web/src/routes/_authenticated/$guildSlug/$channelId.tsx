@@ -16,6 +16,7 @@ import { MessageList } from "@/components/chat/message-list"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
+import { useAutoMarkRead } from "@/hooks/use-auto-mark-read"
 import { useBlockedUserIds } from "@/hooks/use-blocked-users"
 import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
@@ -53,6 +54,7 @@ function ChannelView() {
   const { msgId } = Route.useSearch()
   const navigate = Route.useNavigate()
   const socket = useSocket()
+  useAutoMarkRead(channelId)
   const queryClient = useQueryClient()
   const { view, setView, clearView } = useRightSidebar()
   const { data: session } = authClient.useSession()

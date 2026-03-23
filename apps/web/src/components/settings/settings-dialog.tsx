@@ -38,6 +38,7 @@ import {
 import { useMemo, useState } from "react"
 import { useSettings } from "@/context/settings-context"
 import { MyAccountSettings } from "./my-account-settings"
+import { NotificationSettings } from "./notification-settings"
 import { PrivacySafetySettings } from "./privacy-safety-settings"
 
 interface SettingsNav {
@@ -126,6 +127,8 @@ export function SettingsDialog() {
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
               {activeItem === "My Account" ? (
                 <MyAccountSettings />
+              ) : activeItem === "Notifications" ? (
+                <NotificationSettings />
               ) : activeItem === "Privacy & Safety" ? (
                 <PrivacySafetySettings />
               ) : (

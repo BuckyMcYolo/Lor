@@ -8,6 +8,7 @@ import {
 import { cn } from "@repo/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
+import { useUnread } from "@/context/unread-context"
 import { apiClient } from "@/lib/api-client"
 import type { DMember } from "@/lib/api-types"
 import { UserAvatar } from "../../ui/user-avatar"
@@ -44,6 +45,7 @@ export function DMList() {
         return (
           <DMItem
             key={dm.id}
+            channelId={dm.id}
             name={displayName}
             members={dm.members}
             lastMessage={dm.lastMessage?.content ?? null}
@@ -91,6 +93,7 @@ function GroupDMAvatars({ members }: { members: DMember[] }) {
 }
 
 function DMItem({
+  channelId,
   name,
   members,
   lastMessage,
@@ -99,6 +102,7 @@ function DMItem({
   active = false,
   onClick,
 }: {
+  channelId: string
   name: string
   members: DMember[]
   lastMessage: string | null
@@ -107,6 +111,11 @@ function DMItem({
   active?: boolean
   onClick?: () => void
 }) {
+  const { getUnreadCount, getMentionCount } = useUnread()
+  const unreadCount = active ? 0 : getUnreadCount(channelId)
+  const mentionCount = active ? 0 : getMentionCount(channelId)
+  const hasUnread = unreadCount > 0
+
   const preview =
     isGroupDM && lastMessageAuthor && lastMessage
       ? `${lastMessageAuthor}: ${lastMessage}`
@@ -118,18 +127,26 @@ function DMItem({
       onClick={onClick}
       className={cn(
         "group relative flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-foreground/[0.06]",
-        active
-          ? "bg-foreground/[0.06] text-foreground"
-          : "text-muted-foreground"
+        active && "bg-foreground/[0.06] text-foreground",
+        !active && hasUnread && "text-foreground",
+        !active && !hasUnread && "text-muted-foreground"
       )}
     >
+      {!active && hasUnread && (
+        <div className="absolute left-0 top-1/2 h-2 w-[3px] -translate-y-1/2 rounded-r-full bg-foreground" />
+      )}
       {isGroupDM ? (
         <GroupDMAvatars members={members} />
       ) : (
         <UserAvatar name={members[0]?.name} src={members[0]?.image} size="sm" />
       )}
       <div className="min-w-0 flex-1 text-left">
-        <div className="truncate text-[14px] font-medium leading-tight">
+        <div
+          className={cn(
+            "truncate text-[14px] leading-tight",
+            hasUnread ? "font-semibold" : "font-medium"
+          )}
+        >
           {name}
         </div>
         {preview && (
@@ -138,6 +155,11 @@ function DMItem({
           </div>
         )}
       </div>
+      {mentionCount > 0 && (
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+          {mentionCount}
+        </span>
+      )}
     </button>
   )
 }
