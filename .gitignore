@@ -27,6 +27,9 @@ out/
 build
 dist
 
+# Rust (Tauri)
+target/
+
 
 # Debug
 npm-debug.log*
