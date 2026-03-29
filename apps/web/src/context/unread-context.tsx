@@ -135,17 +135,28 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
     (channelId: string, lastReadMessageId?: string) => {
       if (!socket) return
 
-      // Optimistically clear
+      let snapshot: UnreadState | undefined
       setStateMap((prev) => {
         const next = new Map(prev)
+        snapshot = prev.get(channelId)
         next.delete(channelId)
         return next
       })
 
-      socket.emit("channel:mark-read", {
-        channelId,
-        lastReadMessageId,
-      })
+      socket.emit(
+        "channel:mark-read",
+        { channelId, lastReadMessageId },
+        (res: { ok: boolean }) => {
+          if (!res.ok && snapshot) {
+            const restore = snapshot
+            setStateMap((prev) => {
+              const next = new Map(prev)
+              next.set(channelId, restore)
+              return next
+            })
+          }
+        }
+      )
     },
     [socket]
   )

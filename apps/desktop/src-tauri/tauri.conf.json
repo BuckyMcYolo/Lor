@@ -2,9 +2,9 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "townhall",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.townhall.desktop",
   "build": {
-    "frontendDist": "../../apps/web/dist",
+    "frontendDist": "../../../apps/web/dist",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "pnpm --filter web dev",
     "beforeBuildCommand": "pnpm --filter web build"

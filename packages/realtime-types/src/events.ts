@@ -209,6 +209,9 @@ export type UnreadNotification = {
   guildId: string | null
   messageId: string
   unreadCountDelta: number
+  authorName: string
+  contentPreview: string | null
+  channelName: string | null
 }
 
 export type MentionNotification = {

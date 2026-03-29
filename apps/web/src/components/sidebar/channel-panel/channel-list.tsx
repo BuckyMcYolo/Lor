@@ -596,59 +596,61 @@ function SortableChannelItem({
         )}
         <ChannelIcon type={ch.type} />
         <span className="truncate">{ch.name}</span>
-        {mentionCount > 0 && (
-          <span className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-            {mentionCount}
-          </span>
-        )}
-        {canManage && (
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-            <DropdownMenuTrigger
-              onClick={(e) => e.stopPropagation()}
-              className={cn(
-                "ml-auto flex size-5 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
-                menuOpen && "opacity-100"
-              )}
-            >
-              <MoreHorizontal className="size-4 shrink-0" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="bottom" align="start">
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setMenuOpen(false)
-                  setEditOpen(true)
-                }}
+        <div className="ml-auto flex items-center gap-1">
+          {mentionCount > 0 && (
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              {mentionCount}
+            </span>
+          )}
+          {canManage && (
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <DropdownMenuTrigger
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  "flex size-5 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
+                  menuOpen && "opacity-100"
+                )}
               >
-                Edit Channel
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation()
-                  navigator.clipboard.writeText(ch.id)
-                  setMenuOpen(false)
-                }}
-              >
-                Copy Channel ID
-              </DropdownMenuItem>
-              {canDelete && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      setDeleteOpen(true)
-                    }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    Delete Channel
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+                <MoreHorizontal className="size-4 shrink-0" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="bottom" align="start">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuOpen(false)
+                    setEditOpen(true)
+                  }}
+                >
+                  Edit Channel
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigator.clipboard.writeText(ch.id)
+                    setMenuOpen(false)
+                  }}
+                >
+                  Copy Channel ID
+                </DropdownMenuItem>
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMenuOpen(false)
+                        setDeleteOpen(true)
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      Delete Channel
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
       {canManage && (
         <EditChannelDialog

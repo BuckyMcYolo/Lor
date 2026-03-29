@@ -34,7 +34,8 @@ export function useBrowserNotifications() {
 
     const onMention = (payload: MentionNotification) => {
       if (document.visibilityState === "visible") return
-      if (settings?.desktopNotifications === "nothing") return
+      if (!settings) return
+      if (settings.desktopNotifications === "nothing") return
 
       const mentionType =
         payload.type === "everyone_mention" ? "@everyone" : "a mention"
@@ -46,14 +47,22 @@ export function useBrowserNotifications() {
 
     const onUnread = (payload: UnreadNotification) => {
       if (document.visibilityState === "visible") return
-      if (settings?.desktopNotifications !== "all_messages") return
+      if (!settings) return
+      if (settings.desktopNotifications !== "all_messages") return
 
       // For DMs, check dmNotifications setting
       if (payload.guildId === null && settings?.dmNotifications === "nothing") {
         return
       }
 
-      showNotification("New Message", "You have a new message", {
+      const title = payload.authorName
+      const body = payload.contentPreview
+        ? payload.channelName
+          ? `#${payload.channelName}: ${payload.contentPreview}`
+          : payload.contentPreview
+        : "Sent an attachment"
+
+      showNotification(title, body, {
         tag: `unread-${payload.channelId}`,
       })
     }

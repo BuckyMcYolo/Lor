@@ -21,7 +21,7 @@ const addProtocol = (url: string) => {
 /** 20 MB default — keep in sync with client.ts */
 const DEFAULT_MAX_FILE_UPLOAD_SIZE = 20 * 1024 * 1024
 const DEFAULT_REALTIME_CORS_ORIGIN =
-  "http://localhost:3000,http://localhost:3001"
+  "http://localhost:3000,http://localhost:3001,tauri://localhost"
 
 const serverSchema = z.object({
   NODE_ENV: z
@@ -42,6 +42,8 @@ const serverSchema = z.object({
   S3_BUCKET_NAME: z.string().min(1),
   S3_REGION: z.string().default("auto"),
   S3_PUBLIC_URL: z.string().url(),
+  RESEND_API_KEY: z.string().min(1),
+  EMAIL_FROM: z.string().default("Townhall <team@townhall.chat>"),
 })
 
 export const env = serverSchema.parse(process.env)

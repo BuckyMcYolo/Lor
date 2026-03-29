@@ -25,6 +25,7 @@ export function useAutoMarkRead(channelId: string | undefined) {
   // Mark read on mount
   useEffect(() => {
     if (!channelId) return
+    if (document.visibilityState !== "visible") return
     debouncedMarkRead()
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)

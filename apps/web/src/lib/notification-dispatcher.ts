@@ -63,7 +63,12 @@ export async function showNotification(
       const { sendNotification } = await import(
         "@tauri-apps/plugin-notification"
       )
-      sendNotification({ title, body })
+      // Tauri notifications don't support click callbacks natively
+      sendNotification({
+        title,
+        body,
+        ...(options?.tag && { tag: options.tag }),
+      })
     } catch {
       // Tauri notification plugin not available
     }

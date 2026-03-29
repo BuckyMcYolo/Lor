@@ -89,7 +89,11 @@ function toHeaders(
 
 const realtimePort = env.REALTIME_PORT
 
-const defaultOrigins = ["http://localhost:3000", "http://localhost:3001"]
+const defaultOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "tauri://localhost",
+]
 const corsOrigins = (env.REALTIME_CORS_ORIGIN || defaultOrigins.join(","))
   .split(",")
   .map((origin) => origin.trim())
@@ -193,7 +197,6 @@ async function initializeConnection(socket: RealtimeSocket) {
   try {
     const initSocketId = socket.id
     const userPresenceRoom = userRoom(socket.data.user.id)
-    await socket.join(userPresenceRoom)
 
     const guildMembershipRows = await db
       .select({
@@ -279,18 +282,20 @@ async function initializeConnection(socket: RealtimeSocket) {
       },
     })
 
-    // Bootstrap unread state asynchronously (non-blocking)
-    getUnreadStatesForUser(socket.data.user.id)
-      .then((bootstrap) => {
-        socket.emit("notification:bootstrap", bootstrap)
+    await socket.join(userPresenceRoom)
+
+    // Bootstrap unread state before joining userRoom so live notifications
+    // arriving between join and bootstrap don't get wiped
+    try {
+      const bootstrap = await getUnreadStatesForUser(socket.data.user.id)
+      socket.emit("notification:bootstrap", bootstrap)
+    } catch (err) {
+      console.error("Failed to bootstrap unread states:", {
+        socketId: socket.id,
+        userId: socket.data.user.id,
+        error: err,
       })
-      .catch((err) => {
-        console.error("Failed to bootstrap unread states:", {
-          socketId: socket.id,
-          userId: socket.data.user.id,
-          error: err,
-        })
-      })
+    }
 
     return true
   } catch (error) {
