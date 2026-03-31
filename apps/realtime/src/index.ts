@@ -792,7 +792,7 @@ async function bootstrap() {
   }, 30 * 1000)
 
   httpServer.listen(realtimePort, () => {
-    logger.info(`Realtime server running on port ${realtimePort}`)
+    logger.info({ port: realtimePort }, "Realtime server running")
     logger.info({ origins: corsOrigins }, "Allowed origins")
   })
 }
