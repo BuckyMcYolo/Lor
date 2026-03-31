@@ -11,14 +11,19 @@ import {
 } from "@repo/ui/components/dialog"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
+import { cn } from "@repo/ui/lib/utils"
 import { sluggify } from "@repo/utils/slug"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { ArrowLeft, Loader2, Plus, Users } from "lucide-react"
-import { useEffect, useState } from "react"
+import { ArrowLeft, Check, Loader2, Plus, Users, X } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { apiClient } from "@/lib/api-client"
 
-type Step = "welcome" | "create" | "join"
+type Step = "username" | "welcome" | "create" | "join"
+
+const MIN_USERNAME_LENGTH = 3
+const MAX_USERNAME_LENGTH = 30
+const USERNAME_REGEX = /^[a-zA-Z0-9_.]+$/
 
 function normalizeSlugInput(value: string) {
   return value
@@ -43,7 +48,18 @@ function parseInviteCode(value: string) {
 }
 
 export function OnboardingDialog({ open }: { open: boolean }) {
-  const [step, setStep] = useState<Step>("welcome")
+  const { data: session } = authClient.useSession()
+  const hasUsername = !!(
+    session?.user?.username &&
+    session.user.username.length >= MIN_USERNAME_LENGTH
+  )
+  const [step, setStep] = useState<Step>(hasUsername ? "welcome" : "username")
+  // Sync step with session hydration — session may be null on first render
+  useEffect(() => {
+    if (hasUsername && step === "username") {
+      setStep("welcome")
+    }
+  }, [hasUsername, step])
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
   const [slugEdited, setSlugEdited] = useState(false)
@@ -52,6 +68,75 @@ export function OnboardingDialog({ open }: { open: boolean }) {
   const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+
+  // Username step state
+  const [username, setUsername] = useState("")
+  const [usernameAvailability, setUsernameAvailability] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle")
+  const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (usernameCheckTimer.current) clearTimeout(usernameCheckTimer.current)
+    }
+  }, [])
+
+  const handleUsernameChange = useCallback((value: string) => {
+    setUsername(value)
+    if (usernameCheckTimer.current) clearTimeout(usernameCheckTimer.current)
+
+    const trimmed = value.trim()
+    if (!trimmed) {
+      setUsernameAvailability("idle")
+      return
+    }
+    if (
+      trimmed.length < MIN_USERNAME_LENGTH ||
+      trimmed.length > MAX_USERNAME_LENGTH ||
+      !USERNAME_REGEX.test(trimmed)
+    ) {
+      setUsernameAvailability("invalid")
+      return
+    }
+
+    setUsernameAvailability("checking")
+    usernameCheckTimer.current = setTimeout(async () => {
+      try {
+        const { data } = await authClient.isUsernameAvailable({
+          username: trimmed,
+        })
+        setUsernameAvailability((prev) =>
+          prev === "checking" ? (data?.available ? "available" : "taken") : prev
+        )
+      } catch {
+        setUsernameAvailability((prev) => (prev === "checking" ? "idle" : prev))
+      }
+    }, 500)
+  }, [])
+
+  const handleSetUsername = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = username.trim()
+    if (!trimmed || usernameAvailability !== "available") return
+    setError(null)
+    setLoading(true)
+    try {
+      const { error } = await authClient.updateUser({
+        username: trimmed,
+        displayUsername: trimmed,
+      })
+      if (error) {
+        setError(error.message ?? "Failed to set username")
+        return
+      }
+      setStep("welcome")
+    } catch {
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!slugEdited) {
@@ -88,7 +173,11 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       })
 
       if (res.error) {
-        setError(res.error.message ?? "Failed to create guild")
+        const message = (res.error.message ?? "Failed to create guild").replace(
+          /organization/gi,
+          "Guild"
+        )
+        setError(message)
         return
       }
 
@@ -161,6 +250,86 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
           {/* Right content panel */}
           <div className="flex flex-1 flex-col justify-center p-8">
+            {step === "username" && (
+              <>
+                <DialogHeader className="mb-6 text-left">
+                  <DialogTitle className="text-2xl">
+                    Choose a username
+                  </DialogTitle>
+                  <DialogDescription className="text-sm">
+                    Pick a unique username for your Townhall identity.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSetUsername} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="onboard-username">Username</Label>
+                    <div className="relative">
+                      <Input
+                        id="onboard-username"
+                        placeholder="coolname"
+                        value={username}
+                        onChange={(e) => handleUsernameChange(e.target.value)}
+                        disabled={loading}
+                        autoFocus
+                        className={cn(
+                          "pr-9",
+                          usernameAvailability === "available" &&
+                            "border-green-500 focus-visible:ring-green-500/50",
+                          (usernameAvailability === "taken" ||
+                            usernameAvailability === "invalid") &&
+                            "border-destructive focus-visible:ring-destructive/50"
+                        )}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {usernameAvailability === "checking" && (
+                          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                        )}
+                        {usernameAvailability === "available" && (
+                          <Check className="size-4 text-green-500" />
+                        )}
+                        {usernameAvailability === "taken" && (
+                          <X className="size-4 text-destructive" />
+                        )}
+                        {usernameAvailability === "invalid" && (
+                          <X className="size-4 text-destructive" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      3–30 characters. Letters, numbers, underscores, and
+                      periods only.
+                    </p>
+                    {usernameAvailability === "taken" && (
+                      <p className="text-xs text-destructive">
+                        That username is already taken.
+                      </p>
+                    )}
+                    {usernameAvailability === "invalid" &&
+                      username.trim().length > 0 && (
+                        <p className="text-xs text-destructive">
+                          Username must be 3–30 characters using only letters,
+                          numbers, underscores, and periods.
+                        </p>
+                      )}
+                  </div>
+
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={loading || usernameAvailability !== "available"}
+                  >
+                    {loading && (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    )}
+                    Continue
+                  </Button>
+                </form>
+              </>
+            )}
+
             {step === "welcome" && (
               <>
                 <DialogHeader className="mb-8 text-left">

@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useState } from "react"
+import { useUnread } from "@/context/unread-context"
 import { apiClient } from "@/lib/api-client"
 import type { Channel, ListChannelsResponse } from "@/lib/api-types"
 import { canDeleteChannels, canManageChannels } from "@/lib/permissions"
@@ -559,6 +560,11 @@ function SortableChannelItem({
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
+  const { getUnreadCount, getMentionCount } = useUnread()
+  const unreadCount = active ? 0 : getUnreadCount(ch.id)
+  const mentionCount = active ? 0 : getMentionCount(ch.id)
+  const hasUnread = unreadCount > 0
+
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
@@ -577,63 +583,74 @@ function SortableChannelItem({
         className={cn(
           "group relative flex w-full items-center gap-2 rounded-lg px-2 py-[6px] text-[14px] hover:bg-foreground/[0.06] cursor-pointer",
           active && "bg-foreground/[0.06] font-medium text-foreground",
-          !active && "text-muted-foreground",
+          !active && hasUnread && "font-medium text-foreground",
+          !active && !hasUnread && "text-muted-foreground",
           menuOpen && "bg-foreground/[0.06]"
         )}
       >
         {active && (
           <div className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
         )}
+        {!active && hasUnread && (
+          <div className="absolute left-0 top-1/2 h-2 w-[3px] -translate-y-1/2 rounded-r-full bg-foreground" />
+        )}
         <ChannelIcon type={ch.type} />
         <span className="truncate">{ch.name}</span>
-        {canManage && (
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-            <DropdownMenuTrigger
-              onClick={(e) => e.stopPropagation()}
-              className={cn(
-                "ml-auto flex size-5 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
-                menuOpen && "opacity-100"
-              )}
-            >
-              <MoreHorizontal className="size-4 shrink-0" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="bottom" align="start">
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setMenuOpen(false)
-                  setEditOpen(true)
-                }}
+        <div className="ml-auto flex items-center gap-1">
+          {mentionCount > 0 && (
+            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              {mentionCount}
+            </span>
+          )}
+          {canManage && (
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <DropdownMenuTrigger
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  "flex size-5 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
+                  menuOpen && "opacity-100"
+                )}
               >
-                Edit Channel
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation()
-                  navigator.clipboard.writeText(ch.id)
-                  setMenuOpen(false)
-                }}
-              >
-                Copy Channel ID
-              </DropdownMenuItem>
-              {canDelete && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      setDeleteOpen(true)
-                    }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    Delete Channel
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+                <MoreHorizontal className="size-4 shrink-0" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="bottom" align="start">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuOpen(false)
+                    setEditOpen(true)
+                  }}
+                >
+                  Edit Channel
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    navigator.clipboard.writeText(ch.id)
+                    setMenuOpen(false)
+                  }}
+                >
+                  Copy Channel ID
+                </DropdownMenuItem>
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMenuOpen(false)
+                        setDeleteOpen(true)
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      Delete Channel
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
       {canManage && (
         <EditChannelDialog

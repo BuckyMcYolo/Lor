@@ -209,6 +209,9 @@ export type UnreadNotification = {
   guildId: string | null
   messageId: string
   unreadCountDelta: number
+  authorName: string
+  contentPreview: string | null
+  channelName: string | null
 }
 
 export type MentionNotification = {
@@ -218,6 +221,15 @@ export type MentionNotification = {
   channelId: string
   guildId: string | null
   createdAt: string
+}
+
+export type NotificationBootstrap = {
+  readStates: Array<{
+    channelId: string
+    unreadCount: number
+    mentionCount: number
+    lastReadMessageId: string | null
+  }>
 }
 
 export const guildMemberJoinedPayloadSchema = z.object({
@@ -298,6 +310,7 @@ export interface ServerToClientEvents {
   "message:reaction:updated": (payload: RealtimeMessageReactionUpdated) => void
   "message:embeds:updated": (payload: RealtimeMessageEmbedsUpdated) => void
   "message:pin:toggled": (payload: RealtimeMessagePinToggled) => void
+  "notification:bootstrap": (payload: NotificationBootstrap) => void
   "notification:unread": (payload: UnreadNotification) => void
   "notification:mention": (payload: MentionNotification) => void
   "channel:read-state": (payload: ChannelReadState) => void

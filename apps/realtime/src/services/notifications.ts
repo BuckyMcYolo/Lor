@@ -122,6 +122,14 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
     (id) => id !== input.authorId
   )
 
+  const contentPreview = input.message.content
+    ? input.message.content.length > 100
+      ? `${input.message.content.slice(0, 100)}…`
+      : input.message.content
+    : input.message.attachments.length > 0
+      ? `sent ${input.message.attachments.length} attachment${input.message.attachments.length > 1 ? "s" : ""}`
+      : null
+
   const unreadNotifications: Array<UserTargetedPayload<UnreadNotification>> =
     recipientIds.map((userId) => ({
       userId,
@@ -130,6 +138,9 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
         guildId: input.channel.guildId,
         messageId: input.message.id,
         unreadCountDelta: 1,
+        authorName: input.message.author.name,
+        contentPreview,
+        channelName: input.channel.name,
       },
     }))
 

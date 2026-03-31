@@ -48,7 +48,7 @@ import {
   enforceDmMessageRateLimit,
   enforceGuildMessageRateLimit,
 } from "@/services/rate-limit"
-import { markChannelRead } from "@/services/read-states"
+import { getUnreadStatesForUser, markChannelRead } from "@/services/read-states"
 
 type SocketData = {
   user: Session["user"]
@@ -89,7 +89,11 @@ function toHeaders(
 
 const realtimePort = env.REALTIME_PORT
 
-const defaultOrigins = ["http://localhost:3000", "http://localhost:3001"]
+const defaultOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "tauri://localhost",
+]
 const corsOrigins = (env.REALTIME_CORS_ORIGIN || defaultOrigins.join(","))
   .split(",")
   .map((origin) => origin.trim())
@@ -193,7 +197,6 @@ async function initializeConnection(socket: RealtimeSocket) {
   try {
     const initSocketId = socket.id
     const userPresenceRoom = userRoom(socket.data.user.id)
-    await socket.join(userPresenceRoom)
 
     const guildMembershipRows = await db
       .select({
@@ -278,6 +281,21 @@ async function initializeConnection(socket: RealtimeSocket) {
         guilds: guildPresenceRooms,
       },
     })
+
+    // Bootstrap unread state BEFORE joining userRoom so live notifications
+    // arriving after join don't get wiped by a later bootstrap emit
+    try {
+      const bootstrap = await getUnreadStatesForUser(socket.data.user.id)
+      socket.emit("notification:bootstrap", bootstrap)
+    } catch (err) {
+      console.error("Failed to bootstrap unread states:", {
+        socketId: socket.id,
+        userId: socket.data.user.id,
+        error: err,
+      })
+    }
+
+    await socket.join(userPresenceRoom)
 
     return true
   } catch (error) {
@@ -610,7 +628,10 @@ io.on("connection", (socket) => {
         lastReadMessageId: parsed.lastReadMessageId,
       })
 
+      // Broadcast to other tabs/devices for this user
       socket.to(userRoom(socket.data.user.id)).emit("channel:read-state", state)
+      // Also send back to the requesting socket
+      socket.emit("channel:read-state", state)
       ack?.({ ok: true, state })
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
