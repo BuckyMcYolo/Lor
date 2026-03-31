@@ -167,11 +167,8 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
     async sendVerificationEmail({ user, url, token }) {
-      console.error(
-        `[TOWNHALL EMAIL] Sending verification email to ${user.email} from ${env.EMAIL_FROM}`
-      )
-      try {
-        const { data, error } = await resend.emails.send({
+      resend.emails
+        .send({
           from: env.EMAIL_FROM,
           to: user.email,
           subject: "Verify your Townhall email",
@@ -184,14 +181,11 @@ export const auth = betterAuth({
             </div>
           `,
         })
-        if (error) {
-          console.error("[TOWNHALL EMAIL] Resend error:", JSON.stringify(error))
-        } else {
-          console.error("[TOWNHALL EMAIL] Sent successfully, id:", data?.id)
-        }
-      } catch (err) {
-        console.error("[TOWNHALL EMAIL] Exception:", err)
-      }
+        .then(({ error }) => {
+          if (error) {
+            console.error("Failed to send verification email:", error.message)
+          }
+        })
     },
   },
   advanced: {

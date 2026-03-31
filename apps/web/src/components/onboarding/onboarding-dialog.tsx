@@ -54,6 +54,12 @@ export function OnboardingDialog({ open }: { open: boolean }) {
     session.user.username.length >= MIN_USERNAME_LENGTH
   )
   const [step, setStep] = useState<Step>(hasUsername ? "welcome" : "username")
+  // Sync step with session hydration — session may be null on first render
+  useEffect(() => {
+    if (hasUsername && step === "username") {
+      setStep("welcome")
+    }
+  }, [hasUsername, step])
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
   const [slugEdited, setSlugEdited] = useState(false)

@@ -56,7 +56,7 @@ export function useBrowserNotifications() {
       if (settings.desktopNotifications !== "all_messages") return
 
       // For DMs, check dmNotifications setting
-      if (payload.guildId === null && settings?.dmNotifications === "nothing") {
+      if (payload.guildId === null && settings.dmNotifications === "nothing") {
         return
       }
 

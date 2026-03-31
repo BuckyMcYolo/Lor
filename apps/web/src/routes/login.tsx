@@ -46,12 +46,17 @@ function LoginPage() {
         // 403 = email not verified — better-auth re-sends the verification email automatically
         if (error.status === 403) {
           navigate({ to: "/check-email", search: { email } })
-          return
+          return { needsVerification: true }
         }
         throw new Error(error.message ?? "Failed to sign in")
       }
+      return { needsVerification: false }
     },
-    onSuccess: () => navigate({ to: "/" }),
+    onSuccess: (result) => {
+      if (!result?.needsVerification) {
+        navigate({ to: "/" })
+      }
+    },
   })
 
   return (
