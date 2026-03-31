@@ -40,6 +40,7 @@ function LoginPage() {
       const { error } = await authClient.signIn.email({
         email,
         password,
+        callbackURL: `${window.location.origin}/`,
       })
       if (error) {
         // 403 = email not verified — better-auth re-sends the verification email automatically
@@ -54,7 +55,7 @@ function LoginPage() {
   })
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
       <div className="flex w-full max-w-sm flex-col gap-6">
         <Link
           to="/login"

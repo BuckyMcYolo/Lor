@@ -23,7 +23,6 @@ function SignUpPage() {
   const navigate = useNavigate()
   const { data: session, isPending: sessionPending } = authClient.useSession()
   const [name, setName] = useState("")
-  const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
@@ -41,10 +40,9 @@ function SignUpPage() {
     mutationFn: async () => {
       const { error } = await authClient.signUp.email({
         name,
-        username,
         email,
         password,
-        callbackURL: "/login",
+        callbackURL: `${window.location.origin}/`,
       })
       if (error) throw new Error(error.message ?? "Failed to create account")
     },
@@ -56,7 +54,7 @@ function SignUpPage() {
   })
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
       <div className="flex w-full max-w-sm flex-col gap-6">
         <Link
           to="/login"
@@ -91,31 +89,17 @@ function SignUpPage() {
                       <span>{error.message}</span>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">Display Name</Label>
-                      <Input
-                        id="name"
-                        type="text"
-                        placeholder="Your name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        autoComplete="name"
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="username">Username</Label>
-                      <Input
-                        id="username"
-                        type="text"
-                        placeholder="username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        autoComplete="username"
-                        required
-                      />
-                    </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Display Name</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      autoComplete="name"
+                      required
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>

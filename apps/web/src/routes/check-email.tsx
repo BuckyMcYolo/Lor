@@ -30,7 +30,7 @@ function CheckEmailPage() {
       if (!email) return
       const { error } = await authClient.sendVerificationEmail({
         email,
-        callbackURL: "/login",
+        callbackURL: `${window.location.origin}/`,
       })
       if (error)
         throw new Error(error.message ?? "Failed to resend verification email")

@@ -164,7 +164,9 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendOnSignIn: true,
-    async sendVerificationEmail({ user, url }) {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    async sendVerificationEmail({ user, url, token }) {
       console.error(
         `[TOWNHALL EMAIL] Sending verification email to ${user.email} from ${env.EMAIL_FROM}`
       )

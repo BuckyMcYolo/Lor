@@ -43,7 +43,7 @@ const serverSchema = z.object({
   S3_REGION: z.string().default("auto"),
   S3_PUBLIC_URL: z.string().url(),
   RESEND_API_KEY: z.string().min(1),
-  EMAIL_FROM: z.string().default("Townhall <team@townhall.chat>"),
+  EMAIL_FROM: z.string().default("Townhall <noreply@team.townhall.chat>"),
 })
 
 export const env = serverSchema.parse(process.env)

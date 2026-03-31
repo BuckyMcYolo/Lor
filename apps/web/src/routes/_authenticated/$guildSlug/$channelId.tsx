@@ -56,7 +56,8 @@ function ChannelView() {
   const socket = useSocket()
   useAutoMarkRead(channelId)
   const queryClient = useQueryClient()
-  const { view, setView, clearView } = useRightSidebar()
+  const { view, setView, clearView, isCollapsed, toggleCollapsed } =
+    useRightSidebar()
   const { data: session } = authClient.useSession()
   const currentUserId = session?.user.id
   const blockedUserIds = useBlockedUserIds()
@@ -194,12 +195,15 @@ function ChannelView() {
   })
 
   const togglePinnedMessages = useCallback(() => {
-    if (view?.type === "pinned-messages") {
+    if (view?.type === "pinned-messages" && !isCollapsed) {
       setView({ type: "guild-members", guildSlug, channelId })
     } else {
       setView({ type: "pinned-messages", guildSlug, channelId })
+      if (isCollapsed) {
+        toggleCollapsed()
+      }
     }
-  }, [view, setView, guildSlug, channelId])
+  }, [view, setView, guildSlug, channelId, isCollapsed, toggleCollapsed])
 
   const { replyingTo, setReplyingTo, clearReply } = useReplyState()
 
