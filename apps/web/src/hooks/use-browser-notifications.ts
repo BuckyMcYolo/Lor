@@ -37,6 +37,11 @@ export function useBrowserNotifications() {
       if (!settings) return
       if (settings.desktopNotifications === "nothing") return
 
+      // For DM mentions, check dmNotifications setting
+      if (payload.guildId === null && settings.dmNotifications === "nothing") {
+        return
+      }
+
       const mentionType =
         payload.type === "everyone_mention" ? "@everyone" : "a mention"
 

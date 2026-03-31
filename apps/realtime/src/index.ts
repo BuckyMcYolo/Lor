@@ -282,10 +282,8 @@ async function initializeConnection(socket: RealtimeSocket) {
       },
     })
 
-    await socket.join(userPresenceRoom)
-
-    // Bootstrap unread state before joining userRoom so live notifications
-    // arriving between join and bootstrap don't get wiped
+    // Bootstrap unread state BEFORE joining userRoom so live notifications
+    // arriving after join don't get wiped by a later bootstrap emit
     try {
       const bootstrap = await getUnreadStatesForUser(socket.data.user.id)
       socket.emit("notification:bootstrap", bootstrap)
@@ -296,6 +294,8 @@ async function initializeConnection(socket: RealtimeSocket) {
         error: err,
       })
     }
+
+    await socket.join(userPresenceRoom)
 
     return true
   } catch (error) {
