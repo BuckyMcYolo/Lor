@@ -6,6 +6,7 @@ import { and, count, db, desc, eq, ilike, inArray, schema } from "@repo/db"
 import { PRESENCE_ONLINE_USERS_SET_KEY } from "@repo/realtime-types"
 import { asc } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
+import { logger } from "@/lib/logger"
 import {
   assertCanManageGuildMember,
   assertGuildPermission,
@@ -48,7 +49,7 @@ async function listOnlineUserIds(userIds: string[]) {
 
     return new Set(onlineIds)
   } catch (error) {
-    console.error("[api] failed to read presence from redis:", error)
+    logger.error({ err: error }, "Failed to read presence from Redis")
     return new Set<string>()
   }
 }

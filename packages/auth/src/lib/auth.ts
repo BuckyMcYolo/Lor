@@ -6,6 +6,7 @@ import { betterAuth } from "better-auth/minimal"
 import { admin, organization, twoFactor, username } from "better-auth/plugins"
 import Redis from "ioredis"
 import { Resend } from "resend"
+import { logger } from "./logger"
 import {
   ac,
   admin as adminRole,
@@ -155,9 +156,9 @@ export const auth = betterAuth({
         })
         .then(({ data, error }) => {
           if (error) {
-            console.error("Failed to send reset password email:", error)
+            logger.error({ err: error }, "Failed to send reset password email")
           } else {
-            console.log("Reset password email sent:", data?.id)
+            logger.info({ emailId: data?.id }, "Reset password email sent")
           }
         })
     },
@@ -183,7 +184,7 @@ export const auth = betterAuth({
         })
         .then(({ error }) => {
           if (error) {
-            console.error("Failed to send verification email:", error.message)
+            logger.error({ err: error }, "Failed to send verification email")
           }
         })
     },
@@ -258,9 +259,9 @@ export const auth = betterAuth({
           try {
             await seedDefaultGuildChannels(organization.id)
           } catch (error) {
-            console.error(
-              `Failed to seed default channels for guild ${organization.id}:`,
-              error
+            logger.error(
+              { err: error, guildId: organization.id },
+              "Failed to seed default channels for guild"
             )
             return
           }
@@ -271,9 +272,9 @@ export const auth = betterAuth({
               .set({ onboardingCompleted: true })
               .where(eq(schema.user.id, user.id))
           } catch (error) {
-            console.error(
-              `Failed to mark onboarding as completed for user ${user.id}:`,
-              error
+            logger.error(
+              { err: error, userId: user.id },
+              "Failed to mark onboarding as completed"
             )
           }
         },

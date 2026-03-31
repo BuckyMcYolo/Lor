@@ -1,5 +1,6 @@
 import type { Context, Next } from "hono"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
+import { logger } from "@/lib/logger"
 import { getRedisClient } from "@/lib/redis"
 import type { AppBindings } from "@/lib/types/app-types"
 
@@ -69,7 +70,7 @@ export function rateLimiter(config: RateLimitConfig) {
         )
       }
     } catch (err) {
-      console.error("[rate-limit] Redis unavailable, failing open:", err)
+      logger.warn({ err }, "Redis unavailable, failing open")
     }
 
     await next()

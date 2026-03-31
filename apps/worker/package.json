@@ -12,6 +12,7 @@
   "dependencies": {
     "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
+    "@repo/logger": "workspace:^",
     "@repo/realtime-types": "workspace:*",
     "@socket.io/redis-emitter": "^5.1.0",
     "bullmq": "^5.70.2",

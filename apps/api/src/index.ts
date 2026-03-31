@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server"
 import { env } from "@repo/env/server"
 import app from "@/app"
+import { logger } from "@/lib/logger"
 
-console.log(`API server running on port ${env.PORT}`)
+logger.info(`API server running on port ${env.PORT}`)
 serve({ fetch: app.fetch, port: env.PORT })

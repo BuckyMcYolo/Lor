@@ -1,5 +1,6 @@
 import { PRESENCE_ONLINE_USERS_SET_KEY } from "@repo/realtime-types"
 import type { createClient } from "redis"
+import { logger } from "@/lib/logger"
 
 type RedisClient = ReturnType<typeof createClient>
 
@@ -103,8 +104,9 @@ export async function reconcilePresence(redis: RedisClient) {
 
   if (staleUserIds.length > 0) {
     await redis.sRem(PRESENCE_ONLINE_USERS_SET_KEY, staleUserIds)
-    console.log(
-      `[realtime] reconciled ${staleUserIds.length} stale presence entries`
+    logger.info(
+      { count: staleUserIds.length },
+      "Reconciled stale presence entries"
     )
   }
 
