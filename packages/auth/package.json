@@ -10,6 +10,7 @@
     "@better-auth/redis-storage": "^1.5.5",
     "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
+    "@repo/logger": "workspace:^",
     "better-auth": "^1.4.18",
     "ioredis": "^5.10.0",
     "resend": "^6.9.4"

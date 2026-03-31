@@ -5,6 +5,7 @@ import { Emitter } from "@socket.io/redis-emitter"
 import { Worker } from "bullmq"
 import { createClient } from "redis"
 import { createLinkUnfurlProcessor } from "@/jobs/link-unfurl"
+import { logger } from "@/lib/logger"
 
 function parseRedisUrl(url: string) {
   const parsed = new URL(url)
@@ -23,7 +24,7 @@ async function bootstrap() {
   // Redis client for Socket.IO emitter (uses `redis` v4 package)
   const redisEmitterClient = createClient({ url: env.REDIS_URL })
   redisEmitterClient.on("error", (error) => {
-    console.error("[worker] redis emitter error:", error)
+    logger.error({ err: error }, "Redis emitter error")
   })
   await redisEmitterClient.connect()
 
@@ -45,22 +46,20 @@ async function bootstrap() {
   )
 
   linkUnfurlWorker.on("failed", (job, error) => {
-    console.error(`[worker] link-unfurl job ${job?.id} failed:`, error.message)
+    logger.error({ jobId: job?.id, err: error }, "Link-unfurl job failed")
   })
 
   linkUnfurlWorker.on("error", (error) => {
-    console.error("[worker] link-unfurl worker error:", {
-      queue: LINK_UNFURL_QUEUE,
-      workerId: linkUnfurlWorker.id,
-      message: error.message,
-      stack: error.stack,
-    })
+    logger.error(
+      { queue: LINK_UNFURL_QUEUE, workerId: linkUnfurlWorker.id, err: error },
+      "Link-unfurl worker error"
+    )
   })
 
-  console.log("Worker started, processing queues:", LINK_UNFURL_QUEUE)
+  logger.info({ queue: LINK_UNFURL_QUEUE }, "Worker started")
 
   const shutdown = async () => {
-    console.log("[worker] shutting down...")
+    logger.info("Shutting down...")
     await linkUnfurlWorker.close()
     await redisEmitterClient.quit()
     process.exit(0)
@@ -71,6 +70,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => {
-  console.error("[worker] failed to start:", error)
+  logger.fatal({ err: error }, "Failed to start")
   process.exit(1)
 })

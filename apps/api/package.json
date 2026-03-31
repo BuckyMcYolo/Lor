@@ -17,6 +17,7 @@
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
+    "@repo/logger": "workspace:^",
     "@repo/realtime-types": "workspace:*",
     "dotenv": "^17.2.4",
     "drizzle-orm": "^0.45.1",

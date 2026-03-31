@@ -28,6 +28,7 @@ import { Queue } from "bullmq"
 import { createClient } from "redis"
 import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
+import { logger } from "@/lib/logger"
 import { isDMBlockedForUser } from "@/services/blocks"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
 import {
@@ -104,13 +105,13 @@ const redisSubClient = redisPubClient.duplicate()
 const redisPresenceClient = redisPubClient.duplicate()
 
 redisPubClient.on("error", (error) => {
-  console.error("[realtime] redis pub error:", error)
+  logger.error({ err: error }, "Redis pub error")
 })
 redisSubClient.on("error", (error) => {
-  console.error("[realtime] redis sub error:", error)
+  logger.error({ err: error }, "Redis sub error")
 })
 redisPresenceClient.on("error", (error) => {
-  console.error("[realtime] redis presence error:", error)
+  logger.error({ err: error }, "Redis presence error")
 })
 
 const httpServer = createServer((req, res) => {
@@ -288,24 +289,19 @@ async function initializeConnection(socket: RealtimeSocket) {
       const bootstrap = await getUnreadStatesForUser(socket.data.user.id)
       socket.emit("notification:bootstrap", bootstrap)
     } catch (err) {
-      console.error("Failed to bootstrap unread states:", {
-        socketId: socket.id,
-        userId: socket.data.user.id,
-        error: err,
-      })
+      logger.error(
+        { err, socketId: socket.id, userId: socket.data.user.id },
+        "Failed to bootstrap unread states"
+      )
     }
 
     await socket.join(userPresenceRoom)
 
     return true
   } catch (error) {
-    console.error(
-      "initializeConnection failed (schema.guildMember lookup or socket.join):",
-      {
-        socketId: socket.id,
-        userId: socket.data.user.id,
-        error,
-      }
+    logger.error(
+      { err: error, socketId: socket.id, userId: socket.data.user.id },
+      "initializeConnection failed"
     )
     socket.disconnect(true)
     return false
@@ -549,7 +545,7 @@ io.on("connection", (socket) => {
             urls: urlMatches,
           })
           .catch((err) => {
-            console.error("[realtime] failed to enqueue link-unfurl:", err)
+            logger.error({ err }, "Failed to enqueue link-unfurl")
           })
       }
     } catch (error) {
@@ -746,11 +742,10 @@ io.on("connection", (socket) => {
           }
         }
       } catch (error) {
-        console.error("[realtime] disconnect presence cleanup failed:", {
-          socketId: socket.id,
-          userId: socket.data.user.id,
-          error,
-        })
+        logger.error(
+          { err: error, socketId: socket.id, userId: socket.data.user.id },
+          "Disconnect presence cleanup failed"
+        )
       }
     })()
   })
@@ -792,17 +787,17 @@ async function bootstrap() {
   // Periodically clean up stale presence entries (crashed servers)
   setInterval(() => {
     void reconcilePresence(redisPresenceClient).catch((error) => {
-      console.error("[realtime] presence reconciliation failed:", error)
+      logger.error({ err: error }, "Presence reconciliation failed")
     })
   }, 30 * 1000)
 
   httpServer.listen(realtimePort, () => {
-    console.log(`Realtime server running on port ${realtimePort}`)
-    console.log(`Allowed origins: ${corsOrigins.join(", ")}`)
+    logger.info({ port: realtimePort }, "Realtime server running")
+    logger.info({ origins: corsOrigins }, "Allowed origins")
   })
 }
 
 bootstrap().catch((error) => {
-  console.error("[realtime] failed to start:", error)
+  logger.fatal({ err: error }, "Failed to start")
   process.exit(1)
 })
