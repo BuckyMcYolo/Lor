@@ -1,0 +1,16 @@
+FROM node:22-slim
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+WORKDIR /app
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY apps/api/ ./apps/api/
+COPY packages/ ./packages/
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @repo/api build
+
+ENV NODE_ENV=production
+USER node
+EXPOSE 8080
+CMD ["node", "apps/api/dist/index.js"]

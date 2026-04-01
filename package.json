@@ -10,6 +10,7 @@
     "generate:auth-schema": "pnpm --filter @repo/auth exec npx @better-auth/cli@latest generate --output ../../packages/db/src/generated-schema.ts",
     "db:push": "pnpm --filter @repo/db db:push",
     "db:studio": "pnpm --filter @repo/db db:studio",
+    "test": "turbo run test",
     "desktop": "pnpm --filter desktop dev",
     "prepare": "husky"
   },
@@ -18,7 +19,8 @@
     "@types/node": "^25.2.2",
     "husky": "^9.1.7",
     "turbo": "^2.8.3",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^4.1.2"
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {

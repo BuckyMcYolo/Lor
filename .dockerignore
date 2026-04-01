@@ -1,0 +1,10 @@
+node_modules
+.git
+.github
+.next
+dist
+*.md
+!README.md
+.env*
+.turbo
+apps/desktop

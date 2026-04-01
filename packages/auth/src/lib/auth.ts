@@ -149,7 +149,7 @@ export const auth = betterAuth({
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
               <h2 style="margin: 0 0 8px; font-size: 24px; color: #1a1a1a;">Reset Your Password</h2>
               <p style="margin: 0 0 24px; color: #555; font-size: 16px; line-height: 1.5;">Click the button below to reset your password.</p>
-              <a href="${url}" style="display: inline-block; background: #8B6914; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">Reset Password</a>
+              <a href="${url}" style="display: inline-block; background: #994920; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">Reset Password</a>
               <p style="color: #999; font-size: 13px; margin-top: 24px; line-height: 1.4;">If you didn't request a password reset, you can safely ignore this email.</p>
             </div>
           `,
@@ -177,7 +177,7 @@ export const auth = betterAuth({
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
               <h2 style="margin: 0 0 8px; font-size: 24px; color: #1a1a1a;">Welcome to Townhall</h2>
               <p style="margin: 0 0 24px; color: #555; font-size: 16px; line-height: 1.5;">Click the button below to verify your email address and get started.</p>
-              <a href="${url}" style="display: inline-block; background: #8B6914; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">Verify Email</a>
+              <a href="${url}" style="display: inline-block; background: #994920; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">Verify Email</a>
               <p style="color: #999; font-size: 13px; margin-top: 24px; line-height: 1.4;">If you didn't create a Townhall account, you can safely ignore this email.</p>
             </div>
           `,
