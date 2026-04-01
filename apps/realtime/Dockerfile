@@ -12,5 +12,6 @@ RUN pnpm --filter @repo/realtime build
 
 ENV NODE_ENV=production
 USER node
+WORKDIR /app/apps/realtime
 EXPOSE 8000
-CMD ["node", "apps/realtime/dist/index.js"]
+CMD ["node", "dist/index.js"]

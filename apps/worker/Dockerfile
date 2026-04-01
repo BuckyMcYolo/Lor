@@ -12,4 +12,5 @@ RUN pnpm --filter @repo/worker build
 
 ENV NODE_ENV=production
 USER node
-CMD ["node", "apps/worker/dist/index.js"]
+WORKDIR /app/apps/worker
+CMD ["node", "dist/index.js"]
