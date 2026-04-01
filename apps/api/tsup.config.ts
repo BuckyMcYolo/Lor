@@ -5,5 +5,5 @@ export default defineConfig({
   format: "esm",
   outDir: "dist",
   noExternal: [/@repo\/.*/],
-  external: ["dotenv"],
+  external: ["dotenv", "ioredis"],
 })
