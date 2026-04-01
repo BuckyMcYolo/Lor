@@ -11,4 +11,5 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @repo/worker build
 
 ENV NODE_ENV=production
+USER node
 CMD ["node", "apps/worker/dist/index.js"]

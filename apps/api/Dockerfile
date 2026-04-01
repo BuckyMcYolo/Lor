@@ -11,5 +11,6 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @repo/api build
 
 ENV NODE_ENV=production
+USER node
 EXPOSE 8080
 CMD ["node", "apps/api/dist/index.js"]
