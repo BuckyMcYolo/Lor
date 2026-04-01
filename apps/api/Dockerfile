@@ -1,17 +1,12 @@
-FROM node:22-slim
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+FROM oven/bun:1-slim
 
 WORKDIR /app
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/ ./apps/api/
 COPY packages/ ./packages/
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @repo/api build
+RUN bun install --frozen-lockfile
 
 ENV NODE_ENV=production
-USER node
-WORKDIR /app/apps/api
+USER bun
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
+CMD ["bun", "run", "apps/api/src/index.ts"]
