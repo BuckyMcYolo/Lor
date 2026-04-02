@@ -195,6 +195,11 @@ export const auth = betterAuth({
     database: {
       generateId: false,
     },
+    useSecureCookies: env.NODE_ENV === "production",
+    crossSubDomainCookies: {
+      enabled: !!env.COOKIE_DOMAIN,
+      domain: env.COOKIE_DOMAIN || undefined,
+    },
   },
   session: {
     cookieCache: {

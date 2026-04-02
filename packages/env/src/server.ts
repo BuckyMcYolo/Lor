@@ -45,6 +45,7 @@ const serverSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   EMAIL_FROM: z.string().default("Townhall <noreply@team.townhall.chat>"),
   TRUSTED_ORIGINS: z.string().default(""),
+  COOKIE_DOMAIN: z.string().default(""),
 })
 
 export const env = serverSchema.parse(process.env)
