@@ -11,6 +11,12 @@ COPY packages/ ./packages/
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @repo/api build
 RUN pnpm --filter @repo/api-client build
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_REALTIME_URL
+ARG NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_REALTIME_URL=$NEXT_PUBLIC_REALTIME_URL
+ENV NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE=$NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE
 RUN pnpm --filter web build
 
 FROM nginx:alpine
