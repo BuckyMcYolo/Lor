@@ -33,7 +33,7 @@ const serverSchema = z.object({
   REALTIME_CORS_ORIGIN: z.string().default(DEFAULT_REALTIME_CORS_ORIGIN),
   REDIS_URL: z.string().url(),
   BETTER_AUTH_SECRET: z.string().min(1),
-  SELF_HOSTED: z.coerce.boolean().default(true),
+  SELF_HOSTED: z.coerce.boolean().default(false),
   MAX_FILE_UPLOAD_SIZE: z.coerce.number().default(DEFAULT_MAX_FILE_UPLOAD_SIZE),
   NEXT_PUBLIC_API_URL: z.string().min(1).transform(addProtocol),
   S3_ENDPOINT: z.string().url(),
