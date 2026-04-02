@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
         "@": resolve(__dirname, "./src"),
       },
     },
+    preview: {
+      allowedHosts: true,
+    },
     define: {
       "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(
         env.NEXT_PUBLIC_API_URL
