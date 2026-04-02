@@ -135,6 +135,7 @@ export const auth = betterAuth({
         ]
       : []),
     "tauri://localhost",
+    ...env.TRUSTED_ORIGINS.split(",").filter(Boolean),
   ],
   emailAndPassword: {
     enabled: true,

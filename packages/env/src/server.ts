@@ -44,6 +44,7 @@ const serverSchema = z.object({
   S3_PUBLIC_URL: z.string().url(),
   RESEND_API_KEY: z.string().min(1),
   EMAIL_FROM: z.string().default("Townhall <noreply@team.townhall.chat>"),
+  TRUSTED_ORIGINS: z.string().default(""),
 })
 
 export const env = serverSchema.parse(process.env)
