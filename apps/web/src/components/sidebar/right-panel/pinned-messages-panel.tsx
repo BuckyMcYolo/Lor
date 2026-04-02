@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
+import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { formatTime } from "@repo/utils/date"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft, PanelRight, Pin } from "lucide-react"
@@ -17,7 +18,8 @@ export function PinnedMessagesPanel({
 }: {
   view: PinnedMessagesSidebarView
 }) {
-  const { setView, toggleCollapsed } = useRightSidebar()
+  const { setView, toggleCollapsed, clearView } = useRightSidebar()
+  const isMobile = useIsMobile()
 
   const goBack = () => {
     setView({
@@ -54,7 +56,7 @@ export function PinnedMessagesPanel({
         <span className="text-sm font-semibold">Pinned Messages</span>
         <button
           type="button"
-          onClick={toggleCollapsed}
+          onClick={isMobile ? clearView : toggleCollapsed}
           className="ml-auto rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <PanelRight className="size-4" />

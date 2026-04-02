@@ -4,6 +4,7 @@ import {
   isGuildRole,
   roleHasPermissions,
 } from "@repo/auth/permissions"
+import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useCallback, useEffect, useMemo } from "react"
@@ -54,6 +55,7 @@ function ChannelView() {
   const { msgId } = Route.useSearch()
   const navigate = Route.useNavigate()
   const socket = useSocket()
+  const isMobile = useIsMobile()
   useAutoMarkRead(channelId)
   const queryClient = useQueryClient()
   const { view, setView, clearView, isCollapsed, toggleCollapsed } =
@@ -74,15 +76,17 @@ function ChannelView() {
   }, [guildSlug, channelId])
 
   useEffect(() => {
-    setView({
-      type: "guild-members",
-      guildSlug,
-      channelId,
-    })
+    if (isMobile === false) {
+      setView({
+        type: "guild-members",
+        guildSlug,
+        channelId,
+      })
+    }
     return () => {
       clearView()
     }
-  }, [setView, clearView, guildSlug, channelId])
+  }, [setView, clearView, guildSlug, channelId, isMobile])
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["channel", guildSlug, channelId],

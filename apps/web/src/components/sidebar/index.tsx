@@ -147,6 +147,29 @@ function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
   )
 }
 
+function MobileRightPanel() {
+  const { view, clearView } = useRightSidebar()
+  const open = !!view
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) clearView()
+      }}
+      modal
+    >
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="w-[300px] p-0 sm:max-w-[300px]"
+      >
+        {view && <RightSidebarPanel view={view} />}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 function SidebarLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile()
 
@@ -154,6 +177,7 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex h-full w-full flex-col">
         <MobileSidebar />
+        <MobileRightPanel />
         {children}
       </div>
     )
