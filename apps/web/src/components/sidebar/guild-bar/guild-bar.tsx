@@ -3,6 +3,8 @@ import { cn } from "@repo/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { MessageCircle, Plus } from "lucide-react"
+import { useState } from "react"
+import { CreateGuildDialog } from "./create-guild-dialog"
 
 function GuildIcon({
   name,
@@ -55,6 +57,7 @@ function GuildIcon({
 
 export function GuildBar() {
   const navigate = useNavigate()
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   const { guildSlug } = useParams({ strict: false })
 
@@ -120,11 +123,20 @@ export function GuildBar() {
       <div className="mx-auto my-1 h-px w-8 rounded-full bg-border" />
 
       {/* Add guild button */}
-      <div className="group relative flex items-center justify-center px-3 py-1">
+      <button
+        type="button"
+        onClick={() => setCreateDialogOpen(true)}
+        className="group relative flex items-center justify-center px-3 py-1"
+      >
         <div className="flex size-12 items-center justify-center rounded-[24px] bg-muted text-emerald-500 transition-all hover:rounded-2xl hover:bg-emerald-500 hover:text-white">
           <Plus className="size-6" />
         </div>
-      </div>
+      </button>
+
+      <CreateGuildDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </div>
   )
 }

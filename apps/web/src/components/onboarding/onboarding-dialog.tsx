@@ -477,7 +477,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     <Label htmlFor="invite-link">Invite Link or Code</Label>
                     <Input
                       id="invite-link"
-                      placeholder="https://townhall.chat/invite/abc123 or abc123"
+                      placeholder="https://app.townhall.chat/invite/abc123 or abc123"
                       value={inviteLink}
                       onChange={(e) => setInviteLink(e.target.value)}
                       disabled={loading}

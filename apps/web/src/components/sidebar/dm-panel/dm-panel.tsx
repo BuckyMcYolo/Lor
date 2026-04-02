@@ -4,6 +4,7 @@ import { cn } from "@repo/ui/lib/utils"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { Plus, Users } from "lucide-react"
 import { useState } from "react"
+import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { SearchBar } from "../channel-panel/search-bar"
 import { UserBar } from "../channel-panel/user-bar"
 import { DMList } from "./dm-list"
@@ -12,6 +13,7 @@ import { NewDMDialog } from "./new-dm-dialog"
 export function DMPanel() {
   const navigate = useNavigate()
   const { dmId } = useParams({ strict: false })
+  const { setOpen: closeMobileSidebar } = useMobileSidebar()
   const [newDMOpen, setNewDMOpen] = useState(false)
 
   return (
@@ -20,7 +22,10 @@ export function DMPanel() {
       <div className="space-y-0.5 px-2 pt-3">
         <button
           type="button"
-          onClick={() => navigate({ to: "/dms" })}
+          onClick={() => {
+            navigate({ to: "/dms" })
+            closeMobileSidebar(false)
+          }}
           className={cn(
             "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-[14px] font-medium hover:bg-foreground/[0.06]",
             !dmId

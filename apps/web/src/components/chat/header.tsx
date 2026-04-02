@@ -4,8 +4,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
-import { Hash, PanelRight, Pin } from "lucide-react"
+import { useIsMobile } from "@repo/ui/hooks/use-mobile"
+import { Hash, Menu, PanelRight, Pin } from "lucide-react"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
+import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { HeaderSearch } from "./header-search"
 
 export type ChatContext =
@@ -28,9 +30,20 @@ export function ChatHeader({
   onTogglePinnedMessages?: () => void
 }) {
   const { isCollapsed, toggleCollapsed } = useRightSidebar()
+  const isMobile = useIsMobile()
+  const { setOpen: openMobileSidebar } = useMobileSidebar()
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
+      {isMobile && (
+        <button
+          type="button"
+          onClick={() => openMobileSidebar(true)}
+          className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <Menu className="size-5" />
+        </button>
+      )}
       {context.type === "channel" && (
         <Hash className="size-5 shrink-0 text-muted-foreground" />
       )}
