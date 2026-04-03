@@ -9,7 +9,7 @@ import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { cn } from "@repo/ui/lib/utils"
 import { useParams } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "motion/react"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { ChannelPanel } from "./channel-panel/channel-panel"
 import { DMPanel } from "./dm-panel/dm-panel"
@@ -151,6 +151,10 @@ function MobileRightPanel() {
   const { view, clearView } = useRightSidebar()
   const { guildSlug } = useParams({ strict: false })
   const open = !!view && !!guildSlug
+
+  useEffect(() => {
+    if (!guildSlug && view) clearView()
+  }, [guildSlug, view, clearView])
 
   return (
     <Sheet
