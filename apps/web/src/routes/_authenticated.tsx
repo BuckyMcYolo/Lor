@@ -15,10 +15,29 @@ import { SettingsProvider } from "../context/settings-context"
 import { SocketProvider } from "../context/socket-context"
 import { UnreadProvider } from "../context/unread-context"
 import { useBrowserNotifications } from "../hooks/use-browser-notifications"
+import { useUpdateCheck } from "../hooks/use-update-check"
 
 function BrowserNotifications() {
   useBrowserNotifications()
   return null
+}
+
+function UpdateBanner() {
+  const { updateAvailable, refresh } = useUpdateCheck()
+  if (!updateAvailable) return null
+
+  return (
+    <div className="flex items-center justify-center gap-2 bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground">
+      <span>A new version of Townhall is available.</span>
+      <button
+        type="button"
+        onClick={refresh}
+        className="underline underline-offset-2 hover:opacity-80"
+      >
+        Refresh to update
+      </button>
+    </div>
+  )
 }
 
 const LAST_PATH_KEY = "townhall:last-path"
@@ -79,6 +98,7 @@ function AuthenticatedLayout() {
       <UnreadProvider>
         <SettingsProvider>
           <BrowserNotifications />
+          <UpdateBanner />
           <MobileSidebarProvider>
             <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
               <Sidebar>

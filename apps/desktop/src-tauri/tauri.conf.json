@@ -1,26 +1,28 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "townhall",
+  "productName": "Townhall",
   "version": "0.1.0",
   "identifier": "com.townhall.desktop",
   "build": {
-    "frontendDist": "../../../apps/web/dist",
+    "frontendDist": "https://app.townhall.chat",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "pnpm --filter web dev",
-    "beforeBuildCommand": "pnpm --filter web build"
+    "beforeBuildCommand": ""
   },
   "app": {
     "windows": [
       {
         "title": "Townhall",
-        "width": 800,
-        "height": 600,
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
         "resizable": true,
         "fullscreen": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' https://*.townhall.chat; connect-src 'self' https://*.townhall.chat wss://*.townhall.chat http://localhost:* ws://localhost:*; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https://*.townhall.chat; font-src 'self' https://*.townhall.chat data:; script-src 'self' 'unsafe-inline' https://*.townhall.chat"
     }
   },
   "bundle": {
@@ -32,6 +34,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQxNjNCOUYwOEIwQ0RCRTAKUldUZzJ3eUw4TGxqUWJkKzl4emczdUNLMlNJVWZLc24rWFpOaWNVaTEzV0doSUdPMzVHTzBYcXYK",
+      "endpoints": [
+        "https://github.com/BuckyMcYolo/townhall/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

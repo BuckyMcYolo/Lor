@@ -33,7 +33,7 @@ export function useBrowserNotifications() {
     if (!socket) return
 
     const onMention = (payload: MentionNotification) => {
-      if (document.visibilityState === "visible") return
+      if (document.hasFocus()) return
       if (!settings) return
       if (settings.desktopNotifications === "nothing") return
 
@@ -51,7 +51,7 @@ export function useBrowserNotifications() {
     }
 
     const onUnread = (payload: UnreadNotification) => {
-      if (document.visibilityState === "visible") return
+      if (document.hasFocus()) return
       if (!settings) return
       if (settings.desktopNotifications !== "all_messages") return
 
