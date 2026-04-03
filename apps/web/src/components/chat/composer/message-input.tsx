@@ -30,7 +30,6 @@ import {
   Italic,
   Plus,
   Send,
-  Smile,
   Strikethrough,
   X,
 } from "lucide-react"
@@ -975,13 +974,6 @@ export function MessageInput({
             <EditorContent editor={editor} className="flex-1" />
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground"
-              aria-label="Add emoji"
-            >
-              <Smile className="size-5" />
-            </button>
             <Button
               size="icon"
               variant="ghost"
