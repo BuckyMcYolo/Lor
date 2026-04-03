@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.townhall.desktop",
   "build": {
-    "frontendDist": "../../../apps/web/dist",
+    "frontendDist": "https://app.townhall.chat",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "pnpm --filter web dev",
-    "beforeBuildCommand": "pnpm --filter web build"
+    "beforeBuildCommand": ""
   },
   "app": {
     "windows": [
@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://*.townhall.chat wss://*.townhall.chat http://localhost:* ws://localhost:*; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self' https://*.townhall.chat; connect-src 'self' https://*.townhall.chat wss://*.townhall.chat http://localhost:* ws://localhost:*; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https://*.townhall.chat; font-src 'self' https://*.townhall.chat data:; script-src 'self' 'unsafe-inline' https://*.townhall.chat"
     }
   },
   "bundle": {

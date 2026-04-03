@@ -53,15 +53,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Build frontend
-        run: |
-          pnpm --filter @repo/api build
-          pnpm --filter @repo/api-client build
-          pnpm --filter web build
-        env:
-          NEXT_PUBLIC_API_URL: https://api.townhall.chat
-          NEXT_PUBLIC_REALTIME_URL: https://realtime.townhall.chat
-
       - name: Import Apple certificate
         if: matrix.platform == 'macos-latest'
         env:
