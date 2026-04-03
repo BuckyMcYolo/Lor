@@ -149,7 +149,8 @@ function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
 
 function MobileRightPanel() {
   const { view, clearView } = useRightSidebar()
-  const open = !!view
+  const { guildSlug } = useParams({ strict: false })
+  const open = !!view && !!guildSlug
 
   return (
     <Sheet

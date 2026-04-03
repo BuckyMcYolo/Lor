@@ -67,11 +67,11 @@ export function CreateGuildDialog({
     })
     if (!channelsRes.ok) return null
     const channels = await channelsRes.json()
-    return (
-      channels.uncategorized[0]?.id ??
-      channels.categories[0]?.channels[0]?.id ??
-      null
-    )
+    if (channels.uncategorized[0]?.id) return channels.uncategorized[0].id
+    for (const cat of channels.categories) {
+      if (cat.channels[0]?.id) return cat.channels[0].id
+    }
+    return null
   }
 
   const handleCreate = async (e: React.FormEvent) => {
