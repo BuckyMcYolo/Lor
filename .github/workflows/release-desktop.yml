@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -92,4 +95,5 @@ jobs:
           releaseDraft: true
           prerelease: false
           projectPath: apps/desktop
+          tauriScript: pnpm tauri
           args: ${{ matrix.args }}
