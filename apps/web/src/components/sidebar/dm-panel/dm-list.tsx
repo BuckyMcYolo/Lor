@@ -8,6 +8,7 @@ import {
 import { cn } from "@repo/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
+import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { useUnread } from "@/context/unread-context"
 import { apiClient } from "@/lib/api-client"
 import type { DMember } from "@/lib/api-types"
@@ -16,6 +17,7 @@ import { UserAvatar } from "../../ui/user-avatar"
 export function DMList() {
   const navigate = useNavigate()
   const { dmId } = useParams({ strict: false })
+  const { setOpen: closeMobileSidebar } = useMobileSidebar()
 
   const { data } = useQuery({
     queryKey: ["dms"],
@@ -52,9 +54,10 @@ export function DMList() {
             lastMessageAuthor={dm.lastMessage?.author.name ?? null}
             isGroupDM={dm.type === "group_dm"}
             active={dmId === dm.id}
-            onClick={() =>
+            onClick={() => {
               navigate({ to: "/dms/$dmId", params: { dmId: dm.id } })
-            }
+              closeMobileSidebar(false)
+            }}
           />
         )
       })}

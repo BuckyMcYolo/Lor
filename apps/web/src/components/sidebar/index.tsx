@@ -4,10 +4,13 @@ import {
   ResizablePanelGroup,
   useDefaultLayout,
 } from "@repo/ui/components/resizable"
+import { Sheet, SheetContent } from "@repo/ui/components/sheet"
+import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { cn } from "@repo/ui/lib/utils"
 import { useParams } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "motion/react"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { ChannelPanel } from "./channel-panel/channel-panel"
 import { DMPanel } from "./dm-panel/dm-panel"
 import { GuildBar } from "./guild-bar/guild-bar"
@@ -17,7 +20,36 @@ import {
 } from "./right-panel/right-sidebar-context"
 import { RightSidebarPanel } from "./right-panel/right-sidebar-panel"
 
-function SidebarLayout({ children }: { children: React.ReactNode }) {
+function LeftSidebarContent() {
+  const { guildSlug } = useParams({ strict: false })
+
+  return (
+    <div className="flex h-full w-full">
+      <GuildBar />
+      <div className="min-w-0 flex-1">
+        {guildSlug ? <ChannelPanel /> : <DMPanel />}
+      </div>
+    </div>
+  )
+}
+
+function MobileSidebar() {
+  const { open, setOpen } = useMobileSidebar()
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent
+        side="left"
+        showCloseButton={false}
+        className="w-[320px] p-0 sm:max-w-[320px]"
+      >
+        <LeftSidebarContent />
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
   const { guildSlug } = useParams({ strict: false })
   const { view, isCollapsed, panelWidth, setPanelWidth, isHydrated } =
     useRightSidebar()
@@ -48,9 +80,7 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
       }
 
       const handleMouseUp = () => {
-        // Commit width first so the next render has the correct value
         setPanelWidth(widthRef.current)
-        // Use rAF to clear resizing after React has committed the new width
         requestAnimationFrame(() => setIsResizing(false))
         document.removeEventListener("mousemove", handleMouseMove)
         document.removeEventListener("mouseup", handleMouseUp)
@@ -115,6 +145,50 @@ function SidebarLayout({ children }: { children: React.ReactNode }) {
       </ResizablePanelGroup>
     </div>
   )
+}
+
+function MobileRightPanel() {
+  const { view, clearView } = useRightSidebar()
+  const { guildSlug } = useParams({ strict: false })
+  const open = !!view && !!guildSlug
+
+  useEffect(() => {
+    if (!guildSlug && view) clearView()
+  }, [guildSlug, view, clearView])
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) clearView()
+      }}
+      modal
+    >
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="w-[300px] p-0 sm:max-w-[300px]"
+      >
+        {view && <RightSidebarPanel view={view} />}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function SidebarLayout({ children }: { children: React.ReactNode }) {
+  const isMobile = useIsMobile()
+
+  if (isMobile) {
+    return (
+      <div className="flex h-full w-full flex-col">
+        <MobileSidebar />
+        <MobileRightPanel />
+        {children}
+      </div>
+    )
+  }
+
+  return <DesktopSidebarLayout>{children}</DesktopSidebarLayout>
 }
 
 export function Sidebar({ children }: { children: React.ReactNode }) {

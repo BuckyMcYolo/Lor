@@ -10,6 +10,7 @@ import { useEffect } from "react"
 import { OnboardingDialog } from "../components/onboarding/onboarding-dialog"
 import { SettingsDialog } from "../components/settings/settings-dialog"
 import { Sidebar } from "../components/sidebar"
+import { MobileSidebarProvider } from "../context/mobile-sidebar-context"
 import { SettingsProvider } from "../context/settings-context"
 import { SocketProvider } from "../context/socket-context"
 import { UnreadProvider } from "../context/unread-context"
@@ -78,13 +79,15 @@ function AuthenticatedLayout() {
       <UnreadProvider>
         <SettingsProvider>
           <BrowserNotifications />
-          <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
-            <Sidebar>
-              <Outlet />
-            </Sidebar>
-            <OnboardingDialog open={showOnboarding} />
-            <SettingsDialog />
-          </div>
+          <MobileSidebarProvider>
+            <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
+              <Sidebar>
+                <Outlet />
+              </Sidebar>
+              <OnboardingDialog open={showOnboarding} />
+              <SettingsDialog />
+            </div>
+          </MobileSidebarProvider>
         </SettingsProvider>
       </UnreadProvider>
     </SocketProvider>

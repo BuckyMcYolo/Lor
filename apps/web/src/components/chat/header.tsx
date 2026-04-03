@@ -4,8 +4,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
-import { Hash, PanelRight, Pin } from "lucide-react"
+import { useIsMobile } from "@repo/ui/hooks/use-mobile"
+import { useParams } from "@tanstack/react-router"
+import { Hash, Menu, PanelRight, Pin } from "lucide-react"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
+import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { HeaderSearch } from "./header-search"
 
 export type ChatContext =
@@ -27,10 +30,23 @@ export function ChatHeader({
   channelId: string
   onTogglePinnedMessages?: () => void
 }) {
-  const { isCollapsed, toggleCollapsed } = useRightSidebar()
+  const { view, setView, clearView, isCollapsed, toggleCollapsed } =
+    useRightSidebar()
+  const isMobile = useIsMobile()
+  const { setOpen: openMobileSidebar } = useMobileSidebar()
+  const { guildSlug } = useParams({ strict: false })
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
+      {isMobile && (
+        <button
+          type="button"
+          onClick={() => openMobileSidebar(true)}
+          className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <Menu className="size-5" />
+        </button>
+      )}
       {context.type === "channel" && (
         <Hash className="size-5 shrink-0 text-muted-foreground" />
       )}
@@ -77,20 +93,46 @@ export function ChatHeader({
             <TooltipContent>Pinned Messages</TooltipContent>
           </Tooltip>
         )}
-        {isCollapsed && context.type === "channel" && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                <PanelRight className="size-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Show Panel</TooltipContent>
-          </Tooltip>
-        )}
+        {context.type === "channel" &&
+          (isMobile ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (view) {
+                      clearView()
+                    } else {
+                      setView({
+                        type: "guild-members",
+                        guildSlug: guildSlug ?? "",
+                        channelId,
+                      })
+                    }
+                  }}
+                  className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <PanelRight className="size-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Members</TooltipContent>
+            </Tooltip>
+          ) : (
+            isCollapsed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={toggleCollapsed}
+                    className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <PanelRight className="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Show Panel</TooltipContent>
+              </Tooltip>
+            )
+          ))}
       </div>
     </div>
   )

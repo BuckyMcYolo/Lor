@@ -13,10 +13,12 @@ import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
 import { ScrollArea } from "@repo/ui/components/scroll-area"
 import { Skeleton } from "@repo/ui/components/skeleton"
+import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { cn } from "@repo/ui/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Check,
+  Menu,
   MessageCircle,
   Search,
   ShieldOff,
@@ -28,6 +30,7 @@ import {
 import { useState } from "react"
 import { toast } from "sonner"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { useBlockedUsers } from "@/hooks/use-blocked-users"
 import { useCreateDM } from "@/hooks/use-create-dm"
 import { apiClient } from "@/lib/api-client"
@@ -205,6 +208,8 @@ function BlockedUserRow({
 export function AlliesPage() {
   const queryClient = useQueryClient()
   const createDM = useCreateDM()
+  const isMobile = useIsMobile()
+  const { setOpen: openMobileSidebar } = useMobileSidebar()
   const [tab, setTab] = useState<Tab>("all")
   const [search, setSearch] = useState("")
   const [addUsername, setAddUsername] = useState("")
@@ -391,6 +396,15 @@ export function AlliesPage() {
     <div className="flex h-full flex-1 flex-col bg-background">
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4">
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => openMobileSidebar(true)}
+            className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Menu className="size-5" />
+          </button>
+        )}
         <Users className="size-5 text-muted-foreground" />
         <h1 className="text-base font-semibold">Allies</h1>
         <div className="mx-2 h-5 w-px bg-border" />

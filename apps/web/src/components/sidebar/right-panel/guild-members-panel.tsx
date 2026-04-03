@@ -34,6 +34,7 @@ import {
 } from "@repo/ui/components/dropdown-menu"
 import { ScrollArea } from "@repo/ui/components/scroll-area"
 import { Skeleton } from "@repo/ui/components/skeleton"
+import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { cn } from "@repo/ui/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { MoreHorizontal, PanelRight } from "lucide-react"
@@ -304,7 +305,8 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const socket = useSocket()
   const queryClient = useQueryClient()
   const { data: session } = authClient.useSession()
-  const { toggleCollapsed } = useRightSidebar()
+  const { toggleCollapsed, clearView } = useRightSidebar()
+  const isMobile = useIsMobile()
   const [moderationDialog, setModerationDialog] =
     useState<ModerationDialogState>(null)
   const queryKey = useMemo(
@@ -639,7 +641,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
           </span>
           <button
             type="button"
-            onClick={toggleCollapsed}
+            onClick={isMobile ? clearView : toggleCollapsed}
             className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <PanelRight className="size-4" />

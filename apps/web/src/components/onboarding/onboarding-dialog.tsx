@@ -152,11 +152,11 @@ export function OnboardingDialog({ open }: { open: boolean }) {
     if (!channelsRes.ok) return null
 
     const channels = await channelsRes.json()
-    return (
-      channels.uncategorized[0]?.id ??
-      channels.categories[0]?.channels[0]?.id ??
-      null
-    )
+    if (channels.uncategorized[0]?.id) return channels.uncategorized[0].id
+    for (const cat of channels.categories) {
+      if (cat.channels[0]?.id) return cat.channels[0].id
+    }
+    return null
   }
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -477,7 +477,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     <Label htmlFor="invite-link">Invite Link or Code</Label>
                     <Input
                       id="invite-link"
-                      placeholder="https://townhall.chat/invite/abc123 or abc123"
+                      placeholder="https://app.townhall.chat/invite/abc123 or abc123"
                       value={inviteLink}
                       onChange={(e) => setInviteLink(e.target.value)}
                       disabled={loading}

@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useState } from "react"
+import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { useUnread } from "@/context/unread-context"
 import { apiClient } from "@/lib/api-client"
 import type { Channel, ListChannelsResponse } from "@/lib/api-types"
@@ -109,6 +110,7 @@ export function ChannelList() {
   const { guildSlug, channelId: activeChannelId } = useParams({ strict: false })
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { setOpen: closeMobileSidebar } = useMobileSidebar()
 
   const { data, isPending } = useQuery({
     queryKey: ["channels", guildSlug],
@@ -386,7 +388,7 @@ export function ChannelList() {
                   active={activeChannelId === ch.id}
                   canManage={canManage}
                   canDelete={canDelete}
-                  onClick={() =>
+                  onClick={() => {
                     navigate({
                       to: "/$guildSlug/$channelId",
                       params: {
@@ -394,7 +396,8 @@ export function ChannelList() {
                         channelId: ch.id,
                       },
                     })
-                  }
+                    closeMobileSidebar(false)
+                  }}
                 />
               ))}
             </div>
@@ -417,12 +420,13 @@ export function ChannelList() {
               activeChannelId={activeChannelId}
               canManage={canManage}
               canDelete={canDelete}
-              onChannelClick={(channelId) =>
+              onChannelClick={(channelId) => {
                 navigate({
                   to: "/$guildSlug/$channelId",
                   params: { guildSlug: guildSlug as string, channelId },
                 })
-              }
+                closeMobileSidebar(false)
+              }}
             />
           ))}
         </SortableContext>
