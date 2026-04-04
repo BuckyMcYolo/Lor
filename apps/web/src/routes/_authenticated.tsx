@@ -23,20 +23,26 @@ function BrowserNotifications() {
   return null
 }
 
+const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+
 function UpdateBanner() {
   const { updateAvailable, refresh } = useUpdateCheck()
   if (!updateAvailable) return null
 
   return (
-    <div className="flex items-center justify-center gap-2 bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground">
-      <span>A new version of Townhall is available.</span>
-      <button
-        type="button"
-        onClick={refresh}
-        className="underline underline-offset-2 hover:opacity-80"
-      >
-        Refresh to update
-      </button>
+    <div className="pointer-events-none fixed inset-x-0 top-4 z-[100] flex justify-center">
+      <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 shadow-lg">
+        <span className="text-sm font-medium text-foreground">
+          A new version is available
+        </span>
+        <button
+          type="button"
+          onClick={refresh}
+          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          {isTauri ? "Update" : "Refresh"}
+        </button>
+      </div>
     </div>
   )
 }
