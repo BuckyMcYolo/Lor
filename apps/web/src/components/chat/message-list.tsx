@@ -130,7 +130,7 @@ export function MessageList({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
+        if (entries[0]?.isIntersecting && !isFetchingMore) {
           onLoadMore()
         }
       },
@@ -139,7 +139,7 @@ export function MessageList({
 
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [hasMore, onLoadMore])
+  }, [hasMore, onLoadMore, isFetchingMore])
 
   if (isLoading) {
     return (
@@ -238,8 +238,8 @@ export function MessageList({
 }
 
 export function scrollToMessage(messageId: string) {
-  const el = document.getElementById(`msg-${messageId}`)
-  if (!el) return false
+  const el = document.querySelector(`[data-message-id="${messageId}"]`)
+  if (!el || !(el instanceof HTMLElement)) return false
   el.scrollIntoView({ behavior: "smooth", block: "center" })
   el.classList.add("bg-primary/10")
   setTimeout(() => el.classList.remove("bg-primary/10"), 2000)
