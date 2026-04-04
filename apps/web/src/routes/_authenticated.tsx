@@ -17,7 +17,7 @@ import { UnreadProvider } from "../context/unread-context"
 import { useBrowserNotifications } from "../hooks/use-browser-notifications"
 import { useUpdateCheck } from "../hooks/use-update-check"
 
-// v0.1.1
+// v0.1.2
 function BrowserNotifications() {
   useBrowserNotifications()
   return null
