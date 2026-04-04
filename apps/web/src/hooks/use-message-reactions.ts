@@ -1,6 +1,7 @@
 import type { RealtimeMessageReactionUpdated } from "@repo/realtime-types"
-import type { QueryClient } from "@tanstack/react-query"
+import type { InfiniteData, QueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useMemo } from "react"
+import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import {
   applyReactionUpdateToMessage,
   toggleReactionOptimistically,
@@ -9,7 +10,7 @@ import type { AppSocket } from "@/lib/socket"
 
 type MessageWithReactions = Parameters<typeof toggleReactionOptimistically>[0]
 
-interface MessagesQueryData {
+interface MessagePage {
   data: MessageWithReactions[]
 }
 
@@ -21,7 +22,7 @@ interface UseMessageReactionsOptions {
   currentUserName?: string
 }
 
-export function useMessageReactions<TData extends MessagesQueryData>({
+export function useMessageReactions({
   socket,
   queryClient,
   channelId,
@@ -33,15 +34,17 @@ export function useMessageReactions<TData extends MessagesQueryData>({
       messageId: string,
       updater: (message: MessageWithReactions) => MessageWithReactions
     ) => {
-      queryClient.setQueryData<TData>(["messages", channelId], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          data: old.data.map((message) =>
-            message.id === messageId ? updater(message) : message
-          ),
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return updateMessagesAcrossPages(old, (msgs) =>
+            msgs.map((message) =>
+              message.id === messageId ? updater(message) : message
+            )
+          )
         }
-      })
+      )
     },
     [queryClient, channelId]
   )

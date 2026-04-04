@@ -33,6 +33,9 @@ export default defineConfig(({ mode }) => {
         "@": resolve(__dirname, "./src"),
       },
     },
+    server: {
+      allowedHosts: true,
+    },
     preview: {
       allowedHosts: true,
     },

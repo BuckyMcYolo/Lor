@@ -1,8 +1,9 @@
-import type { QueryClient } from "@tanstack/react-query"
+import type { InfiniteData, QueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect } from "react"
+import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import type { AppSocket } from "@/lib/socket"
 
-interface MessagesQueryData {
+interface MessagePage {
   data: { id: string; content: string | null; editedAt: string | null }[]
 }
 
@@ -12,27 +13,28 @@ interface UseMessageEditingOptions {
   channelId: string
 }
 
-export function useMessageEditing<TData extends MessagesQueryData>({
+export function useMessageEditing({
   socket,
   queryClient,
   channelId,
 }: UseMessageEditingOptions) {
   const updateMessageInCache = useCallback(
     (messageId: string, content: string, editedAt: string) => {
-      queryClient.setQueryData<TData>(["messages", channelId], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          data: old.data.map((m) =>
-            m.id === messageId ? { ...m, content, editedAt } : m
-          ),
-        } as TData
-      })
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return updateMessagesAcrossPages(old, (msgs) =>
+            msgs.map((m) =>
+              m.id === messageId ? { ...m, content, editedAt } : m
+            )
+          )
+        }
+      )
     },
     [queryClient, channelId]
   )
 
-  // Listen for message:updated from other clients
   useEffect(() => {
     if (!socket) return
 
@@ -56,7 +58,6 @@ export function useMessageEditing<TData extends MessagesQueryData>({
     (messageId: string, content: string) => {
       if (!socket?.connected) return
 
-      // Optimistically update
       const editedAt = new Date().toISOString()
       updateMessageInCache(messageId, content, editedAt)
 

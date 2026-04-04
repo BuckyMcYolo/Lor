@@ -1,10 +1,11 @@
 import type { RealtimeMessagePinToggled } from "@repo/realtime-types"
-import type { QueryClient } from "@tanstack/react-query"
+import type { InfiniteData, QueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect } from "react"
 import { apiClient } from "@/lib/api-client"
+import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import type { AppSocket } from "@/lib/socket"
 
-interface MessagesQueryData {
+interface MessagePage {
   data: { id: string; pinned: boolean }[]
 }
 
@@ -15,7 +16,7 @@ interface UseMessagePinningOptions {
   guildSlug: string
 }
 
-export function useMessagePinning<TData extends MessagesQueryData>({
+export function useMessagePinning({
   socket,
   queryClient,
   channelId,
@@ -23,16 +24,15 @@ export function useMessagePinning<TData extends MessagesQueryData>({
 }: UseMessagePinningOptions) {
   const updatePinInCache = useCallback(
     (messageId: string, pinned: boolean) => {
-      queryClient.setQueryData<TData>(["messages", channelId], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          data: old.data.map((m) =>
-            m.id === messageId ? { ...m, pinned } : m
-          ),
-        } as TData
-      })
-      // Invalidate pinned messages panel cache
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return updateMessagesAcrossPages(old, (msgs) =>
+            msgs.map((m) => (m.id === messageId ? { ...m, pinned } : m))
+          )
+        }
+      )
       void queryClient.invalidateQueries({
         queryKey: ["pinned-messages", channelId],
       })
@@ -40,7 +40,6 @@ export function useMessagePinning<TData extends MessagesQueryData>({
     [queryClient, channelId]
   )
 
-  // Listen for pin toggled events from other clients
   useEffect(() => {
     if (!socket) return
 
@@ -57,7 +56,6 @@ export function useMessagePinning<TData extends MessagesQueryData>({
 
   const handleTogglePin = useCallback(
     async (messageId: string, currentlyPinned: boolean) => {
-      // Optimistically update
       updatePinInCache(messageId, !currentlyPinned)
 
       try {
@@ -68,11 +66,9 @@ export function useMessagePinning<TData extends MessagesQueryData>({
         })
 
         if (!res.ok) {
-          // Revert on failure
           updatePinInCache(messageId, currentlyPinned)
         }
       } catch {
-        // Revert on failure
         updatePinInCache(messageId, currentlyPinned)
       }
     },
