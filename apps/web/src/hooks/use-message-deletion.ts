@@ -1,8 +1,9 @@
-import type { QueryClient } from "@tanstack/react-query"
+import type { InfiniteData, QueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect } from "react"
+import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import type { AppSocket } from "@/lib/socket"
 
-interface MessagesQueryData {
+interface MessagePage {
   data: { id: string }[]
 }
 
@@ -12,20 +13,22 @@ interface UseMessageDeletionOptions {
   channelId: string
 }
 
-export function useMessageDeletion<TData extends MessagesQueryData>({
+export function useMessageDeletion({
   socket,
   queryClient,
   channelId,
 }: UseMessageDeletionOptions) {
   const removeMessageFromCache = useCallback(
     (messageId: string) => {
-      queryClient.setQueryData<TData>(["messages", channelId], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          data: old.data.filter((m) => m.id !== messageId),
-        } as TData
-      })
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return updateMessagesAcrossPages(old, (msgs) =>
+            msgs.filter((m) => m.id !== messageId)
+          )
+        }
+      )
     },
     [queryClient, channelId]
   )
@@ -58,7 +61,6 @@ export function useMessageDeletion<TData extends MessagesQueryData>({
       socket.emit("message:delete", { channelId, messageId }, (result) => {
         if (!result.ok) {
           console.error("[chat] delete message failed:", result.error)
-          // Re-fetch to restore state
           void queryClient.invalidateQueries({
             queryKey: ["messages", channelId],
           })

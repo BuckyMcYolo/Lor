@@ -1,7 +1,7 @@
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { differenceInMinutes, isSameDay } from "@repo/utils/date"
-import { Hash, User, Users } from "lucide-react"
+import { Hash, Loader2, User, Users } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
@@ -24,6 +24,7 @@ interface MessageListProps {
   isLoading?: boolean
   hasMore?: boolean
   onLoadMore?: () => void
+  isFetchingMore?: boolean
 }
 
 function EmptyState({ context }: { context: ChatContext }) {
@@ -48,7 +49,7 @@ function EmptyState({ context }: { context: ChatContext }) {
       <p className="mt-1 text-sm text-muted-foreground">
         {context.type === "channel"
           ? "This is the start of the channel."
-          : "Send a message to get the conversation going."}
+          : "Send a message to get started."}
       </p>
     </div>
   )
@@ -80,10 +81,12 @@ export function MessageList({
   isLoading,
   hasMore,
   onLoadMore,
+  isFetchingMore,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
   const isNearBottom = useRef(true)
-  const prevMessageCount = useRef(messages.length)
+  const prevNewestId = useRef<string | null>(null)
   const [stickyDate, setStickyDate] = useState<string | null>(null)
 
   const handleScroll = useCallback(() => {
@@ -99,23 +102,44 @@ export function MessageList({
 
     for (const divider of dividers) {
       const rect = divider.getBoundingClientRect()
-      // If the divider's bottom is above the container top, it's scrolled past
       if (rect.bottom < containerTop + 8) {
         topDate = (divider as HTMLElement).dataset.dateDivider ?? null
-        break // first in DOM = visually lowest in flex-col-reverse = just scrolled past
+        break
       }
     }
 
     setStickyDate(topDate)
   }, [])
 
+  // Auto-scroll only for new messages (not for older page loads)
   useEffect(() => {
-    // Always scroll on initial load (count went from 0 to N), otherwise only if near bottom
-    if (prevMessageCount.current === 0 || isNearBottom.current) {
-      scrollRef.current?.scrollTo({ top: 0 })
+    const newestId = messages[0]?.id ?? null
+    if (prevNewestId.current === null || isNearBottom.current) {
+      if (newestId !== prevNewestId.current) {
+        scrollRef.current?.scrollTo({ top: 0 })
+      }
     }
-    prevMessageCount.current = messages.length
-  }, [messages.length])
+    prevNewestId.current = newestId
+  }, [messages])
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    const container = scrollRef.current
+    if (!sentinel || !container || !hasMore || !onLoadMore) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          onLoadMore()
+        }
+      },
+      { root: container, rootMargin: "200px" }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, onLoadMore])
 
   if (isLoading) {
     return (
@@ -202,17 +226,22 @@ export function MessageList({
           )
         })}
         {hasMore && (
-          <div className="flex justify-center py-2">
-            <button
-              type="button"
-              onClick={onLoadMore}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Load more
-            </button>
+          <div ref={sentinelRef} className="flex justify-center py-3">
+            {isFetchingMore && (
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            )}
           </div>
         )}
       </div>
     </div>
   )
+}
+
+export function scrollToMessage(messageId: string) {
+  const el = document.getElementById(`msg-${messageId}`)
+  if (!el) return false
+  el.scrollIntoView({ behavior: "smooth", block: "center" })
+  el.classList.add("bg-primary/10")
+  setTimeout(() => el.classList.remove("bg-primary/10"), 2000)
+  return true
 }

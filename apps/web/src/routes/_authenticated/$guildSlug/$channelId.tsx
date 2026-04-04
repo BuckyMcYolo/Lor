@@ -5,7 +5,11 @@ import {
   roleHasPermissions,
 } from "@repo/auth/permissions"
 import { useIsMobile } from "@repo/ui/hooks/use-mobile"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useCallback, useEffect, useMemo } from "react"
 import { useDropzone } from "react-dropzone"
@@ -28,7 +32,6 @@ import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
 import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
-import type { ListMessagesResponse } from "@/lib/api-types"
 
 type ChannelSearchParams = {
   msgId?: string
@@ -101,24 +104,37 @@ function ChannelView() {
     },
   })
 
-  const { data: messagesData, isPending: messagesLoading } = useQuery({
+  const {
+    data: messagesInfinite,
+    isPending: messagesLoading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["messages", channelId],
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
       const res = await apiClient.v1.guilds[":guildSlug"].channels[
         ":channelId"
       ].messages.$get({
         param: { guildSlug, channelId },
-        query: {},
+        query: { page: String(pageParam), perPage: "50" },
       })
       if (!res.ok) throw new Error("Failed to fetch messages")
       return res.json()
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
     enabled: !!data,
   })
 
+  const messages = useMemo(
+    () => messagesInfinite?.pages.flatMap((page) => page.data) ?? [],
+    [messagesInfinite]
+  )
+
   // Scroll to a specific message when navigating from search
   useEffect(() => {
-    if (!msgId || messagesLoading || !messagesData?.data.length) return
+    if (!msgId || messagesLoading || !messages.length) return
     // Give DOM time to render
     const timer = setTimeout(() => {
       if (scrollToMessage(msgId)) {
@@ -126,7 +142,7 @@ function ChannelView() {
       }
     }, 100)
     return () => clearTimeout(timer)
-  }, [msgId, messagesLoading, messagesData, navigate])
+  }, [msgId, messagesLoading, messages, navigate])
 
   const { data: guildMembersData } = useQuery({
     queryKey: ["guild-members", guildSlug],
@@ -150,7 +166,7 @@ function ChannelView() {
     }
   }, [socket, channelId])
 
-  const { handleReact } = useMessageReactions<ListMessagesResponse>({
+  const { handleReact } = useMessageReactions({
     socket,
     queryClient,
     channelId,
@@ -158,19 +174,19 @@ function ChannelView() {
     currentUserName: session?.user.name,
   })
 
-  const { handleDelete } = useMessageDeletion<ListMessagesResponse>({
+  const { handleDelete } = useMessageDeletion({
     socket,
     queryClient,
     channelId,
   })
 
-  const { handleEdit } = useMessageEditing<ListMessagesResponse>({
+  const { handleEdit } = useMessageEditing({
     socket,
     queryClient,
     channelId,
   })
 
-  const { handleSend } = useMessageSending<ListMessagesResponse>({
+  const { handleSend } = useMessageSending({
     socket,
     queryClient,
     channelId,
@@ -191,7 +207,7 @@ function ChannelView() {
     isGuildRole(activeMember.role) &&
     roleHasPermissions(activeMember.role as GuildRole, { message: ["pin"] })
 
-  const { handleTogglePin } = useMessagePinning<ListMessagesResponse>({
+  const { handleTogglePin } = useMessagePinning({
     socket,
     queryClient,
     channelId,
@@ -301,7 +317,10 @@ function ChannelView() {
       />
       <MessageList
         context={context}
-        messages={messagesData?.data ?? []}
+        messages={messages}
+        hasMore={hasNextPage}
+        onLoadMore={() => fetchNextPage()}
+        isFetchingMore={isFetchingNextPage}
         currentUserId={currentUserId}
         blockedUserIds={blockedUserIds}
         onReact={handleReact}

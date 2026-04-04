@@ -1,7 +1,8 @@
 import type { RealtimeMessageEmbedsUpdated } from "@repo/realtime-types"
-import type { QueryClient } from "@tanstack/react-query"
+import type { InfiniteData, QueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useRef } from "react"
 import type { Message } from "@/lib/api-types"
+import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import {
   createOptimisticMessage,
   realtimeMessageToMessage,
@@ -10,7 +11,7 @@ import type { AppSocket } from "@/lib/socket"
 
 type MessageWithRealtimeShape = ReturnType<typeof realtimeMessageToMessage>
 
-interface MessagesQueryData {
+interface MessagePage {
   data: MessageWithRealtimeShape[]
 }
 
@@ -29,7 +30,7 @@ interface UseMessageSendingOptions {
   currentUser?: MessageSenderUser
 }
 
-export function useMessageSending<TData extends MessagesQueryData>({
+export function useMessageSending({
   socket,
   queryClient,
   channelId,
@@ -43,13 +44,31 @@ export function useMessageSending<TData extends MessagesQueryData>({
         messages: MessageWithRealtimeShape[]
       ) => MessageWithRealtimeShape[]
     ) => {
-      queryClient.setQueryData<TData>(["messages", channelId], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          data: updater(old.data),
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return updateMessagesAcrossPages(old, updater)
         }
-      })
+      )
+    },
+    [queryClient, channelId]
+  )
+
+  const prependToFirstPage = useCallback(
+    (message: MessageWithRealtimeShape) => {
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map((page, i) =>
+              i === 0 ? { ...page, data: [message, ...page.data] } : page
+            ),
+          }
+        }
+      )
     },
     [queryClient, channelId]
   )
@@ -62,27 +81,43 @@ export function useMessageSending<TData extends MessagesQueryData>({
     ) => {
       if (message.channelId !== channelId) return
 
-      updateMessagesInCache((messages) => {
-        if (message.nonce && pendingNonces.current.has(message.nonce)) {
-          pendingNonces.current.delete(message.nonce)
-          return messages.map((m) =>
+      // Check if this is a nonce replacement (our own optimistic message)
+      if (message.nonce && pendingNonces.current.has(message.nonce)) {
+        pendingNonces.current.delete(message.nonce)
+        updateMessagesInCache((messages) =>
+          messages.map((m) =>
             m.id === message.nonce ? realtimeMessageToMessage(message) : m
           )
-        }
+        )
+        return
+      }
 
-        if (messages.some((m) => m.id === message.id)) {
-          return messages
-        }
+      // Check for duplicates across all pages
+      const allMessages = queryClient.getQueryData<InfiniteData<MessagePage>>([
+        "messages",
+        channelId,
+      ])
+      if (allMessages) {
+        const isDuplicate = allMessages.pages.some((page) =>
+          page.data.some((m) => m.id === message.id)
+        )
+        if (isDuplicate) return
+      }
 
-        return [realtimeMessageToMessage(message), ...messages]
-      })
+      prependToFirstPage(realtimeMessageToMessage(message))
     }
 
     socket.on("message:created", handleMessageCreated)
     return () => {
       socket.off("message:created", handleMessageCreated)
     }
-  }, [socket, channelId, updateMessagesInCache])
+  }, [
+    socket,
+    channelId,
+    updateMessagesInCache,
+    prependToFirstPage,
+    queryClient,
+  ])
 
   useEffect(() => {
     if (!socket) return
@@ -125,7 +160,7 @@ export function useMessageSending<TData extends MessagesQueryData>({
         image: currentUser.image ?? null,
       }
 
-      updateMessagesInCache((messages) => [
+      prependToFirstPage(
         createOptimisticMessage(
           nonce,
           channelId,
@@ -134,9 +169,8 @@ export function useMessageSending<TData extends MessagesQueryData>({
           options?.mentions ?? [],
           options?.referencedMessage ?? undefined,
           options?.attachments ?? []
-        ),
-        ...messages,
-      ])
+        )
+      )
 
       const referencedMessageId = options?.referencedMessage?.id
       const attachments = options?.attachments ?? undefined
@@ -170,7 +204,7 @@ export function useMessageSending<TData extends MessagesQueryData>({
         }
       )
     },
-    [socket, currentUser, channelId, updateMessagesInCache]
+    [socket, currentUser, channelId, prependToFirstPage, updateMessagesInCache]
   )
 
   return { handleSend }
