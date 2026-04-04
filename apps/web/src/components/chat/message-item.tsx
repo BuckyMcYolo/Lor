@@ -25,6 +25,7 @@ import { EmbedCard } from "./embed-card"
 import { MessageActionBar } from "./message-action-bar"
 import { AttachmentGrid } from "./message-attachment"
 import { MessageEditInput } from "./message-edit-input"
+import { scrollToMessage } from "./message-list"
 import { MessageMarkdown } from "./message-markdown"
 
 interface MessageItemProps {
@@ -44,39 +45,6 @@ interface MessageItemProps {
 function nameInitial(name: string) {
   const trimmed = name.trim()
   return trimmed.length > 0 ? trimmed.charAt(0).toUpperCase() : "?"
-}
-
-function scrollToMessage(messageId: string) {
-  const el = document.querySelector(
-    `[data-message-id="${messageId}"]`
-  ) as HTMLElement | null
-  if (!el) return
-
-  const scrollContainer = el.closest(
-    "[data-message-scroll]"
-  ) as HTMLElement | null
-  if (!scrollContainer) return
-
-  const containerRect = scrollContainer.getBoundingClientRect()
-  const elRect = el.getBoundingClientRect()
-  const offset =
-    elRect.top -
-    containerRect.top -
-    containerRect.height / 2 +
-    elRect.height / 2
-
-  scrollContainer.scrollBy({ top: offset, behavior: "smooth" })
-
-  el.style.transition = "background-color 0.3s ease"
-  el.style.backgroundColor =
-    "color-mix(in oklch, var(--primary) 15%, transparent)"
-  setTimeout(() => {
-    el.style.transition = "background-color 1s ease-out"
-    el.style.backgroundColor = ""
-  }, 700)
-  setTimeout(() => {
-    el.style.transition = ""
-  }, 2000)
 }
 
 function ReplyPreview({

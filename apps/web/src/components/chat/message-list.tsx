@@ -237,11 +237,36 @@ export function MessageList({
   )
 }
 
-export function scrollToMessage(messageId: string) {
-  const el = document.querySelector(`[data-message-id="${messageId}"]`)
-  if (!el || !(el instanceof HTMLElement)) return false
-  el.scrollIntoView({ behavior: "smooth", block: "center" })
-  el.classList.add("bg-primary/10")
-  setTimeout(() => el.classList.remove("bg-primary/10"), 2000)
+export function scrollToMessage(messageId: string): boolean {
+  const el = document.querySelector(
+    `[data-message-id="${messageId}"]`
+  ) as HTMLElement | null
+  if (!el) return false
+
+  const scrollContainer = el.closest(
+    "[data-message-scroll]"
+  ) as HTMLElement | null
+  if (!scrollContainer) return false
+
+  const containerRect = scrollContainer.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+  const offset =
+    elRect.top -
+    containerRect.top -
+    containerRect.height / 2 +
+    elRect.height / 2
+
+  scrollContainer.scrollBy({ top: offset, behavior: "smooth" })
+
+  el.style.transition = "background-color 0.3s ease"
+  el.style.backgroundColor =
+    "color-mix(in oklch, var(--primary) 15%, transparent)"
+  setTimeout(() => {
+    el.style.transition = "background-color 1s ease-out"
+    el.style.backgroundColor = ""
+  }, 700)
+  setTimeout(() => {
+    el.style.transition = ""
+  }, 2000)
   return true
 }

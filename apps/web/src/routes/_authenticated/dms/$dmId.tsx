@@ -11,7 +11,7 @@ import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { MessageInput } from "@/components/chat/composer/message-input"
 import { DropZoneOverlay } from "@/components/chat/drop-zone-overlay"
 import { ChatHeader } from "@/components/chat/header"
-import { MessageList } from "@/components/chat/message-list"
+import { MessageList, scrollToMessage } from "@/components/chat/message-list"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useSocket } from "@/context/socket-context"
 import { useAutoMarkRead } from "@/hooks/use-auto-mark-read"
@@ -35,15 +35,6 @@ export const Route = createFileRoute("/_authenticated/dms/$dmId")({
     msgId: typeof search.msgId === "string" ? search.msgId : undefined,
   }),
 })
-
-function scrollToMessage(messageId: string) {
-  const el = document.querySelector(`[data-message-id="${messageId}"]`)
-  if (!el) return false
-  el.scrollIntoView({ behavior: "smooth", block: "center" })
-  el.classList.add("bg-primary/10")
-  setTimeout(() => el.classList.remove("bg-primary/10"), 2000)
-  return true
-}
 
 function DMConversation() {
   const { dmId } = Route.useParams()
