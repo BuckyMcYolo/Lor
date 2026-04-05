@@ -5,6 +5,12 @@ import {
   roleHasPermissions,
 } from "@repo/auth/permissions"
 
+export function canCreateChannels(role: GuildRole): boolean {
+  return roleHasPermissions(role, {
+    channel: ["create"],
+  })
+}
+
 export function canManageChannels(role: GuildRole): boolean {
   return roleHasPermissions(role, {
     channel: ["update"],

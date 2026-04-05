@@ -103,7 +103,7 @@ function Hero() {
         <div className="absolute inset-0 -z-10 mx-auto max-w-4xl rounded-3xl bg-gradient-to-t from-primary/5 via-primary/10 to-transparent blur-3xl" />
         <div className="overflow-hidden rounded-xl border border-border/40 shadow-[0_-8px_30px_rgba(0,0,0,0.08),0_8px_30px_rgba(0,0,0,0.12)]">
           <Image
-            src="/screenshot.png"
+            src="/screenshot-3.png"
             alt="Townhall messaging interface"
             width={1920}
             height={1080}
@@ -200,13 +200,13 @@ function ProductShowcase() {
           </p>
         </div>
         <div className="overflow-hidden rounded-2xl border border-border/40 bg-muted/50">
-          <div className="aspect-video">
+          <div>
             <Image
-              src="/screenshot.png"
+              src="/desktop-sc.png"
               alt="Townhall in action"
               width={1920}
               height={1080}
-              className="h-full w-full object-cover"
+              className="w-full"
             />
           </div>
         </div>

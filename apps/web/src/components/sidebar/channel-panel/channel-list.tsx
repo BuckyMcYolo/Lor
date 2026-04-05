@@ -17,6 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { authClient } from "@repo/auth/client"
 import type { GuildRole } from "@repo/auth/permissions"
+import { Button } from "@repo/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +35,7 @@ import {
   Megaphone,
   MessageSquare,
   MoreHorizontal,
+  Plus,
   Volume2,
 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
@@ -42,7 +44,12 @@ import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { useUnread } from "@/context/unread-context"
 import { apiClient } from "@/lib/api-client"
 import type { Channel, ListChannelsResponse } from "@/lib/api-types"
-import { canDeleteChannels, canManageChannels } from "@/lib/permissions"
+import {
+  canCreateChannels,
+  canDeleteChannels,
+  canManageChannels,
+} from "@/lib/permissions"
+import { CreateChannelDialog } from "./create-channel-dialog"
 import { DeleteChannelDialog } from "./delete-channel-dialog"
 import { EditChannelDialog } from "./edit-channel-dialog"
 
@@ -153,12 +160,18 @@ export function ChannelList() {
     },
     enabled: !!guildSlug,
   })
+  const canCreate = activeMember?.role
+    ? canCreateChannels(activeMember.role as GuildRole)
+    : false
   const canManage = activeMember?.role
     ? canManageChannels(activeMember.role as GuildRole)
     : false
   const canDelete = activeMember?.role
     ? canDeleteChannels(activeMember.role as GuildRole)
     : false
+
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createParentId, setCreateParentId] = useState<string | null>(null)
 
   const [activeItem, setActiveItem] = useState<{
     channel: Channel
@@ -365,93 +378,117 @@ export function ChannelList() {
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      <nav className="space-y-4">
-        {/* Uncategorized channels */}
-        {data.uncategorized.length > 0 && (
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <nav className="space-y-4">
+          {canCreate && (
+            <div className="flex items-center justify-between px-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Channels
+              </span>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => {
+                  setCreateParentId(null)
+                  setCreateDialogOpen(true)
+                }}
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
+          )}
+          {/* Uncategorized channels */}
+          {data.uncategorized.length > 0 && (
+            <SortableContext
+              items={data.uncategorized.map((ch) => ch.id)}
+              strategy={verticalListSortingStrategy}
+              disabled={!canManage}
+            >
+              <div>
+                {data.uncategorized.map((ch) => (
+                  <SortableChannelItem
+                    key={ch.id}
+                    channel={ch}
+                    active={activeChannelId === ch.id}
+                    canManage={canManage}
+                    canDelete={canDelete}
+                    onClick={() => {
+                      navigate({
+                        to: "/$guildSlug/$channelId",
+                        params: {
+                          guildSlug: guildSlug as string,
+                          channelId: ch.id,
+                        },
+                      })
+                      closeMobileSidebar(false)
+                    }}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          )}
+
+          {/* Categories with children */}
           <SortableContext
-            items={data.uncategorized.map((ch) => ch.id)}
+            items={data.categories.map((cat) => cat.id)}
             strategy={verticalListSortingStrategy}
             disabled={!canManage}
           >
-            <div>
-              {data.uncategorized.map((ch) => (
-                <SortableChannelItem
-                  key={ch.id}
-                  channel={ch}
-                  active={activeChannelId === ch.id}
-                  canManage={canManage}
-                  canDelete={canDelete}
-                  onClick={() => {
-                    navigate({
-                      to: "/$guildSlug/$channelId",
-                      params: {
-                        guildSlug: guildSlug as string,
-                        channelId: ch.id,
-                      },
-                    })
-                    closeMobileSidebar(false)
-                  }}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        )}
-
-        {/* Categories with children */}
-        <SortableContext
-          items={data.categories.map((cat) => cat.id)}
-          strategy={verticalListSortingStrategy}
-          disabled={!canManage}
-        >
-          {data.categories.map((cat) => (
-            <SortableCategorySection
-              key={cat.id}
-              id={cat.id}
-              name={cat.name ?? ""}
-              channels={cat.channels}
-              draggingCategory={activeItem?.isCategory ?? false}
-              activeChannelId={activeChannelId}
-              canManage={canManage}
-              canDelete={canDelete}
-              onChannelClick={(channelId) => {
-                navigate({
-                  to: "/$guildSlug/$channelId",
-                  params: { guildSlug: guildSlug as string, channelId },
-                })
-                closeMobileSidebar(false)
-              }}
-            />
-          ))}
-        </SortableContext>
-      </nav>
-
-      <DragOverlay>
-        {activeItem && (
-          <div className="rounded-lg bg-background shadow-lg">
-            {activeItem.isCategory ? (
-              <div className="flex items-center gap-0.5 px-1 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <ChevronDown className="size-3 shrink-0" />
-                <span className="truncate">
-                  {activeItem.channel.name ?? ""}
-                </span>
-              </div>
-            ) : (
-              <ChannelItem
-                name={activeItem.channel.name ?? ""}
-                type={activeItem.channel.type}
+            {data.categories.map((cat) => (
+              <SortableCategorySection
+                key={cat.id}
+                id={cat.id}
+                name={cat.name ?? ""}
+                channels={cat.channels}
+                draggingCategory={activeItem?.isCategory ?? false}
+                activeChannelId={activeChannelId}
+                canManage={canManage}
+                canDelete={canDelete}
+                onChannelClick={(channelId) => {
+                  navigate({
+                    to: "/$guildSlug/$channelId",
+                    params: { guildSlug: guildSlug as string, channelId },
+                  })
+                  closeMobileSidebar(false)
+                }}
               />
-            )}
-          </div>
-        )}
-      </DragOverlay>
-    </DndContext>
+            ))}
+          </SortableContext>
+        </nav>
+
+        <DragOverlay>
+          {activeItem && (
+            <div className="rounded-lg bg-background shadow-lg">
+              {activeItem.isCategory ? (
+                <div className="flex items-center gap-0.5 px-1 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <ChevronDown className="size-3 shrink-0" />
+                  <span className="truncate">
+                    {activeItem.channel.name ?? ""}
+                  </span>
+                </div>
+              ) : (
+                <ChannelItem
+                  name={activeItem.channel.name ?? ""}
+                  type={activeItem.channel.type}
+                />
+              )}
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
+      <CreateChannelDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        parentId={createParentId}
+      />
+    </>
   )
 }
 

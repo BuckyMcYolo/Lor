@@ -1,0 +1,168 @@
+import { Button } from "@repo/ui/components/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@repo/ui/components/dialog"
+import { Input } from "@repo/ui/components/input"
+import { Label } from "@repo/ui/components/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/select"
+import { useQueryClient } from "@tanstack/react-query"
+import { useNavigate, useParams } from "@tanstack/react-router"
+import { Hash, Loader2, Megaphone } from "lucide-react"
+import { useState } from "react"
+import { apiClient } from "@/lib/api-client"
+
+const channelTypes = [
+  { value: "text", label: "Text Channel", icon: Hash },
+  { value: "announcement", label: "Announcement", icon: Megaphone },
+] as const
+
+export function CreateChannelDialog({
+  open,
+  onOpenChange,
+  parentId,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  parentId?: string | null
+}) {
+  const { guildSlug } = useParams({ strict: false })
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [name, setName] = useState("")
+  const [type, setType] = useState<"text" | "announcement">("text")
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = name.trim()
+    if (!trimmed || !guildSlug) return
+    setError(null)
+    setLoading(true)
+
+    try {
+      const res = await apiClient.v1.guilds[":guildSlug"].channels.$post({
+        param: { guildSlug },
+        json: {
+          name: trimmed.toLowerCase().replace(/\s+/g, "-"),
+          type,
+          ...(parentId ? { parentId } : {}),
+        },
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError(
+          (data as { message?: string } | null)?.message ??
+            "Failed to create channel"
+        )
+        return
+      }
+
+      const channel = await res.json()
+      await queryClient.invalidateQueries({
+        queryKey: ["channels", guildSlug],
+      })
+      onOpenChange(false)
+      setName("")
+      setType("text")
+      setError(null)
+
+      navigate({
+        to: "/$guildSlug/$channelId",
+        params: { guildSlug, channelId: channel.id },
+      })
+    } catch {
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setName("")
+      setType("text")
+      setError(null)
+    }
+    onOpenChange(open)
+  }
+
+  const normalizedName = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create Channel</DialogTitle>
+          <DialogDescription>
+            Add a new channel to your guild.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="channel-type">Type</Label>
+            <Select
+              value={type}
+              onValueChange={(v) => setType(v as "text" | "announcement")}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {channelTypes.map((ct) => (
+                  <SelectItem key={ct.value} value={ct.value}>
+                    <div className="flex items-center gap-2">
+                      <ct.icon className="size-4 text-muted-foreground" />
+                      {ct.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="channel-name">Name</Label>
+            <Input
+              id="channel-name"
+              placeholder="general"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={loading}
+              autoFocus
+            />
+            {normalizedName && normalizedName !== name.trim() && (
+              <p className="text-xs text-muted-foreground">
+                Will be created as{" "}
+                <span className="font-mono">#{normalizedName}</span>
+              </p>
+            )}
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading || !name.trim()}
+          >
+            {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+            Create Channel
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
