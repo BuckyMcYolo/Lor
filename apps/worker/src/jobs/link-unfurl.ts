@@ -13,6 +13,7 @@ import ogs from "open-graph-scraper"
 import { logger } from "@/lib/logger"
 
 const OG_FETCH_TIMEOUT_MS = 5000
+const MAX_REDIRECTS = 5
 
 const PRIVATE_IP_REGEX =
   /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|0\.|169\.254\.|::1|fc|fd|fe80)/i
@@ -76,6 +77,39 @@ function matchProxyRule(originalUrl: string) {
   return null
 }
 
+/** Follow redirects manually, validating each hop through isSafeUrl. */
+async function resolveRedirects(startUrl: string): Promise<string | null> {
+  let current = startUrl
+  for (let i = 0; i < MAX_REDIRECTS; i++) {
+    const res = await fetch(current, {
+      method: "HEAD",
+      headers: { "user-agent": "Townhall/1.0 OGBot" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(OG_FETCH_TIMEOUT_MS),
+    })
+
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location")
+      if (!location) return null
+      // Resolve relative Location headers against the current URL
+      const next = new URL(location, current).toString()
+      if (!(await isSafeUrl(next))) {
+        logger.warn(
+          { from: current, to: next },
+          "Redirect target failed safety check"
+        )
+        return null
+      }
+      current = next
+      continue
+    }
+
+    return current
+  }
+  logger.warn({ url: startUrl }, "Too many redirects")
+  return null
+}
+
 async function fetchOgEmbed(url: string): Promise<Embed | null> {
   const proxy = matchProxyRule(url)
   const fetchUrl = proxy?.fetchUrl ?? url
@@ -85,20 +119,26 @@ async function fetchOgEmbed(url: string): Promise<Embed | null> {
     return null
   }
 
+  const resolvedUrl = await resolveRedirects(fetchUrl)
+  if (!resolvedUrl) {
+    logger.info({ url, fetchUrl }, "Redirect resolution failed")
+    return null
+  }
+
   try {
     const { error, result } = await ogs({
-      url: fetchUrl,
+      url: resolvedUrl,
       timeout: OG_FETCH_TIMEOUT_MS,
       fetchOptions: {
         headers: {
           "user-agent": "Townhall/1.0 OGBot",
         },
-        redirect: "follow",
+        redirect: "error",
       },
     })
 
     if (error || !result.success) {
-      logger.warn({ url, fetchUrl, error }, "OG scrape returned no result")
+      logger.warn({ url, resolvedUrl, error }, "OG scrape returned no result")
       return null
     }
 
@@ -120,7 +160,7 @@ async function fetchOgEmbed(url: string): Promise<Embed | null> {
       siteName: proxy?.siteName ?? result.ogSiteName ?? undefined,
     }
   } catch (err) {
-    logger.error({ err, url, fetchUrl }, "OG scrape threw")
+    logger.error({ err, url, resolvedUrl }, "OG scrape threw")
     return null
   }
 }
