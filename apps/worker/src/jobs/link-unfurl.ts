@@ -101,7 +101,13 @@ async function resolveRedirects(startUrl: string): Promise<string | null> {
       const location = res.headers.get("location")
       if (!location) return null
       // Resolve relative Location headers against the current URL
-      const next = new URL(location, current).toString()
+      let next: string
+      try {
+        next = new URL(location, current).toString()
+      } catch {
+        logger.warn({ location, current }, "Malformed redirect Location header")
+        return null
+      }
       if (!(await isSafeUrl(next))) {
         logger.warn(
           { from: current, to: next },
