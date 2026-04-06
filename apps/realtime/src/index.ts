@@ -533,10 +533,14 @@ io.on("connection", (socket) => {
 
       // Enqueue link unfurl job if the message contains a URL
       const rawUrlMatches =
-        parsed.content?.match(/https?:\/\/[^\s<>"]+/g) ?? null
-      const urlMatches = rawUrlMatches?.map((u) =>
-        u.replace(/[.,!?:;'")\]]+$/, "")
-      )
+        parsed.content?.match(/https?:\/\/[^\s<>"[\]]+/g) ?? null
+      const urlMatches = rawUrlMatches
+        ? [
+            ...new Set(
+              rawUrlMatches.map((u) => u.replace(/[.,!?:;'")\]]+$/, ""))
+            ),
+          ]
+        : null
       if (urlMatches && urlMatches.length > 0) {
         void linkUnfurlQueue
           .add("unfurl", {
