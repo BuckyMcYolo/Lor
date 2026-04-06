@@ -81,12 +81,21 @@ function matchProxyRule(originalUrl: string) {
 async function resolveRedirects(startUrl: string): Promise<string | null> {
   let current = startUrl
   for (let i = 0; i < MAX_REDIRECTS; i++) {
-    const res = await fetch(current, {
-      method: "HEAD",
-      headers: { "user-agent": "Townhall/1.0 OGBot" },
-      redirect: "manual",
-      signal: AbortSignal.timeout(OG_FETCH_TIMEOUT_MS),
-    })
+    let res: Response
+    try {
+      res = await fetch(current, {
+        method: "HEAD",
+        headers: { "user-agent": "Townhall/1.0 OGBot" },
+        redirect: "manual",
+        signal: AbortSignal.timeout(OG_FETCH_TIMEOUT_MS),
+      })
+    } catch (err) {
+      logger.warn(
+        { err, startUrl, current },
+        "Redirect resolution fetch failed"
+      )
+      return null
+    }
 
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get("location")
@@ -181,8 +190,10 @@ export function createLinkUnfurlProcessor(
     const embeds = results.filter((e): e is Embed => e !== null)
 
     if (embeds.length === 0) {
-      logger.info({ jobId: job.id, messageId }, "No embeds produced from URLs")
-      return
+      logger.info(
+        { jobId: job.id, messageId },
+        "No embeds produced, clearing stored embeds"
+      )
     }
 
     const [updated] = await db
