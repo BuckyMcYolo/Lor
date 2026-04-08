@@ -90,7 +90,7 @@ export function UserBar() {
   }
 
   return (
-    <div className="border-t border-border px-2 py-2">
+    <div className="shrink-0 border-t border-border px-2 py-2">
       <div className="flex items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

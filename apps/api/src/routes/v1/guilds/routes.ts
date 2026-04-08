@@ -21,6 +21,8 @@ import {
   timeoutGuildMemberResponseSchema,
   updateGuildMemberRoleRequestSchema,
   updateGuildMemberRoleResponseSchema,
+  updateGuildRequestSchema,
+  updateGuildResponseSchema,
 } from "./schema"
 
 export const listGuildMembers = createRoute({
@@ -210,3 +212,31 @@ export const searchMessages = createRoute({
 })
 
 export type SearchMessagesRoute = typeof searchMessages
+
+export const updateGuild = createRoute({
+  path: "/guilds/{guildSlug}",
+  method: "patch",
+  summary: "Update guild settings",
+  description: "Updates guild name and/or logo. Requires admin or owner role.",
+  tags: ["Guilds"],
+  middleware: [guildAuthMiddleware] as const,
+  request: {
+    params: guildSlugParamsSchema,
+    body: jsonContent({
+      schema: updateGuildRequestSchema,
+      description: "Guild fields to update",
+    }),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: updateGuildResponseSchema,
+      description: "Updated guild",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
+export type UpdateGuildRoute = typeof updateGuild

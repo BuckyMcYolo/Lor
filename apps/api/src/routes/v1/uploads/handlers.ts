@@ -8,8 +8,16 @@ import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { assertMemberCanCommunicate } from "@/lib/permissions"
 import { s3Client } from "@/lib/s3"
 import type { AppRouteHandler } from "@/lib/types/app-types"
-import type { AvatarPresignRoute, PresignRoute } from "./routes"
-import { MAX_AVATAR_SIZE, PRESIGNED_URL_EXPIRY_SECONDS } from "./schema"
+import type {
+  AvatarPresignRoute,
+  GuildIconPresignRoute,
+  PresignRoute,
+} from "./routes"
+import {
+  MAX_AVATAR_SIZE,
+  MAX_GUILD_ICON_SIZE,
+  PRESIGNED_URL_EXPIRY_SECONDS,
+} from "./schema"
 
 const DM_CHANNEL_TYPES = ["dm", "group_dm"] as const
 
@@ -127,6 +135,38 @@ export const avatarPresign: AppRouteHandler<AvatarPresignRoute> = async (c) => {
 
   const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_")
   const key = `avatars/${user.id}/${crypto.randomUUID()}/${sanitizedFilename}`
+
+  const command = new PutObjectCommand({
+    Bucket: env.S3_BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+    ContentLength: size,
+  })
+
+  const uploadUrl = await getSignedUrl(s3Client, command, {
+    expiresIn: PRESIGNED_URL_EXPIRY_SECONDS,
+  })
+
+  const fileUrl = `${env.S3_PUBLIC_URL.replace(/\/$/, "")}/${key}`
+
+  return c.json({ uploadUrl, fileUrl }, HttpStatusCodes.OK)
+}
+
+export const guildIconPresign: AppRouteHandler<GuildIconPresignRoute> = async (
+  c
+) => {
+  const user = c.var.user
+  const { filename, contentType, size } = c.req.valid("json")
+
+  if (size > MAX_GUILD_ICON_SIZE) {
+    return c.json(
+      { success: false, message: "File too large" },
+      HttpStatusCodes.REQUEST_TOO_LONG
+    )
+  }
+
+  const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_")
+  const key = `guild-icons/${user.id}/${crypto.randomUUID()}/${sanitizedFilename}`
 
   const command = new PutObjectCommand({
     Bucket: env.S3_BUCKET_NAME,

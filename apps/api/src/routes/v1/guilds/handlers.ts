@@ -21,6 +21,7 @@ import type {
   SearchMessagesRoute,
   TimeoutGuildMemberRoute,
   UpdateGuildMemberRoleRoute,
+  UpdateGuildRoute,
 } from "@/routes/v1/guilds/routes"
 
 const PRESENCE_MEMBERSHIP_CHUNK_SIZE = 250
@@ -465,6 +466,69 @@ export const clearGuildMemberTimeout: AppRouteHandler<
         guild.ownerId,
         onlineUserIds
       ),
+    },
+    HttpStatusCodes.OK
+  )
+}
+
+// ── Guild Settings ─────────────────────────────────────
+
+export const updateGuild: AppRouteHandler<UpdateGuildRoute> = async (c) => {
+  const guild = c.var.guild
+  const actor = c.var.member
+
+  assertGuildPermission(actor, guild, {
+    organization: ["update"],
+  })
+
+  const body = c.req.valid("json")
+
+  const updates: Record<string, unknown> = {}
+  if (body.name !== undefined) updates.name = body.name
+  if (body.logo !== undefined) updates.logo = body.logo
+
+  if (Object.keys(updates).length === 0) {
+    return c.json(
+      {
+        success: true as const,
+        guild: {
+          id: guild.id,
+          name: guild.name,
+          slug: guild.slug,
+          logo: guild.logo,
+        },
+      },
+      HttpStatusCodes.OK
+    )
+  }
+
+  const [updated] = await db
+    .update(schema.guild)
+    .set(updates)
+    .where(eq(schema.guild.id, guild.id))
+    .returning({
+      id: schema.guild.id,
+      name: schema.guild.name,
+      slug: schema.guild.slug,
+      logo: schema.guild.logo,
+    })
+
+  if (!updated) {
+    return c.json(
+      { success: false, message: "Guild not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  return c.json(
+    {
+      success: true as const,
+      guild: {
+        id: updated.id,
+        name: updated.name,
+        slug: updated.slug,
+        logo: updated.logo,
+      },
     },
     HttpStatusCodes.OK
   )

@@ -102,7 +102,12 @@ function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
         defaultLayout={defaultLayout}
         onLayoutChange={onLayoutChange}
       >
-        <ResizablePanel defaultSize="240px" minSize="180px" maxSize="420px">
+        <ResizablePanel
+          defaultSize="240px"
+          minSize="180px"
+          maxSize="420px"
+          className="overflow-hidden"
+        >
           {guildSlug ? <ChannelPanel /> : <DMPanel />}
         </ResizablePanel>
         <ResizableHandle className="bg-border hover:!bg-primary data-[resize-handle-active]:!bg-primary" />

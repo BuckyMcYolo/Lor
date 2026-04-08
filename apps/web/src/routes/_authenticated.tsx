@@ -107,7 +107,7 @@ function AuthenticatedLayout() {
           <BrowserNotifications />
           <UpdateBanner />
           <MobileSidebarProvider>
-            <div className="flex h-screen select-none overflow-hidden bg-background text-foreground">
+            <div className="flex h-screen overflow-hidden bg-background text-foreground">
               <Sidebar>
                 <Outlet />
               </Sidebar>

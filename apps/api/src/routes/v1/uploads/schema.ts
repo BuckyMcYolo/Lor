@@ -47,3 +47,29 @@ export const avatarPresignResponseSchema = z.object({
   uploadUrl: z.string().url(),
   fileUrl: z.string().url(),
 })
+
+// ── Guild Icon ─────────────────────────────────────────
+
+const GUILD_ICON_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/svg+xml",
+] as const
+
+export const MAX_GUILD_ICON_SIZE = 2 * 1024 * 1024 // 2 MB
+
+export const guildIconPresignRequestSchema = z.object({
+  filename: z.string().min(1).max(256),
+  contentType: z
+    .string()
+    .refine((ct) => (GUILD_ICON_MIME_TYPES as readonly string[]).includes(ct), {
+      message: "Unsupported image type",
+    }),
+  size: z.number().int().min(1).max(MAX_GUILD_ICON_SIZE),
+})
+
+export const guildIconPresignResponseSchema = z.object({
+  uploadUrl: z.string().url(),
+  fileUrl: z.string().url(),
+})
