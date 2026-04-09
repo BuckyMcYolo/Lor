@@ -3,5 +3,10 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": ["main"],
-  "permissions": ["core:default", "notification:default", "updater:default"]
+  "permissions": [
+    "core:default",
+    "notification:default",
+    "process:default",
+    "updater:default"
+  ]
 }

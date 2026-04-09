@@ -50,10 +50,14 @@ export function EditChannelDialog({
         ":channelId"
       ].$patch({
         param: { guildSlug: validatedGuildSlug, channelId: channel.id },
-        json: { name, topic: topic || undefined },
+        json: {
+          name,
+          ...(channel.type !== "category" ? { topic: topic || undefined } : {}),
+        },
       })
       if (!res.ok) {
-        let message = "Failed to update channel"
+        const label = channel.type === "category" ? "category" : "channel"
+        let message = `Failed to update ${label}`
         const responseText = await res.text()
 
         if (responseText) {
@@ -83,23 +87,31 @@ export function EditChannelDialog({
       onOpenChange(false)
     },
     onError: (error) => {
+      const label = channel.type === "category" ? "category" : "channel"
       toast.error(
-        error instanceof Error ? error.message : "Failed to update channel"
+        error instanceof Error ? error.message : `Failed to update ${label}`
       )
     },
   })
 
   const hasChanges =
-    name !== (channel.name ?? "") || topic !== (channel.topic ?? "")
+    name !== (channel.name ?? "") ||
+    (channel.type !== "category" && topic !== (channel.topic ?? ""))
   const isValid = name.trim().length > 0
+
+  const isCategory = channel.type === "category"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Channel</DialogTitle>
+          <DialogTitle>
+            {isCategory ? "Edit Category" : "Edit Channel"}
+          </DialogTitle>
           <DialogDescription>
-            Update the channel name and topic.
+            {isCategory
+              ? "Update the category name."
+              : "Update the channel name and topic."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -121,17 +133,19 @@ export function EditChannelDialog({
               autoFocus
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="channel-topic">Topic</Label>
-            <Textarea
-              id="channel-topic"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              maxLength={1024}
-              placeholder="What's this channel about?"
-              rows={3}
-            />
-          </div>
+          {!isCategory && (
+            <div className="space-y-2">
+              <Label htmlFor="channel-topic">Topic</Label>
+              <Textarea
+                id="channel-topic"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                maxLength={1024}
+                placeholder="What's this channel about?"
+                rows={3}
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button
               type="button"

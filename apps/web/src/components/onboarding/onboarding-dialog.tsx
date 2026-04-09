@@ -1,7 +1,9 @@
 "use client"
 
 import { authClient } from "@repo/auth/client"
+import { env } from "@repo/env/client"
 import { Button } from "@repo/ui/components/button"
+import { Checkbox } from "@repo/ui/components/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,9 @@ type Step = "username" | "welcome" | "create" | "join"
 const MIN_USERNAME_LENGTH = 3
 const MAX_USERNAME_LENGTH = 30
 const USERNAME_REGEX = /^[a-zA-Z0-9_.]+$/
+// TODO: Remove hardcoded invite code once we have a proper discovery/featured guilds system
+const TOWNHALL_INVITE_CODE = "k9yDieWZ"
+const showTownhallJoin = !env.NEXT_PUBLIC_SELF_HOSTED
 
 function normalizeSlugInput(value: string) {
   return value
@@ -64,10 +69,19 @@ export function OnboardingDialog({ open }: { open: boolean }) {
   const [slug, setSlug] = useState("")
   const [slugEdited, setSlugEdited] = useState(false)
   const [inviteLink, setInviteLink] = useState("")
+  const [joinTownhall, setJoinTownhall] = useState(showTownhallJoin)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+
+  const acceptTownhallInvite = useCallback(() => {
+    if (!joinTownhall) return
+    apiClient.v1.invites[":code"].accept
+      .$post({ param: { code: TOWNHALL_INVITE_CODE } })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["guilds"] }))
+      .catch((err) => console.error("Failed to join Townhall guild:", err))
+  }, [joinTownhall, queryClient])
 
   // Username step state
   const [username, setUsername] = useState("")
@@ -184,6 +198,8 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       const createdGuildSlug = res.data?.slug ?? normalizedSlug
       await queryClient.invalidateQueries({ queryKey: ["guilds"] })
 
+      acceptTownhallInvite()
+
       let firstChannelId: string | null = null
       try {
         firstChannelId = await getFirstChannelId(createdGuildSlug)
@@ -222,6 +238,10 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       setError("Enter a valid invite link or invite code.")
       setLoading(false)
       return
+    }
+
+    if (inviteCode !== TOWNHALL_INVITE_CODE) {
+      acceptTownhallInvite()
     }
 
     await navigate({
@@ -375,6 +395,34 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     </div>
                   </button>
                 </div>
+
+                {showTownhallJoin && (
+                  // biome-ignore lint/a11y/useKeyWithClickEvents: Label + Checkbox handle keyboard a11y
+                  <div
+                    onClick={() => setJoinTownhall((prev) => !prev)}
+                    className="mt-4 flex w-full cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
+                  >
+                    <Checkbox
+                      id="join-townhall"
+                      checked={joinTownhall}
+                      onCheckedChange={(checked) =>
+                        setJoinTownhall(checked === true)
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-0.5"
+                    />
+                    <Label
+                      htmlFor="join-townhall"
+                      className="cursor-pointer font-normal"
+                    >
+                      <p className="font-medium">Join Townhall's Townhall</p>
+                      <p className="text-sm text-muted-foreground">
+                        Join our open-source community and help shape the
+                        product roadmap
+                      </p>
+                    </Label>
+                  </div>
+                )}
               </>
             )}
 

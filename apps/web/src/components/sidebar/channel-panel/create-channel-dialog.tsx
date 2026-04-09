@@ -30,10 +30,12 @@ export function CreateChannelDialog({
   open,
   onOpenChange,
   parentId,
+  forceType,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   parentId?: string | null
+  forceType?: "category"
 }) {
   const { guildSlug } = useParams({ strict: false })
   const navigate = useNavigate()
@@ -47,16 +49,19 @@ export function CreateChannelDialog({
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed || !guildSlug) return
+    if (forceType !== "category" && !normalizedName) return
     setError(null)
     setLoading(true)
+
+    const isCategory = forceType === "category"
 
     try {
       const res = await apiClient.v1.guilds[":guildSlug"].channels.$post({
         param: { guildSlug },
         json: {
-          name: trimmed.toLowerCase().replace(/\s+/g, "-"),
-          type,
-          ...(parentId ? { parentId } : {}),
+          name: isCategory ? trimmed : normalizedName,
+          type: isCategory ? "category" : type,
+          ...(parentId && !isCategory ? { parentId } : {}),
         },
       })
 
@@ -64,7 +69,7 @@ export function CreateChannelDialog({
         const data = await res.json().catch(() => null)
         setError(
           (data as { message?: string } | null)?.message ??
-            "Failed to create channel"
+            `Failed to create ${isCategory ? "category" : "channel"}`
         )
         return
       }
@@ -78,10 +83,12 @@ export function CreateChannelDialog({
       setType("text")
       setError(null)
 
-      navigate({
-        to: "/$guildSlug/$channelId",
-        params: { guildSlug, channelId: channel.id },
-      })
+      if (!isCategory) {
+        navigate({
+          to: "/$guildSlug/$channelId",
+          params: { guildSlug, channelId: channel.id },
+        })
+      }
     } catch {
       setError("Something went wrong. Please try again.")
     } finally {
@@ -98,6 +105,8 @@ export function CreateChannelDialog({
     onOpenChange(open)
   }
 
+  const isCategory = forceType === "category"
+
   const normalizedName = name
     .trim()
     .toLowerCase()
@@ -108,58 +117,68 @@ export function CreateChannelDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Channel</DialogTitle>
+          <DialogTitle>
+            {isCategory ? "Create Category" : "Create Channel"}
+          </DialogTitle>
           <DialogDescription>
-            Add a new channel to your guild.
+            {isCategory
+              ? "Add a new category to organize your channels."
+              : "Add a new channel to your guild."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreate} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="channel-type">Type</Label>
-            <Select
-              value={type}
-              onValueChange={(v) => setType(v as "text" | "announcement")}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {channelTypes.map((ct) => (
-                  <SelectItem key={ct.value} value={ct.value}>
-                    <div className="flex items-center gap-2">
-                      <ct.icon className="size-4 text-muted-foreground" />
-                      {ct.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!isCategory && (
+            <div className="space-y-1.5">
+              <Label htmlFor="channel-type">Type</Label>
+              <Select
+                value={type}
+                onValueChange={(v) => setType(v as "text" | "announcement")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {channelTypes.map((ct) => (
+                    <SelectItem key={ct.value} value={ct.value}>
+                      <div className="flex items-center gap-2">
+                        <ct.icon className="size-4 text-muted-foreground" />
+                        {ct.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="channel-name">Name</Label>
             <Input
               id="channel-name"
-              placeholder="general"
+              placeholder={isCategory ? "Community" : "general"}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
               autoFocus
             />
-            {normalizedName && normalizedName !== name.trim() && (
-              <p className="text-xs text-muted-foreground">
-                Will be created as{" "}
-                <span className="font-mono">#{normalizedName}</span>
-              </p>
-            )}
+            {!isCategory &&
+              normalizedName &&
+              normalizedName !== name.trim() && (
+                <p className="text-xs text-muted-foreground">
+                  Will be created as{" "}
+                  <span className="font-mono">#{normalizedName}</span>
+                </p>
+              )}
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || !name.trim()}
+            disabled={
+              loading || !name.trim() || (!isCategory && !normalizedName)
+            }
           >
             {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Create Channel
+            {isCategory ? "Create Category" : "Create Channel"}
           </Button>
         </form>
       </DialogContent>

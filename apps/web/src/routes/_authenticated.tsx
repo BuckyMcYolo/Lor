@@ -26,21 +26,22 @@ function BrowserNotifications() {
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 
 function UpdateBanner() {
-  const { updateAvailable, refresh } = useUpdateCheck()
+  const { updateAvailable, isInstalling, refresh } = useUpdateCheck()
   if (!updateAvailable) return null
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-4 z-[100] flex justify-center">
       <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 shadow-lg">
         <span className="text-sm font-medium text-foreground">
-          A new version is available
+          {isInstalling ? "Installing update..." : "A new version is available"}
         </span>
         <button
           type="button"
           onClick={refresh}
-          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          disabled={isInstalling}
+          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {isTauri ? "Update" : "Refresh"}
+          {isInstalling ? "Installing..." : isTauri ? "Update" : "Refresh"}
         </button>
       </div>
     </div>

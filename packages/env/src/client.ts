@@ -21,6 +21,9 @@ const clientSchema = z.object({
   NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE: z.coerce
     .number()
     .default(DEFAULT_MAX_FILE_UPLOAD_SIZE),
+  NEXT_PUBLIC_SELF_HOSTED: z
+    .preprocess((v) => v === "true" || v === "1", z.boolean())
+    .default(false),
 })
 
 export const env = clientSchema.parse({
@@ -29,4 +32,5 @@ export const env = clientSchema.parse({
   NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
   NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE:
     process.env.NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE,
+  NEXT_PUBLIC_SELF_HOSTED: process.env.NEXT_PUBLIC_SELF_HOSTED,
 })

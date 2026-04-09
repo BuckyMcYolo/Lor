@@ -1,4 +1,3 @@
-import { authClient } from "@repo/auth/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import { Button } from "@repo/ui/components/button"
 import {
