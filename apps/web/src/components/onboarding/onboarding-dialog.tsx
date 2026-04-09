@@ -397,26 +397,25 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                 </div>
 
                 {showTownhallJoin && (
-                  // biome-ignore lint/a11y/useKeyWithClickEvents: Radix Checkbox handles keyboard a11y
-                  <div
-                    onClick={() => setJoinTownhall((prev) => !prev)}
-                    className="mt-4 flex w-full cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
-                  >
+                  <div className="mt-4 flex w-full cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent">
                     <Checkbox
+                      id="join-townhall"
                       checked={joinTownhall}
                       onCheckedChange={(checked) =>
                         setJoinTownhall(checked === true)
                       }
-                      onClick={(e) => e.stopPropagation()}
                       className="mt-0.5"
                     />
-                    <div className="select-none">
+                    <Label
+                      htmlFor="join-townhall"
+                      className="cursor-pointer font-normal"
+                    >
                       <p className="font-medium">Join Townhall's Townhall</p>
                       <p className="text-sm text-muted-foreground">
                         Join our open-source community and help shape the
                         product roadmap
                       </p>
-                    </div>
+                    </Label>
                   </div>
                 )}
               </>

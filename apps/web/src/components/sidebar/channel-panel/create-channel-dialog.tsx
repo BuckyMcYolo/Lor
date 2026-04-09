@@ -173,7 +173,9 @@ export function CreateChannelDialog({
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || !name.trim()}
+            disabled={
+              loading || !name.trim() || (!isCategory && !normalizedName)
+            }
           >
             {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
             {isCategory ? "Create Category" : "Create Channel"}
