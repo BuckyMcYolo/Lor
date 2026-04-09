@@ -22,6 +22,10 @@ jobs:
         id: version
         run: |
           VERSION=$(jq -r '.version' apps/desktop/src-tauri/tauri.conf.json)
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "::error::No version found in tauri.conf.json"
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 

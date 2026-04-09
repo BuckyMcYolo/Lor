@@ -80,7 +80,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
     apiClient.v1.invites[":code"].accept
       .$post({ param: { code: TOWNHALL_INVITE_CODE } })
       .then(() => queryClient.invalidateQueries({ queryKey: ["guilds"] }))
-      .catch(() => {})
+      .catch((err) => console.error("Failed to join Townhall guild:", err))
   }, [joinTownhall, queryClient])
 
   // Username step state
