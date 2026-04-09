@@ -252,6 +252,7 @@ function ChannelView() {
     onDrop,
     noClick: true,
     noKeyboard: true,
+    disabled: !canSendMessages,
   })
 
   const mentionCandidates = useMemo(

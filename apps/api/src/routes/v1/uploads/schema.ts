@@ -60,6 +60,7 @@ const GUILD_ICON_MIME_TYPES = [
 export const MAX_GUILD_ICON_SIZE = 2 * 1024 * 1024 // 2 MB
 
 export const guildIconPresignRequestSchema = z.object({
+  guildId: z.string().uuid(),
   filename: z.string().min(1).max(256),
   contentType: z
     .string()

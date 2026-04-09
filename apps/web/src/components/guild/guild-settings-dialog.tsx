@@ -128,29 +128,33 @@ export function GuildSettingsDialog({
     [setIconFromFile]
   )
 
-  const uploadIcon = useCallback(async (file: File): Promise<string> => {
-    const res = await apiClient.v1.uploads["guild-icon"].presign.$post({
-      json: {
-        filename: file.name,
-        contentType: file.type,
-        size: file.size,
-      },
-    })
+  const uploadIcon = useCallback(
+    async (file: File): Promise<string> => {
+      const res = await apiClient.v1.uploads["guild-icon"].presign.$post({
+        json: {
+          guildId: guild.id,
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        },
+      })
 
-    if (!res.ok) throw new Error("Failed to get upload URL")
+      if (!res.ok) throw new Error("Failed to get upload URL")
 
-    const { uploadUrl, fileUrl } = await res.json()
+      const { uploadUrl, fileUrl } = await res.json()
 
-    const uploadRes = await fetch(uploadUrl, {
-      method: "PUT",
-      body: file,
-      headers: { "Content-Type": file.type },
-    })
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      })
 
-    if (!uploadRes.ok) throw new Error("Failed to upload icon")
+      if (!uploadRes.ok) throw new Error("Failed to upload icon")
 
-    return fileUrl
-  }, [])
+      return fileUrl
+    },
+    [guild.id]
+  )
 
   const handleSave = useCallback(async () => {
     setIsSaving(true)

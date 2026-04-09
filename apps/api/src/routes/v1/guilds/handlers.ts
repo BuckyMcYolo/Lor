@@ -3,8 +3,10 @@ import {
   getGuildRolePosition,
 } from "@repo/auth/permissions"
 import { and, count, db, desc, eq, ilike, inArray, schema } from "@repo/db"
+import { env } from "@repo/env/server"
 import { PRESENCE_ONLINE_USERS_SET_KEY } from "@repo/realtime-types"
 import { asc } from "drizzle-orm"
+import { HTTPException } from "hono/http-exception"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { logger } from "@/lib/logger"
 import {
@@ -482,6 +484,15 @@ export const updateGuild: AppRouteHandler<UpdateGuildRoute> = async (c) => {
   })
 
   const body = c.req.valid("json")
+
+  if (
+    body.logo &&
+    !body.logo.startsWith(env.S3_PUBLIC_URL.replace(/\/$/, ""))
+  ) {
+    throw new HTTPException(HttpStatusCodes.BAD_REQUEST, {
+      message: "Invalid logo URL",
+    })
+  }
 
   const updates: Record<string, unknown> = {}
   if (body.name !== undefined) updates.name = body.name

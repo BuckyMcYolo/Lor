@@ -92,6 +92,7 @@ export const guildIconPresign = createRoute({
       description: "Presigned URL for guild icon upload",
     }),
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
     [HttpStatusCodes.REQUEST_TOO_LONG]: payloadTooLargeSchema,
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
   },
