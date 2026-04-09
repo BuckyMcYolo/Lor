@@ -84,7 +84,14 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
     assertMemberCanCommunicate(member)
 
     // Block uploads in announcement channels for users without permission
-    if (ch.type === "announcement" && isGuildRole(member.role)) {
+    if (ch.type === "announcement") {
+      if (!isGuildRole(member.role)) {
+        return c.json(
+          { success: false, message: "Forbidden" },
+          HttpStatusCodes.FORBIDDEN
+        )
+      }
+
       const guildRecord = await db
         .select({ ownerId: guild.ownerId })
         .from(guild)

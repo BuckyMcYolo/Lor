@@ -485,10 +485,8 @@ export const updateGuild: AppRouteHandler<UpdateGuildRoute> = async (c) => {
 
   const body = c.req.valid("json")
 
-  if (
-    body.logo &&
-    !body.logo.startsWith(env.S3_PUBLIC_URL.replace(/\/$/, ""))
-  ) {
+  const guildIconPrefix = `${env.S3_PUBLIC_URL.replace(/\/$/, "")}/guild-icons/${guild.id}/`
+  if (body.logo && !body.logo.startsWith(guildIconPrefix)) {
     throw new HTTPException(HttpStatusCodes.BAD_REQUEST, {
       message: "Invalid logo URL",
     })
