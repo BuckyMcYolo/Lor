@@ -11,6 +11,7 @@ const statement = {
   channel: ["create", "update", "delete"],
   message: ["delete", "pin"], // delete/pin others' messages (own messages are always deletable)
   guildMember: ["kick", "ban", "timeout", "role:update"],
+  announcement: ["send"],
 } as const
 
 const ac = createAccessControl(statement)
@@ -19,6 +20,7 @@ const owner = ac.newRole({
   channel: ["create", "update", "delete"],
   message: ["delete", "pin"],
   guildMember: ["kick", "ban", "timeout", "role:update"],
+  announcement: ["send"],
   ...ownerAc.statements,
 })
 
@@ -26,6 +28,7 @@ const admin = ac.newRole({
   channel: ["create", "update", "delete"],
   message: ["delete", "pin"],
   guildMember: ["kick", "ban", "timeout", "role:update"],
+  announcement: ["send"],
   ...adminAc.statements,
 })
 
@@ -34,6 +37,7 @@ const warden = ac.newRole({
   channel: ["create", "update"],
   message: ["delete", "pin"],
   guildMember: ["kick", "ban", "timeout"],
+  announcement: ["send"],
   ...memberAc.statements,
 })
 

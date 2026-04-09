@@ -1,3 +1,8 @@
+import {
+  type GuildRole,
+  guildAuthorityHasPermissions,
+  isGuildRole,
+} from "@repo/auth/permissions"
 import { and, count, db, eq, schema } from "@repo/db"
 import type {
   DeleteMessagePayload,
@@ -67,6 +72,23 @@ export async function createMessage(input: CreateMessageInput) {
 
   const channelRecord = input.accessibleChannel
   assertChannelCommunicationAllowed(channelRecord)
+
+  // Block sending in announcement channels for users without permission
+  if (channelRecord.type === "announcement" && channelRecord.guildId) {
+    const role = channelRecord.memberRole
+    if (
+      !role ||
+      !isGuildRole(role) ||
+      !guildAuthorityHasPermissions(
+        { role: role as GuildRole, isOwner: channelRecord.memberIsOwner },
+        { announcement: ["send"] }
+      )
+    ) {
+      throw new Error(
+        "Only owners, admins, and wardens can post in decree channels"
+      )
+    }
+  }
 
   let hasReply = !!input.payload.referencedMessageId
 

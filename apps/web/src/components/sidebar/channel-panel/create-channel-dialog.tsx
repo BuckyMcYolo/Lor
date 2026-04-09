@@ -23,7 +23,7 @@ import { apiClient } from "@/lib/api-client"
 
 const channelTypes = [
   { value: "text", label: "Text Channel", icon: Hash },
-  { value: "announcement", label: "Announcement", icon: Megaphone },
+  { value: "announcement", label: "Decree", icon: Megaphone },
 ] as const
 
 export function CreateChannelDialog({
