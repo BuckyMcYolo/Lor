@@ -40,9 +40,13 @@ function GuildIcon({
       <div
         className={cn(
           "flex size-12 items-center justify-center overflow-hidden text-[15px] font-semibold transition-all",
-          active
-            ? "rounded-2xl bg-primary text-primary-foreground"
-            : "rounded-[24px] bg-muted text-muted-foreground hover:rounded-2xl hover:bg-primary hover:text-primary-foreground"
+          logo
+            ? active
+              ? "rounded-2xl"
+              : "rounded-[24px] hover:rounded-2xl"
+            : active
+              ? "rounded-2xl bg-primary text-primary-foreground"
+              : "rounded-[24px] bg-muted text-muted-foreground hover:rounded-2xl hover:bg-primary hover:text-primary-foreground"
         )}
       >
         {logo ? (
@@ -69,12 +73,12 @@ export function GuildBar() {
     },
   })
   return (
-    <div className="flex w-[72px] shrink-0 flex-col items-center bg-background py-3">
+    <div className="flex h-full w-[72px] shrink-0 flex-col items-center bg-background py-3">
       {/* Home / DMs button */}
       <button
         type="button"
         onClick={() => navigate({ to: "/dms" })}
-        className="group relative flex items-center justify-center px-3 py-1"
+        className="group relative flex shrink-0 items-center justify-center px-3 py-1"
       >
         <div
           className={cn(
@@ -95,38 +99,40 @@ export function GuildBar() {
       </button>
 
       {/* Separator */}
-      <div className="mx-auto my-1 h-px w-8 rounded-full bg-border" />
+      <div className="mx-auto my-1 h-px w-8 shrink-0 rounded-full bg-border" />
 
       {/* Guild icons */}
-      {guilds && guilds.length > 0 ? (
-        guilds.map((guild) => (
-          <GuildIcon
-            key={guild.id}
-            name={guild.name}
-            logo={guild.logo}
-            active={guildSlug === guild.slug}
-            onClick={() =>
-              navigate({
-                to: "/$guildSlug",
-                params: { guildSlug: guild.slug },
-              })
-            }
-          />
-        ))
-      ) : (
-        <div className="flex size-12 items-center justify-center rounded-[24px] bg-muted text-muted-foreground text-xs">
-          —
-        </div>
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {guilds && guilds.length > 0 ? (
+          guilds.map((guild) => (
+            <GuildIcon
+              key={guild.id}
+              name={guild.name}
+              logo={guild.logo}
+              active={guildSlug === guild.slug}
+              onClick={() =>
+                navigate({
+                  to: "/$guildSlug",
+                  params: { guildSlug: guild.slug },
+                })
+              }
+            />
+          ))
+        ) : (
+          <div className="flex size-12 items-center justify-center rounded-[24px] bg-muted text-muted-foreground text-xs">
+            —
+          </div>
+        )}
+      </div>
 
       {/* Separator */}
-      <div className="mx-auto my-1 h-px w-8 rounded-full bg-border" />
+      <div className="mx-auto my-1 h-px w-8 shrink-0 rounded-full bg-border" />
 
       {/* Add guild button */}
       <button
         type="button"
         onClick={() => setCreateDialogOpen(true)}
-        className="group relative flex items-center justify-center px-3 py-1"
+        className="group relative flex shrink-0 items-center justify-center px-3 py-1"
       >
         <div className="flex size-12 items-center justify-center rounded-[24px] bg-muted text-emerald-500 transition-all hover:rounded-2xl hover:bg-emerald-500 hover:text-white">
           <Plus className="size-6" />

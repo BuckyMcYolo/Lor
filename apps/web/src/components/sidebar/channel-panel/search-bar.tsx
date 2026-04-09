@@ -129,7 +129,7 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
   }
 
   return (
-    <div ref={containerRef} className="relative px-3 pt-3 pb-1">
+    <div ref={containerRef} className="relative shrink-0 px-3 pt-3 pb-1">
       <div className="flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2.5 text-[13px]">
         <Search className="size-3.5 shrink-0 text-muted-foreground" />
         <input

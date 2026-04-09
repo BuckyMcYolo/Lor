@@ -6,12 +6,15 @@ import { UserBar } from "./user-bar"
 
 export function ChannelPanel() {
   return (
-    <div className="flex h-full flex-col border-r border-border bg-card">
+    <div className="flex h-full flex-col overflow-x-hidden border-r border-border bg-card">
       <GuildHeader />
       <SearchBar />
-      <ScrollArea className="flex-1 px-2 pt-3">
-        <ChannelList />
-      </ScrollArea>
+      <div className="min-h-0 flex-1 overflow-hidden px-2 pt-3">
+        <ScrollArea className="h-full">
+          <ChannelList />
+          <div className="pb-3" />
+        </ScrollArea>
+      </div>
       <UserBar />
     </div>
   )

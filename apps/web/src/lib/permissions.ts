@@ -59,4 +59,10 @@ export function canManageGuildMember(
   )
 }
 
+export function canSendInAnnouncement(role: GuildRole): boolean {
+  return roleHasPermissions(role, {
+    announcement: ["send"],
+  })
+}
+
 export { formatGuildRole }

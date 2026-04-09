@@ -106,6 +106,27 @@ export const timeoutGuildMemberResponseSchema = z.object({
   member: guildMemberPresenceSchema,
 })
 
+// ── Guild Settings ─────────────────────────────────────
+
+export const updateGuildRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    logo: z.string().url().nullable().optional(),
+  })
+  .refine((data) => data.name !== undefined || data.logo !== undefined, {
+    message: "At least one field (name or logo) must be provided",
+  })
+
+export const updateGuildResponseSchema = z.object({
+  success: z.literal(true),
+  guild: z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    slug: z.string(),
+    logo: z.string().nullable(),
+  }),
+})
+
 // ── Search ──────────────────────────────────────────────
 
 export const searchMessagesQuerySchema = paginationQuerySchema.extend({

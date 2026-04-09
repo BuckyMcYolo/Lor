@@ -27,7 +27,7 @@ const defaultGuildChannels = {
     {
       name: "Information",
       channels: [
-        { name: "announcements", type: "announcement" as const },
+        { name: "decrees", type: "announcement" as const },
         { name: "rules", type: "text" as const },
       ],
     },

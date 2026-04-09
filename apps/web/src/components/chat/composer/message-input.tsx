@@ -88,6 +88,8 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
 
 interface MessageInputProps {
   context: ChatContext
+  disabled?: boolean
+  disabledReason?: string
   onSend: (
     content: string,
     options?: {
@@ -401,6 +403,8 @@ function getActiveCodeBlockPos(editor: {
 
 export function MessageInput({
   context,
+  disabled,
+  disabledReason,
   onSend,
   isSending,
   currentUserId,
@@ -702,6 +706,19 @@ export function MessageInput({
     },
     [addFiles]
   )
+
+  if (disabled) {
+    return (
+      <div className="shrink-0 px-4 pb-3">
+        <div className="flex items-center justify-center rounded-lg border border-input bg-muted/40 px-3 py-3">
+          <span className="text-sm text-muted-foreground">
+            {disabledReason ??
+              "You do not have permission to send messages in this channel"}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="shrink-0 px-4 pb-3">
