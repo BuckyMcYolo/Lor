@@ -50,10 +50,14 @@ export function EditChannelDialog({
         ":channelId"
       ].$patch({
         param: { guildSlug: validatedGuildSlug, channelId: channel.id },
-        json: { name, topic: topic || undefined },
+        json: {
+          name,
+          ...(channel.type !== "category" ? { topic: topic || undefined } : {}),
+        },
       })
       if (!res.ok) {
-        let message = "Failed to update channel"
+        const label = channel.type === "category" ? "category" : "channel"
+        let message = `Failed to update ${label}`
         const responseText = await res.text()
 
         if (responseText) {
@@ -83,14 +87,16 @@ export function EditChannelDialog({
       onOpenChange(false)
     },
     onError: (error) => {
+      const label = channel.type === "category" ? "category" : "channel"
       toast.error(
-        error instanceof Error ? error.message : "Failed to update channel"
+        error instanceof Error ? error.message : `Failed to update ${label}`
       )
     },
   })
 
   const hasChanges =
-    name !== (channel.name ?? "") || topic !== (channel.topic ?? "")
+    name !== (channel.name ?? "") ||
+    (channel.type !== "category" && topic !== (channel.topic ?? ""))
   const isValid = name.trim().length > 0
 
   const isCategory = channel.type === "category"
