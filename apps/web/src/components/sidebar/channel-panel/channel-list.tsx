@@ -333,17 +333,7 @@ export function ChannelList() {
           if (!old) return old
           const updated = structuredClone(old)
 
-          if (draggedItem.isCategory && overItem.isCategory) {
-            // Reorder categories
-            const oldIdx = updated.categories.findIndex(
-              (c) => c.id === active.id
-            )
-            const newIdx = updated.categories.findIndex((c) => c.id === over.id)
-            if (oldIdx >= 0 && newIdx >= 0) {
-              const moved = updated.categories.splice(oldIdx, 1)[0]
-              if (moved) updated.categories.splice(newIdx, 0, moved)
-            }
-          } else if (!draggedItem.isCategory) {
+          if (!draggedItem.isCategory) {
             // Reorder within same container
             const container = draggedItem.channel.parentId
             if (container === null) {

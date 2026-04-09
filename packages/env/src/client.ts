@@ -21,7 +21,9 @@ const clientSchema = z.object({
   NEXT_PUBLIC_MAX_FILE_UPLOAD_SIZE: z.coerce
     .number()
     .default(DEFAULT_MAX_FILE_UPLOAD_SIZE),
-  NEXT_PUBLIC_SELF_HOSTED: z.coerce.boolean().default(false),
+  NEXT_PUBLIC_SELF_HOSTED: z
+    .preprocess((v) => v === "true" || v === "1", z.boolean())
+    .default(false),
 })
 
 export const env = clientSchema.parse({

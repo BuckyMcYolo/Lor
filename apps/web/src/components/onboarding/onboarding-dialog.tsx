@@ -75,6 +75,14 @@ export function OnboardingDialog({ open }: { open: boolean }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
+  const acceptTownhallInvite = useCallback(() => {
+    if (!joinTownhall) return
+    apiClient.v1.invites[":code"].accept
+      .$post({ param: { code: TOWNHALL_INVITE_CODE } })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["guilds"] }))
+      .catch(() => {})
+  }, [joinTownhall, queryClient])
+
   // Username step state
   const [username, setUsername] = useState("")
   const [usernameAvailability, setUsernameAvailability] = useState<
@@ -190,12 +198,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       const createdGuildSlug = res.data?.slug ?? normalizedSlug
       await queryClient.invalidateQueries({ queryKey: ["guilds"] })
 
-      if (joinTownhall) {
-        apiClient.v1.invites[":code"].accept
-          .$post({ param: { code: TOWNHALL_INVITE_CODE } })
-          .then(() => queryClient.invalidateQueries({ queryKey: ["guilds"] }))
-          .catch(() => {})
-      }
+      acceptTownhallInvite()
 
       let firstChannelId: string | null = null
       try {
@@ -237,10 +240,8 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       return
     }
 
-    if (joinTownhall && inviteCode !== TOWNHALL_INVITE_CODE) {
-      apiClient.v1.invites[":code"].accept
-        .$post({ param: { code: TOWNHALL_INVITE_CODE } })
-        .catch(() => {})
+    if (inviteCode !== TOWNHALL_INVITE_CODE) {
+      acceptTownhallInvite()
     }
 
     await navigate({
@@ -396,8 +397,8 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                 </div>
 
                 {showTownhallJoin && (
-                  <button
-                    type="button"
+                  // biome-ignore lint/a11y/useKeyWithClickEvents: Radix Checkbox handles keyboard a11y
+                  <div
                     onClick={() => setJoinTownhall((prev) => !prev)}
                     className="mt-4 flex w-full cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
                   >
@@ -406,6 +407,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                       onCheckedChange={(checked) =>
                         setJoinTownhall(checked === true)
                       }
+                      onClick={(e) => e.stopPropagation()}
                       className="mt-0.5"
                     />
                     <div className="select-none">
@@ -415,7 +417,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                         product roadmap
                       </p>
                     </div>
-                  </button>
+                  </div>
                 )}
               </>
             )}

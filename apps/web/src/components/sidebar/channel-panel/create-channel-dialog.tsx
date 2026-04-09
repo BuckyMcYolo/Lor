@@ -49,6 +49,7 @@ export function CreateChannelDialog({
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed || !guildSlug) return
+    if (forceType !== "category" && !normalizedName) return
     setError(null)
     setLoading(true)
 
@@ -58,9 +59,7 @@ export function CreateChannelDialog({
       const res = await apiClient.v1.guilds[":guildSlug"].channels.$post({
         param: { guildSlug },
         json: {
-          name: isCategory
-            ? trimmed
-            : trimmed.toLowerCase().replace(/\s+/g, "-"),
+          name: isCategory ? trimmed : normalizedName,
           type: isCategory ? "category" : type,
           ...(parentId && !isCategory ? { parentId } : {}),
         },
