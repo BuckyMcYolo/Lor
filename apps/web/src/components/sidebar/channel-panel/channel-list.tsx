@@ -1,11 +1,11 @@
 import {
-  closestCenter,
   DndContext,
   type DragEndEvent,
   type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
   PointerSensor,
+  rectIntersection,
   useSensor,
   useSensors,
 } from "@dnd-kit/core"
@@ -223,7 +223,28 @@ export function ChannelList() {
       const overItem = findChannel(over.id as string)
       if (!activeItem || !overItem) return
 
-      // Don't allow dragging categories into other categories
+      // Category-to-category: reorder optimistically
+      if (activeItem.isCategory && overItem.isCategory) {
+        queryClient.setQueryData(
+          ["channels", guildSlug],
+          (old: ChannelData | undefined) => {
+            if (!old) return old
+            const newData = structuredClone(old)
+            const oldIdx = newData.categories.findIndex(
+              (c) => c.id === active.id
+            )
+            const newIdx = newData.categories.findIndex((c) => c.id === over.id)
+            if (oldIdx >= 0 && newIdx >= 0 && oldIdx !== newIdx) {
+              const moved = newData.categories.splice(oldIdx, 1)[0]
+              if (moved) newData.categories.splice(newIdx, 0, moved)
+            }
+            return newData
+          }
+        )
+        return
+      }
+
+      // Don't allow dragging categories onto channels
       if (activeItem.isCategory) return
 
       // Find which container the active item is in
@@ -385,7 +406,7 @@ export function ChannelList() {
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={rectIntersection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
