@@ -54,16 +54,31 @@ export function DeleteChannelDialog({
     },
   })
 
+  const isCategory = channel.type === "category"
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Channel</AlertDialogTitle>
+          <AlertDialogTitle>
+            {isCategory ? "Delete Category" : "Delete Channel"}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete{" "}
-            <span className="font-semibold">#{channel.name}</span>? This will
-            permanently delete all messages in this channel. This action cannot
-            be undone.
+            {isCategory ? (
+              <>
+                Are you sure you want to delete the{" "}
+                <span className="font-semibold">{channel.name}</span> category?
+                Channels inside it will become uncategorized. This action cannot
+                be undone.
+              </>
+            ) : (
+              <>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold">#{channel.name}</span>? This
+                will permanently delete all messages in this channel. This
+                action cannot be undone.
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -73,7 +88,7 @@ export function DeleteChannelDialog({
             loading={deleteMutation.isPending}
             variant="destructive"
           >
-            Delete Channel
+            {isCategory ? "Delete Category" : "Delete Channel"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

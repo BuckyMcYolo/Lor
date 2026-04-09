@@ -31,6 +31,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import {
   ChevronDown,
+  FolderPlus,
   Hash,
   Megaphone,
   MessageSquare,
@@ -172,6 +173,9 @@ export function ChannelList() {
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [createParentId, setCreateParentId] = useState<string | null>(null)
+  const [createForceType, setCreateForceType] = useState<
+    "category" | undefined
+  >(undefined)
 
   const [activeItem, setActiveItem] = useState<{
     channel: Channel
@@ -392,16 +396,32 @@ export function ChannelList() {
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Channels
               </span>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => {
-                  setCreateParentId(null)
-                  setCreateDialogOpen(true)
-                }}
-              >
-                <Plus className="size-3.5" />
-              </Button>
+              <div className="flex items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  title="Create category"
+                  onClick={() => {
+                    setCreateParentId(null)
+                    setCreateForceType("category")
+                    setCreateDialogOpen(true)
+                  }}
+                >
+                  <FolderPlus className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  title="Create channel"
+                  onClick={() => {
+                    setCreateParentId(null)
+                    setCreateForceType(undefined)
+                    setCreateDialogOpen(true)
+                  }}
+                >
+                  <Plus className="size-3.5" />
+                </Button>
+              </div>
             </div>
           )}
           {/* Uncategorized channels */}
@@ -449,6 +469,7 @@ export function ChannelList() {
                 channels={cat.channels}
                 draggingCategory={activeItem?.isCategory ?? false}
                 activeChannelId={activeChannelId}
+                canCreate={canCreate}
                 canManage={canManage}
                 canDelete={canDelete}
                 onChannelClick={(channelId) => {
@@ -457,6 +478,11 @@ export function ChannelList() {
                     params: { guildSlug: guildSlug as string, channelId },
                   })
                   closeMobileSidebar(false)
+                }}
+                onCreateChannel={(parentId) => {
+                  setCreateParentId(parentId)
+                  setCreateForceType(undefined)
+                  setCreateDialogOpen(true)
                 }}
               />
             ))}
@@ -485,8 +511,12 @@ export function ChannelList() {
       </DndContext>
       <CreateChannelDialog
         open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open)
+          if (!open) setCreateForceType(undefined)
+        }}
         parentId={createParentId}
+        forceType={createForceType}
       />
     </>
   )
@@ -498,20 +528,27 @@ function SortableCategorySection({
   channels,
   draggingCategory,
   activeChannelId,
+  canCreate,
   canManage,
   canDelete,
   onChannelClick,
+  onCreateChannel,
 }: {
   id: string
   name: string
   channels: Channel[]
   draggingCategory: boolean
   activeChannelId?: string
+  canCreate: boolean
   canManage: boolean
   canDelete: boolean
   onChannelClick?: (channelId: string) => void
+  onCreateChannel?: (parentId: string) => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const {
     attributes,
     listeners,
@@ -527,22 +564,88 @@ function SortableCategorySection({
     opacity: isDragging ? 0.5 : 1,
   }
 
+  const categoryAsChannel = {
+    id,
+    name,
+    type: "category" as const,
+  } as Channel
+
   return (
     <div ref={setNodeRef} style={style}>
-      <button
-        type="button"
-        onClick={() => setCollapsed(!collapsed)}
-        {...(canManage ? { ...attributes, ...listeners } : {})}
-        className="group flex w-full items-center gap-0.5 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer"
-      >
-        <motion.div
-          animate={{ rotate: collapsed ? -90 : 0 }}
-          transition={{ duration: 0.15, ease: "easeInOut" }}
+      <div className="group flex w-full items-center gap-0.5 px-1 pb-1">
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          {...(canManage ? { ...attributes, ...listeners } : {})}
+          className="flex flex-1 items-center gap-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer"
         >
-          <ChevronDown className="size-3 shrink-0" />
-        </motion.div>
-        <span className="truncate">{name}</span>
-      </button>
+          <motion.div
+            animate={{ rotate: collapsed ? -90 : 0 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
+          >
+            <ChevronDown className="size-3 shrink-0" />
+          </motion.div>
+          <span className="truncate">{name}</span>
+        </button>
+        <div className="flex items-center gap-0.5">
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => onCreateChannel?.(id)}
+              className="flex size-4 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100"
+              title="Create channel"
+            >
+              <Plus className="size-3 shrink-0 text-muted-foreground" />
+            </button>
+          )}
+          {canManage && (
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <DropdownMenuTrigger
+                className={cn(
+                  "flex size-4 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
+                  menuOpen && "opacity-100"
+                )}
+              >
+                <MoreHorizontal className="size-3 shrink-0 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="bottom" align="start">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setEditOpen(true)
+                  }}
+                >
+                  Edit Category
+                </DropdownMenuItem>
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setMenuOpen(false)
+                        setDeleteOpen(true)
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      Delete Category
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+      <EditChannelDialog
+        channel={categoryAsChannel}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+      <DeleteChannelDialog
+        channel={categoryAsChannel}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.div
