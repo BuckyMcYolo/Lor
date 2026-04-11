@@ -1,7 +1,7 @@
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { differenceInMinutes, isSameDay } from "@repo/utils/date"
-import { Hash, Loader2, User, Users } from "lucide-react"
+import { Loader2, ScrollText } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
@@ -29,28 +29,20 @@ interface MessageListProps {
 
 function EmptyState({ context }: { context: ChatContext }) {
   return (
-    <div className="flex flex-1 flex-col items-start justify-end px-4 pb-4">
-      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-foreground/10">
-        {context.type === "channel" && (
-          <Hash className="size-8 text-foreground/60" />
-        )}
-        {context.type === "dm" && (
-          <User className="size-8 text-foreground/60" />
-        )}
-        {context.type === "group_dm" && (
-          <Users className="size-8 text-foreground/60" />
-        )}
+    <div className="flex flex-1 flex-col items-center justify-end px-4 pb-8">
+      <div className="flex flex-col items-center gap-3 opacity-40">
+        <ScrollText className="size-10" strokeWidth={1.2} />
+        <div className="text-center">
+          <h3 className="text-base font-semibold">
+            {context.type === "channel" ? context.name : context.name}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {context.type === "channel"
+              ? "The scroll is blank. Write the first entry."
+              : "Send a raven to begin."}
+          </p>
+        </div>
       </div>
-      <h2 className="text-xl font-bold">
-        {context.type === "channel"
-          ? `Welcome to #${context.name}!`
-          : `This is the beginning of your conversation with ${context.name}`}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {context.type === "channel"
-          ? "This is the start of the channel."
-          : "Send a message to get started."}
-      </p>
     </div>
   )
 }
