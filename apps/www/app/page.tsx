@@ -289,92 +289,6 @@ function Journey() {
 }
 
 // ---------------------------------------------------------------------------
-// Pricing — single editorial line, no cards
-// ---------------------------------------------------------------------------
-
-function Pricing() {
-  return (
-    <section
-      id="pricing"
-      className="relative border-t border-foreground/[0.06] py-32 md:py-52"
-    >
-      <div className="mx-auto max-w-3xl px-6 text-center">
-        <Reveal>
-          <Eyebrow>Pricing</Eyebrow>
-        </Reveal>
-        <Reveal delay={120}>
-          <h2 className="mt-7 text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.035em] sm:text-5xl md:text-[64px]">
-            Free if you self-host.
-            <br />
-            <span className="text-foreground/45">
-              $18 a seat if you don&rsquo;t.
-            </span>
-          </h2>
-        </Reveal>
-        <Reveal delay={240}>
-          <p className="mx-auto mt-8 max-w-md text-[17px] leading-[1.6] text-foreground/65">
-            Same source. Same product. You pick where it runs.
-          </p>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Open source — a quiet statement, not a feature list
-// ---------------------------------------------------------------------------
-
-function OpenSource() {
-  return (
-    <section
-      id="open-source"
-      className="relative overflow-hidden border-t border-foreground/[0.06] py-32 md:py-52"
-    >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 size-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[160px]"
-      />
-      <div className="mx-auto max-w-2xl px-6 text-center">
-        <Reveal>
-          <Eyebrow>Open source</Eyebrow>
-        </Reveal>
-        <Reveal delay={120}>
-          <h2 className="mt-7 text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.035em] sm:text-5xl md:text-[60px]">
-            Yours to read.
-            <br />
-            <span className="text-foreground/45">Yours to run.</span>
-          </h2>
-        </Reveal>
-        <Reveal delay={240}>
-          <p className="mx-auto mt-8 max-w-lg text-[17px] leading-[1.65] text-foreground/65">
-            Lor is AGPL. The source is open because your trust shouldn&rsquo;t
-            depend on our word alone.
-          </p>
-        </Reveal>
-        <Reveal delay={360}>
-          <div className="mt-12 flex justify-center">
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group inline-flex items-center gap-2 rounded-full bg-foreground/[0.05] px-6 py-3 text-[14px] font-medium text-foreground/90 ring-1 ring-foreground/10 backdrop-blur-md transition-[transform,background-color,color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-foreground/[0.09] hover:text-foreground active:scale-[0.98]"
-            >
-              <Github className="size-4" strokeWidth={1.25} />
-              <span>See the source</span>
-              <ArrowUpRight
-                className="size-3.5 opacity-60 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                strokeWidth={1.5}
-              />
-            </a>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Closing summons — waitlist again, quietly
 // ---------------------------------------------------------------------------
 
@@ -440,8 +354,6 @@ export default function Home() {
         <Lore />
         <Merlin />
         <Journey />
-        <Pricing />
-        <OpenSource />
         <Summons />
       </main>
       <Footer />
