@@ -48,7 +48,7 @@ function UpdateBanner() {
   )
 }
 
-const LAST_PATH_KEY = "townhall:last-path"
+const LAST_PATH_KEY = "lor:last-path"
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,

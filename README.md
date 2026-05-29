@@ -1,15 +1,14 @@
-# Townhall
+# Lor
 
-A free, open source chat app built for communities of any size.
+The AI multiplayer workspace for teams.
 
-Townhall aims to be a simple, privacy-respecting alternative to platforms like Discord. No ads, no AI training on your data, no forced identity verification. Just chat.
+Lor is a chat-first workspace for software teams. Chat is the interface; **Merlin** — the resident AI agent — is the product. It indexes everything that happens in your workspace (messages, threads, voice transcripts, integrations) and answers questions about your team's history, decisions, and ongoing work. Think "Glean for small teams," open-source and self-hostable.
 
-## Why Townhall?
+## Why Lor?
 
-- **Free and open source** — the code is public, forkable, and self-hostable
-- **No tracking** — no analytics, no algorithms, no data harvesting
-- **No identity verification** — no face scans, no ID uploads, no phone number required
-- **Self-host or use hosted** — run it on your own server or use the hosted version
+- **Open source & self-hostable** — AGPL-licensed; run it on your own infra or use the hosted version
+- **Chat-native institutional memory** — Merlin lives where the work happens, not behind a separate search bar
+- **For software teams** — not a community-chat platform; designed around how engineering orgs actually communicate
 
 ## Project Structure
 
@@ -61,4 +60,4 @@ pnpm dev
 
 ## License
 
-MIT
+AGPL-3.0

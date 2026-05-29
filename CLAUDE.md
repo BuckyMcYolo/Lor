@@ -14,7 +14,7 @@ pnpm run check-types    # TypeScript type checking across all packages
 
 ## Architecture
 
-This is a pnpm + Turborepo monorepo for **Townhall**, an open-source Discord alternative.
+This is a pnpm + Turborepo monorepo for **Lor** — the AI multiplayer workspace for teams.
 
 ### Workspaces
 

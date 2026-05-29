@@ -2,9 +2,9 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Lor",
   "version": "0.1.1",
-  "identifier": "com.townhall.desktop",
+  "identifier": "com.lor.desktop",
   "build": {
-    "frontendDist": "https://app.townhall.chat",
+    "frontendDist": "https://app.lor.chat",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "pnpm --filter web dev",
     "beforeBuildCommand": ""
@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' https://*.townhall.chat; connect-src 'self' https://*.townhall.chat wss://*.townhall.chat http://localhost:* ws://localhost:*; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https://*.townhall.chat; font-src 'self' https://*.townhall.chat data:; script-src 'self' 'unsafe-inline' https://*.townhall.chat"
+      "csp": "default-src 'self' https://*.lor.chat; connect-src 'self' https://*.lor.chat wss://*.lor.chat http://localhost:* ws://localhost:*; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https://*.lor.chat; font-src 'self' https://*.lor.chat data:; script-src 'self' 'unsafe-inline' https://*.lor.chat"
     }
   },
   "bundle": {

@@ -81,8 +81,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "Townhall ${{ github.ref_name }}"
-          releaseBody: "Download the Townhall desktop app for your platform."
+          releaseName: "Lor ${{ github.ref_name }}"
+          releaseBody: "Download the Lor desktop app for your platform."
           releaseDraft: true
           prerelease: false
           projectPath: apps/desktop

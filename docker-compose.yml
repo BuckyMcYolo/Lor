@@ -50,7 +50,7 @@ services:
       S3_REGION: ${S3_REGION:-auto}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      EMAIL_FROM: ${EMAIL_FROM:-Townhall <noreply@team.townhall.chat>}
+      EMAIL_FROM: ${EMAIL_FROM:-Lor <noreply@team.lor.chat>}
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,7 +79,7 @@ services:
       S3_REGION: ${S3_REGION:-auto}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      EMAIL_FROM: ${EMAIL_FROM:-Townhall <noreply@team.townhall.chat>}
+      EMAIL_FROM: ${EMAIL_FROM:-Lor <noreply@team.lor.chat>}
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,7 +104,7 @@ services:
       S3_PUBLIC_URL: ${S3_PUBLIC_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      EMAIL_FROM: ${EMAIL_FROM:-Townhall <noreply@team.townhall.chat>}
+      EMAIL_FROM: ${EMAIL_FROM:-Lor <noreply@team.lor.chat>}
     depends_on:
       postgres:
         condition: service_healthy

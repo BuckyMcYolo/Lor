@@ -232,7 +232,7 @@ export function CreateGuildDialog({
                 <Label htmlFor="guild-slug">Slug</Label>
                 <div className="flex items-center rounded-md border border-input bg-muted px-3 text-sm focus-within:ring-1 focus-within:ring-ring">
                   <span className="shrink-0 text-muted-foreground">
-                    townhall.chat/
+                    lor.chat/
                   </span>
                   <Input
                     id="guild-slug"
@@ -287,7 +287,7 @@ export function CreateGuildDialog({
                 <Label htmlFor="invite-link">Invite Link or Code</Label>
                 <Input
                   id="invite-link"
-                  placeholder="https://app.townhall.chat/invite/abc123 or abc123"
+                  placeholder="https://app.lor.chat/invite/abc123 or abc123"
                   value={inviteLink}
                   onChange={(e) => setInviteLink(e.target.value)}
                   disabled={loading}

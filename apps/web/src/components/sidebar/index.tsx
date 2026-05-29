@@ -58,7 +58,7 @@ function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
   const widthRef = useRef(panelWidth)
 
   const { defaultLayout, onLayoutChange } = useDefaultLayout({
-    groupId: "townhall-sidebar",
+    groupId: "lor-sidebar",
     storage: localStorage,
   })
 

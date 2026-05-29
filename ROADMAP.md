@@ -1,5 +1,7 @@
 # Roadmap
 
+> Note: roadmap pending a full rewrite for Lor positioning. This is a cleanup pass — old/dead items removed but not yet refreshed with new Lor-specific direction.
+
 ## Completed
 
 - [x] Add `apps/realtime` Socket.IO gateway and wire it to authenticated sessions.
@@ -31,17 +33,8 @@
 ## Phase 2 — Permissions & Moderation
 
 - [ ] Granular permission system (beyond owner/admin/member)
-- [x] Member management UI (kick, banish, silence, role assignment)
 - [ ] Rate limiting enforcement (API-level + per-channel)
 - [ ] Audit logs
-
-## Phase 3 — Social Features
-
-- [x] Shareable invite links (not just email invites) — schema, API, and UI implemented
-- [x] Ally (friend) system with requests — schema, API, allies page, user profile popover with ally actions
-- [x] Direct messages — create 1:1 and group DMs with allies, new DM dialog
-- [x] User blocking — schema, API (block/unblock/list), realtime DM enforcement, blocked tab on allies page, block/unblock in profile popover, message collapse with click-to-reveal, typing/DM filtering
-- [x] Privacy settings — user_privacy_settings table, API (get/update), DM/ally request/presence enforcement, Privacy & Safety settings UI, profile popover DM button
 
 ## Phase 4 — Tests & CI/CD
 
@@ -61,7 +54,7 @@
 - [x] Notification preferences — user_notification_settings table, API (get/update), settings UI (desktop/DM notification levels, permission request)
 - [x] Unread indicators (Discord-style) — channel/DM text highlights, mention badges, left-side unread pill
 - [x] Reaction tooltips (who reacted with each emoji)
-- [x] User profile popover (bio, status, online indicator, ally actions)
+- [x] User profile popover (bio, status, online indicator)
 - [x] Remember last visited channel per guild (localStorage)
 - [ ] Error handling & loading state improvements
 - [x] Username editing in account settings (with availability check)
@@ -77,11 +70,8 @@
 
 ## Phase 7 — v2 Features
 
-- [ ] Voice/video (Voice Chambers)
+- [ ] Voice/video (voice channels)
 - [ ] Bots & webhooks (including inbound channel webhooks for integrations like GitHub PR notifications with @mentions)
-- [ ] Custom emojis (Sigils & Crests)
-- [ ] Server discovery
-- [ ] Forum channel posts
 
 ---
 

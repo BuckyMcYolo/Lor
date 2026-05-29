@@ -85,7 +85,7 @@ export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_API_URL,
   database: drizzleAdapter(db, { provider: "pg", schema }),
   secret: env.BETTER_AUTH_SECRET,
-  secondaryStorage: redisStorage({ client: redis, keyPrefix: "townhall:" }),
+  secondaryStorage: redisStorage({ client: redis, keyPrefix: "lor:" }),
   rateLimit: {
     enabled: true,
     window: 60,
@@ -184,7 +184,7 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    cookiePrefix: "townhall",
+    cookiePrefix: "lor",
     database: {
       generateId: false,
     },

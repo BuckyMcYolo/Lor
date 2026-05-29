@@ -27,8 +27,8 @@ const MIN_USERNAME_LENGTH = 3
 const MAX_USERNAME_LENGTH = 30
 const USERNAME_REGEX = /^[a-zA-Z0-9_.]+$/
 // TODO: Remove hardcoded invite code once we have a proper discovery/featured guilds system
-const TOWNHALL_INVITE_CODE = "k9yDieWZ"
-const showTownhallJoin = !env.NEXT_PUBLIC_SELF_HOSTED
+const LOR_INVITE_CODE = "k9yDieWZ"
+const showLorJoin = !env.NEXT_PUBLIC_SELF_HOSTED
 
 function normalizeSlugInput(value: string) {
   return value
@@ -69,19 +69,19 @@ export function OnboardingDialog({ open }: { open: boolean }) {
   const [slug, setSlug] = useState("")
   const [slugEdited, setSlugEdited] = useState(false)
   const [inviteLink, setInviteLink] = useState("")
-  const [joinTownhall, setJoinTownhall] = useState(showTownhallJoin)
+  const [joinLor, setJoinLor] = useState(showLorJoin)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const acceptTownhallInvite = useCallback(() => {
-    if (!joinTownhall) return
+  const acceptLorInvite = useCallback(() => {
+    if (!joinLor) return
     apiClient.v1.invites[":code"].accept
-      .$post({ param: { code: TOWNHALL_INVITE_CODE } })
+      .$post({ param: { code: LOR_INVITE_CODE } })
       .then(() => queryClient.invalidateQueries({ queryKey: ["guilds"] }))
-      .catch((err) => console.error("Failed to join Townhall guild:", err))
-  }, [joinTownhall, queryClient])
+      .catch((err) => console.error("Failed to join guild:", err))
+  }, [joinLor, queryClient])
 
   // Username step state
   const [username, setUsername] = useState("")
@@ -198,7 +198,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       const createdGuildSlug = res.data?.slug ?? normalizedSlug
       await queryClient.invalidateQueries({ queryKey: ["guilds"] })
 
-      acceptTownhallInvite()
+      acceptLorInvite()
 
       let firstChannelId: string | null = null
       try {
@@ -240,8 +240,8 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       return
     }
 
-    if (inviteCode !== TOWNHALL_INVITE_CODE) {
-      acceptTownhallInvite()
+    if (inviteCode !== LOR_INVITE_CODE) {
+      acceptLorInvite()
     }
 
     await navigate({
@@ -262,7 +262,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
           {/* Left decorative panel */}
           <div className="relative hidden w-[220px] shrink-0 overflow-hidden sm:block">
             <img
-              src="/townhall-onboarding2.png"
+              src="/lor-onboarding2.png"
               alt="A medieval campsite at night"
               className="absolute inset-0 h-full w-full object-cover"
             />
@@ -394,23 +394,23 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                   </button>
                 </div>
 
-                {showTownhallJoin && (
+                {showLorJoin && (
                   // biome-ignore lint/a11y/useKeyWithClickEvents: Label + Checkbox handle keyboard a11y
                   <div
-                    onClick={() => setJoinTownhall((prev) => !prev)}
+                    onClick={() => setJoinLor((prev) => !prev)}
                     className="mt-4 flex w-full cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
                   >
                     <Checkbox
-                      id="join-townhall"
-                      checked={joinTownhall}
+                      id="join-lor"
+                      checked={joinLor}
                       onCheckedChange={(checked) =>
-                        setJoinTownhall(checked === true)
+                        setJoinLor(checked === true)
                       }
                       onClick={(e) => e.stopPropagation()}
                       className="mt-0.5"
                     />
                     <Label
-                      htmlFor="join-townhall"
+                      htmlFor="join-lor"
                       className="cursor-pointer font-normal"
                     >
                       <p className="font-medium">Join Lor's workspace</p>
@@ -462,7 +462,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     <Label htmlFor="guild-slug">Slug</Label>
                     <div className="flex items-center rounded-md border border-input bg-muted px-3 text-sm focus-within:ring-1 focus-within:ring-ring">
                       <span className="shrink-0 text-muted-foreground">
-                        townhall.chat/
+                        lor.chat/
                       </span>
                       <Input
                         id="guild-slug"
@@ -523,7 +523,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     <Label htmlFor="invite-link">Invite Link or Code</Label>
                     <Input
                       id="invite-link"
-                      placeholder="https://app.townhall.chat/invite/abc123 or abc123"
+                      placeholder="https://app.lor.chat/invite/abc123 or abc123"
                       value={inviteLink}
                       onChange={(e) => setInviteLink(e.target.value)}
                       disabled={loading}
