@@ -1,5 +1,4 @@
 import { authClient } from "@repo/auth/client"
-import { isGuildRole, roleHasPermissions } from "@repo/auth/permissions"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +13,7 @@ import { useMemo, useState } from "react"
 import { GuildSettingsDialog } from "@/components/guild/guild-settings-dialog"
 import { CreateInviteDialog } from "@/components/invite/create-invite-dialog"
 import { ManageInvitesDialog } from "@/components/invite/manage-invites-dialog"
-import { canKickGuildMembers } from "@/lib/permissions"
+import { canKickGuildMembers, isAdminOrOwner } from "@/lib/permissions"
 
 export function GuildHeader() {
   const { guildSlug } = useParams({ strict: false })
@@ -33,32 +32,41 @@ export function GuildHeader() {
 
   const { data: activeMember } = useQuery({
     queryKey: ["active-guild-member", guildSlug],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ userId: string; role: string } | null> => {
       const res = await authClient.organization.getActiveMember()
       if (res.error) {
         if (res.error.status === 403) return null
         throw res.error
       }
       return res.data
+        ? {
+            userId: res.data.userId as string,
+            role: res.data.role as string,
+          }
+        : null
     },
     enabled: !!guildSlug,
   })
-
-  const memberRole =
-    typeof activeMember?.role === "string" && isGuildRole(activeMember.role)
-      ? activeMember.role
-      : null
-
-  const canManageInvites =
-    memberRole !== null && canKickGuildMembers(memberRole)
-  const canEditGuild =
-    memberRole !== null &&
-    roleHasPermissions(memberRole, { organization: ["update"] })
 
   const activeGuild = useMemo(
     () => guilds?.find((g) => g.slug === guildSlug) ?? null,
     [guilds, guildSlug]
   )
+
+  const permissionCtx =
+    activeMember && activeGuild?.ownerId
+      ? {
+          actor: activeMember,
+          guild: { ownerId: activeGuild.ownerId },
+        }
+      : null
+
+  const canManageInvites = permissionCtx
+    ? canKickGuildMembers(permissionCtx.actor, permissionCtx.guild)
+    : false
+  const canEditGuild = permissionCtx
+    ? isAdminOrOwner(permissionCtx.actor, permissionCtx.guild)
+    : false
 
   const guildName = activeGuild?.name
 

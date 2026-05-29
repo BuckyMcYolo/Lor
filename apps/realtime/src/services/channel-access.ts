@@ -7,8 +7,6 @@ export type AccessibleChannel = {
   guildId: string | null
   memberRole: string | null
   memberIsOwner: boolean
-  communicationDisabledUntil: Date | null
-  communicationDisabledReason: string | null
 }
 
 export async function assertUserCanAccessChannel(
@@ -39,10 +37,6 @@ export async function assertUserCanAccessChannel(
     const memberRecord = await db
       .select({
         role: schema.guildMember.role,
-        communicationDisabledUntil:
-          schema.guildMember.communicationDisabledUntil,
-        communicationDisabledReason:
-          schema.guildMember.communicationDisabledReason,
         ownerId: schema.guild.ownerId,
       })
       .from(schema.guildMember)
@@ -64,8 +58,6 @@ export async function assertUserCanAccessChannel(
       ...channelRecord,
       memberRole: memberRecord.role,
       memberIsOwner: memberRecord.ownerId === userId,
-      communicationDisabledUntil: memberRecord.communicationDisabledUntil,
-      communicationDisabledReason: memberRecord.communicationDisabledReason,
     }
   }
 
@@ -89,7 +81,5 @@ export async function assertUserCanAccessChannel(
     ...channelRecord,
     memberRole: null,
     memberIsOwner: false,
-    communicationDisabledUntil: null,
-    communicationDisabledReason: null,
   }
 }

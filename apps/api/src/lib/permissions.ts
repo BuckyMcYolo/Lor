@@ -111,20 +111,3 @@ export function assertCanManageGuildMember(
     targetAuthority,
   }
 }
-
-export function isCommunicationDisabled(
-  member: Pick<GuildMember, "communicationDisabledUntil">
-) {
-  if (!member.communicationDisabledUntil) return false
-  return member.communicationDisabledUntil.getTime() > Date.now()
-}
-
-export function assertMemberCanCommunicate(
-  member: Pick<GuildMember, "communicationDisabledUntil">
-) {
-  if (!isCommunicationDisabled(member)) return
-
-  throw new HTTPException(HttpStatusCodes.FORBIDDEN, {
-    message: "You are temporarily timed out and cannot send messages",
-  })
-}

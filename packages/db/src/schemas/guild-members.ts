@@ -1,14 +1,15 @@
 import { relations } from "drizzle-orm"
+import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
 import {
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core"
+  createInsertSchema,
+  createSelectSchema,
+  createUpdateSchema,
+} from "drizzle-zod"
 import { guild } from "./guilds"
 import { user } from "./users"
+
+export const GUILD_MEMBER_ROLES = ["member", "admin"] as const
+export type GuildMemberRole = (typeof GUILD_MEMBER_ROLES)[number]
 
 export const guildMember = pgTable(
   "guild_member",
@@ -21,14 +22,6 @@ export const guildMember = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),
-    communicationDisabledUntil: timestamp("communication_disabled_until"),
-    communicationDisabledBy: uuid("communication_disabled_by").references(
-      () => user.id,
-      { onDelete: "set null" }
-    ),
-    communicationDisabledReason: varchar("communication_disabled_reason", {
-      length: 255,
-    }),
     createdAt: timestamp("created_at").notNull(),
   },
   (table) => [
@@ -43,13 +36,12 @@ export const guildMemberRelations = relations(guildMember, ({ one }) => ({
     references: [guild.id],
   }),
   user: one(user, {
-    relationName: "guildMembershipUser",
     fields: [guildMember.userId],
     references: [user.id],
   }),
-  communicationDisabledByUser: one(user, {
-    relationName: "guildMemberModerator",
-    fields: [guildMember.communicationDisabledBy],
-    references: [user.id],
-  }),
 }))
+
+// Zod schemas
+export const selectGuildMemberSchema = createSelectSchema(guildMember)
+export const insertGuildMemberSchema = createInsertSchema(guildMember)
+export const updateGuildMemberSchema = createUpdateSchema(guildMember)

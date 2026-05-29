@@ -341,28 +341,6 @@ export const acceptInvite: AppRouteHandler<AcceptInviteRoute> = async (c) => {
     )
   }
 
-  // Check if banned (outside transaction — read-only check)
-  const activeBan = await db
-    .select({ id: schema.guildBan.id })
-    .from(schema.guildBan)
-    .where(
-      and(
-        eq(schema.guildBan.guildId, invite.guildId),
-        eq(schema.guildBan.userId, user.id),
-        sql`${schema.guildBan.revokedAt} IS NULL`,
-        sql`(${schema.guildBan.expiresAt} IS NULL OR ${schema.guildBan.expiresAt} > NOW())`
-      )
-    )
-    .limit(1)
-    .then((rows) => rows[0])
-
-  if (activeBan) {
-    return c.json(
-      { success: false, message: "You are banished from this guild" },
-      HttpStatusCodes.FORBIDDEN
-    )
-  }
-
   // Join the guild in a transaction with race-condition protection
   const result = await db.transaction(async (tx) => {
     // Check if already a member (inside transaction)

@@ -9,7 +9,7 @@ import {
 } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
 import type { auth } from "./auth.js"
-import { ac, admin, member, owner, warden } from "./permissions"
+import { ac, admin, member, owner } from "./permissions"
 
 export const authClient = createAuthClient({
   baseURL: env.NEXT_PUBLIC_API_URL,
@@ -19,7 +19,6 @@ export const authClient = createAuthClient({
       roles: {
         owner,
         admin,
-        warden,
         member,
       },
       schema: inferOrgAdditionalFields<typeof auth>(),

@@ -16,12 +16,9 @@ import {
 import { getRedisClient } from "@/lib/redis"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
-  BanGuildMemberRoute,
-  ClearGuildMemberTimeoutRoute,
   KickGuildMemberRoute,
   ListGuildMembersRoute,
   SearchMessagesRoute,
-  TimeoutGuildMemberRoute,
   UpdateGuildMemberRoleRoute,
   UpdateGuildRoute,
 } from "@/routes/v1/guilds/routes"
@@ -65,8 +62,6 @@ function toGuildMemberPresence(
     displayUsername: string | null
     image: string | null
     role: string
-    communicationDisabledUntil: Date | null
-    communicationDisabledReason: string | null
   },
   ownerId: string,
   onlineUserIds: Set<string>
@@ -82,9 +77,6 @@ function toGuildMemberPresence(
     status: onlineUserIds.has(member.userId)
       ? ("online" as const)
       : ("offline" as const),
-    communicationDisabledUntil:
-      member.communicationDisabledUntil?.toISOString() ?? null,
-    communicationDisabledReason: member.communicationDisabledReason,
   }
 }
 
@@ -93,9 +85,6 @@ async function getGuildMemberRow(guildId: string, userId: string) {
     .select({
       userId: schema.guildMember.userId,
       role: schema.guildMember.role,
-      communicationDisabledUntil: schema.guildMember.communicationDisabledUntil,
-      communicationDisabledReason:
-        schema.guildMember.communicationDisabledReason,
       name: schema.user.name,
       username: schema.user.username,
       displayUsername: schema.user.displayUsername,
@@ -122,9 +111,6 @@ export const listGuildMembers: AppRouteHandler<ListGuildMembersRoute> = async (
     .select({
       userId: schema.guildMember.userId,
       role: schema.guildMember.role,
-      communicationDisabledUntil: schema.guildMember.communicationDisabledUntil,
-      communicationDisabledReason:
-        schema.guildMember.communicationDisabledReason,
       name: schema.user.name,
       username: schema.user.username,
       displayUsername: schema.user.displayUsername,
@@ -251,226 +237,6 @@ export const kickGuildMember: AppRouteHandler<KickGuildMemberRoute> = async (
     )
 
   return c.json({ success: true as const }, HttpStatusCodes.OK)
-}
-
-export const banGuildMember: AppRouteHandler<BanGuildMemberRoute> = async (
-  c
-) => {
-  const guild = c.var.guild
-  const actor = c.var.member
-  const { userId } = c.req.valid("param")
-  const { reason, expiresAt } = c.req.valid("json")
-
-  assertGuildPermission(actor, guild, {
-    guildMember: ["ban"],
-  })
-
-  const target = await getGuildMemberRow(guild.id, userId)
-
-  if (!target) {
-    return c.json(
-      { success: false, message: "Guild member not found" },
-      HttpStatusCodes.NOT_FOUND
-    )
-  }
-
-  assertCanManageGuildMember(actor, target, guild)
-
-  const expiresAtDate = expiresAt ? new Date(expiresAt) : null
-  const banTimestamp = new Date()
-
-  const ban = await db.transaction(async (tx) => {
-    const insertedBan = await tx
-      .insert(schema.guildBan)
-      .values({
-        createdAt: banTimestamp,
-        guildId: guild.id,
-        userId,
-        bannedBy: actor.userId,
-        reason: reason ?? null,
-        expiresAt: expiresAtDate,
-        revokedAt: null,
-        revokeReason: null,
-      })
-      .onConflictDoUpdate({
-        target: [schema.guildBan.guildId, schema.guildBan.userId],
-        set: {
-          createdAt: banTimestamp,
-          bannedBy: actor.userId,
-          reason: reason ?? null,
-          expiresAt: expiresAtDate,
-          revokedAt: null,
-          revokeReason: null,
-        },
-      })
-      .returning({
-        userId: schema.guildBan.userId,
-        guildId: schema.guildBan.guildId,
-        bannedBy: schema.guildBan.bannedBy,
-        reason: schema.guildBan.reason,
-        expiresAt: schema.guildBan.expiresAt,
-        createdAt: schema.guildBan.createdAt,
-        revokedAt: schema.guildBan.revokedAt,
-      })
-      .then((rows) => rows[0])
-
-    await tx
-      .delete(schema.guildMember)
-      .where(
-        and(
-          eq(schema.guildMember.guildId, guild.id),
-          eq(schema.guildMember.userId, userId)
-        )
-      )
-
-    return insertedBan
-  })
-
-  if (!ban) {
-    return c.json(
-      { success: false, message: "Failed to create guild ban" },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR
-    )
-  }
-
-  return c.json(
-    {
-      success: true as const,
-      ban: {
-        ...ban,
-        reason: ban.reason ?? null,
-        expiresAt: ban.expiresAt?.toISOString() ?? null,
-        createdAt: ban.createdAt.toISOString(),
-        revokedAt: ban.revokedAt?.toISOString() ?? null,
-      },
-    },
-    HttpStatusCodes.OK
-  )
-}
-
-export const timeoutGuildMember: AppRouteHandler<
-  TimeoutGuildMemberRoute
-> = async (c) => {
-  const guild = c.var.guild
-  const actor = c.var.member
-  const { userId } = c.req.valid("param")
-  const { durationMinutes, reason } = c.req.valid("json")
-
-  assertGuildPermission(actor, guild, {
-    guildMember: ["timeout"],
-  })
-
-  const target = await getGuildMemberRow(guild.id, userId)
-
-  if (!target) {
-    return c.json(
-      { success: false, message: "Guild member not found" },
-      HttpStatusCodes.NOT_FOUND
-    )
-  }
-
-  assertCanManageGuildMember(actor, target, guild)
-
-  const communicationDisabledUntil = new Date(
-    Date.now() + durationMinutes * 60 * 1000
-  )
-
-  await db
-    .update(schema.guildMember)
-    .set({
-      communicationDisabledUntil,
-      communicationDisabledBy: actor.userId,
-      communicationDisabledReason: reason ?? null,
-    })
-    .where(
-      and(
-        eq(schema.guildMember.guildId, guild.id),
-        eq(schema.guildMember.userId, userId)
-      )
-    )
-
-  const updatedMember = await getGuildMemberRow(guild.id, userId)
-
-  if (!updatedMember) {
-    return c.json(
-      { success: false, message: "Guild member not found" },
-      HttpStatusCodes.NOT_FOUND
-    )
-  }
-
-  const onlineUserIds = await listOnlineUserIds([updatedMember.userId])
-
-  return c.json(
-    {
-      success: true as const,
-      member: toGuildMemberPresence(
-        updatedMember,
-        guild.ownerId,
-        onlineUserIds
-      ),
-    },
-    HttpStatusCodes.OK
-  )
-}
-
-export const clearGuildMemberTimeout: AppRouteHandler<
-  ClearGuildMemberTimeoutRoute
-> = async (c) => {
-  const guild = c.var.guild
-  const actor = c.var.member
-  const { userId } = c.req.valid("param")
-
-  assertGuildPermission(actor, guild, {
-    guildMember: ["timeout"],
-  })
-
-  const target = await getGuildMemberRow(guild.id, userId)
-
-  if (!target) {
-    return c.json(
-      { success: false, message: "Guild member not found" },
-      HttpStatusCodes.NOT_FOUND
-    )
-  }
-
-  assertCanManageGuildMember(actor, target, guild)
-
-  await db
-    .update(schema.guildMember)
-    .set({
-      communicationDisabledUntil: null,
-      communicationDisabledBy: null,
-      communicationDisabledReason: null,
-    })
-    .where(
-      and(
-        eq(schema.guildMember.guildId, guild.id),
-        eq(schema.guildMember.userId, userId)
-      )
-    )
-
-  const updatedMember = await getGuildMemberRow(guild.id, userId)
-
-  if (!updatedMember) {
-    return c.json(
-      { success: false, message: "Guild member not found" },
-      HttpStatusCodes.NOT_FOUND
-    )
-  }
-
-  const onlineUserIds = await listOnlineUserIds([updatedMember.userId])
-
-  return c.json(
-    {
-      success: true as const,
-      member: toGuildMemberPresence(
-        updatedMember,
-        guild.ownerId,
-        onlineUserIds
-      ),
-    },
-    HttpStatusCodes.OK
-  )
 }
 
 // ── Guild Settings ─────────────────────────────────────

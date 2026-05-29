@@ -2,7 +2,7 @@ import { authClient } from "@repo/auth/client"
 import {
   type AssignableGuildRole,
   assignableGuildRoles,
-  type GuildRole,
+  formatGuildRole,
   isGuildRole,
 } from "@repo/auth/permissions"
 import type {
@@ -26,7 +26,6 @@ import {
   DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -48,14 +47,7 @@ import type {
   GuildMemberPresence,
   ListGuildMembersResponse,
 } from "@/lib/api-types"
-import {
-  canBanGuildMembers,
-  canKickGuildMembers,
-  canManageGuildMember,
-  canTimeoutGuildMembers,
-  canUpdateGuildMemberRoles,
-  formatGuildRole,
-} from "@/lib/permissions"
+import { canKickGuildMembers, canManageGuildMember } from "@/lib/permissions"
 import { useRightSidebar } from "./right-sidebar-context"
 import type { GuildMembersSidebarView } from "./right-sidebar-types"
 
@@ -70,32 +62,14 @@ const statusLabel: Record<GuildMemberPresence["status"], string> = {
 }
 
 function formatRole(role: GuildMemberPresence["role"]) {
-  if (!role || !isGuildRole(role)) return "Citizen"
+  if (!role || !isGuildRole(role)) return "Member"
   return formatGuildRole(role)
 }
 
-function isMemberTimedOut(member: GuildMemberPresence) {
-  if (!member.communicationDisabledUntil) return false
-  return new Date(member.communicationDisabledUntil).getTime() > Date.now()
-}
-
-function formatTimeoutLabel(member: GuildMemberPresence) {
-  if (!member.communicationDisabledUntil) return null
-  const timeoutDate = new Date(member.communicationDisabledUntil)
-  if (Number.isNaN(timeoutDate.getTime())) return null
-  return `Timed out until ${timeoutDate.toLocaleString()}`
-}
-
-const timeoutOptions = [
-  { label: "10 minutes", durationMinutes: 10 },
-  { label: "1 hour", durationMinutes: 60 },
-  { label: "1 day", durationMinutes: 60 * 24 },
-] as const
-
-type ModerationDialogState =
-  | { type: "kick"; member: GuildMemberPresence }
-  | { type: "ban"; member: GuildMemberPresence }
-  | null
+type ModerationDialogState = {
+  type: "kick"
+  member: GuildMemberPresence
+} | null
 
 function MembersSkeleton() {
   return (
@@ -120,55 +94,39 @@ function MembersSkeleton() {
 function MemberRow({
   member,
   currentUserId,
-  currentRole,
-  currentIsOwner,
+  currentMember,
+  ownerId,
   onRoleChange,
   onKick,
-  onBan,
-  onTimeout,
-  onClearTimeout,
   isBusy,
 }: {
   member: GuildMemberPresence
   currentUserId: string | null
-  currentRole: GuildRole | null
-  currentIsOwner: boolean
+  currentMember: { userId: string; role: string } | null
+  ownerId: string | null
   onRoleChange: (member: GuildMemberPresence, role: AssignableGuildRole) => void
   onKick: (member: GuildMemberPresence) => void
-  onBan: (member: GuildMemberPresence) => void
-  onTimeout: (member: GuildMemberPresence, durationMinutes: number) => void
-  onClearTimeout: (member: GuildMemberPresence) => void
   isBusy: boolean
 }) {
   const targetRole = isGuildRole(member.role) ? member.role : null
+  const guildCtx = ownerId ? { ownerId } : null
+
   const canManageTarget =
-    currentRole && targetRole
+    currentMember && guildCtx && currentUserId !== member.userId
       ? canManageGuildMember(
-          currentRole,
-          targetRole,
-          currentIsOwner,
-          member.isOwner
-        ) && currentUserId !== member.userId
+          currentMember,
+          { userId: member.userId, role: member.role },
+          guildCtx
+        )
       : false
 
-  const canUpdateRole =
-    currentRole && targetRole
-      ? canUpdateGuildMemberRoles(currentRole) && canManageTarget
-      : false
+  const canUpdateRole = canManageTarget && !!targetRole
   const canKick =
-    currentRole && targetRole
-      ? canKickGuildMembers(currentRole) && canManageTarget
+    currentMember && guildCtx
+      ? canKickGuildMembers(currentMember, guildCtx) && canManageTarget
       : false
-  const canBan =
-    currentRole && targetRole
-      ? canBanGuildMembers(currentRole) && canManageTarget
-      : false
-  const canTimeout =
-    currentRole && targetRole
-      ? canTimeoutGuildMembers(currentRole) && canManageTarget
-      : false
-  const showActions = canUpdateRole || canKick || canBan || canTimeout
-  const timeoutLabel = formatTimeoutLabel(member)
+
+  const showActions = canUpdateRole || canKick
 
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-foreground/[0.04]">
@@ -193,13 +151,8 @@ function MemberRow({
           </button>
         </UserProfilePopover>
         <div className="truncate text-[11px] text-muted-foreground">
-          {formatRole(member.role)}
+          {member.isOwner ? "Owner" : formatRole(member.role)}
         </div>
-        {timeoutLabel && (
-          <div className="truncate text-[11px] text-amber-700 dark:text-amber-400">
-            {timeoutLabel}
-          </div>
-        )}
       </div>
       <div className="flex shrink-0 items-center gap-2 pl-2">
         <span className="max-w-12 truncate text-[11px] text-muted-foreground">
@@ -252,45 +205,9 @@ function MemberRow({
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
               )}
-              {canTimeout && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Timeout</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {timeoutOptions.map((option) => (
-                      <DropdownMenuItem
-                        key={option.durationMinutes}
-                        onClick={() =>
-                          onTimeout(member, option.durationMinutes)
-                        }
-                      >
-                        {option.label}
-                      </DropdownMenuItem>
-                    ))}
-                    {isMemberTimedOut(member) && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => onClearTimeout(member)}
-                        >
-                          Clear timeout
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              )}
-              {(canKick || canBan) && <DropdownMenuSeparator />}
               {canKick && (
                 <DropdownMenuItem onClick={() => onKick(member)}>
                   Kick member
-                </DropdownMenuItem>
-              )}
-              {canBan && (
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => onBan(member)}
-                >
-                  Ban member
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -350,11 +267,11 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const currentUserId = session?.user?.id ?? null
   const activeMemberRole =
     typeof activeMember?.role === "string" ? activeMember.role : null
-  const currentRole =
-    !hasActiveMemberError && activeMemberRole && isGuildRole(activeMemberRole)
-      ? activeMemberRole
+  const currentMember =
+    !hasActiveMemberError && currentUserId && activeMemberRole
+      ? { userId: currentUserId, role: activeMemberRole }
       : null
-  const currentIsOwner = data?.ownerId === currentUserId
+  const ownerId = data?.ownerId ?? null
 
   useEffect(() => {
     if (!hasActiveMemberError) return
@@ -419,81 +336,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
     },
   })
 
-  const banMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await apiClient.v1.guilds[":guildSlug"].members[
-        ":userId"
-      ].ban.$post({
-        param: { guildSlug: view.guildSlug, userId },
-        json: { reason: null, expiresAt: null },
-      })
-
-      if (!res.ok) {
-        throw new Error("Failed to ban member")
-      }
-    },
-    onSuccess: async () => {
-      await invalidateMembers()
-      setModerationDialog(null)
-      toast.success("Member banned")
-    },
-    onError: () => {
-      toast.error("Failed to ban member")
-    },
-  })
-
-  const timeoutMutation = useMutation({
-    mutationFn: async (input: { userId: string; durationMinutes: number }) => {
-      const res = await apiClient.v1.guilds[":guildSlug"].members[
-        ":userId"
-      ].timeout.$post({
-        param: { guildSlug: view.guildSlug, userId: input.userId },
-        json: {
-          durationMinutes: input.durationMinutes,
-          reason: null,
-        },
-      })
-
-      if (!res.ok) {
-        throw new Error("Failed to time out member")
-      }
-    },
-    onSuccess: async () => {
-      await invalidateMembers()
-      toast.success("Timeout applied")
-    },
-    onError: () => {
-      toast.error("Failed to apply timeout")
-    },
-  })
-
-  const clearTimeoutMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await apiClient.v1.guilds[":guildSlug"].members[
-        ":userId"
-      ].timeout.$delete({
-        param: { guildSlug: view.guildSlug, userId },
-      })
-
-      if (!res.ok) {
-        throw new Error("Failed to clear timeout")
-      }
-    },
-    onSuccess: async () => {
-      await invalidateMembers()
-      toast.success("Timeout cleared")
-    },
-    onError: () => {
-      toast.error("Failed to clear timeout")
-    },
-  })
-
-  const isMutating =
-    updateRoleMutation.isPending ||
-    kickMutation.isPending ||
-    banMutation.isPending ||
-    timeoutMutation.isPending ||
-    clearTimeoutMutation.isPending
+  const isMutating = updateRoleMutation.isPending || kickMutation.isPending
 
   const handleRoleChange = (
     member: GuildMemberPresence,
@@ -507,30 +350,12 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
     setModerationDialog({ type: "kick", member })
   }
 
-  const handleBan = (member: GuildMemberPresence) => {
-    setModerationDialog({ type: "ban", member })
-  }
-
-  const handleTimeout = (
-    member: GuildMemberPresence,
-    durationMinutes: number
-  ) => {
-    timeoutMutation.mutate({ userId: member.userId, durationMinutes })
-  }
-
-  const handleClearTimeout = (member: GuildMemberPresence) => {
-    clearTimeoutMutation.mutate(member.userId)
-  }
-
   const handleConfirmModeration = () => {
     if (!moderationDialog) return
 
     if (moderationDialog.type === "kick") {
       kickMutation.mutate(moderationDialog.member.userId)
-      return
     }
-
-    banMutation.mutate(moderationDialog.member.userId)
   }
 
   useEffect(() => {
@@ -618,19 +443,13 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const onlineMembers = members.filter((member) => member.status !== "offline")
   const offlineMembers = members.filter((member) => member.status === "offline")
   const isModerationDialogOpen = moderationDialog !== null
-  const moderationDialogTitle =
-    moderationDialog?.type === "kick" ? "Kick member" : "Ban member"
-  const moderationDialogDescription =
-    moderationDialog?.type === "kick"
-      ? `Are you sure you want to kick ${moderationDialog.member.name} from this guild? They can rejoin if invited again.`
-      : moderationDialog
-        ? `Are you sure you want to ban ${moderationDialog.member.name} from this guild? They will be removed immediately and blocked from rejoining.`
-        : ""
+  const moderationDialogTitle = "Kick member"
+  const moderationDialogDescription = moderationDialog
+    ? `Are you sure you want to kick ${moderationDialog.member.name} from this guild? They can rejoin if invited again.`
+    : ""
   const isModerationSubmitting =
-    (moderationDialog?.type === "kick" && kickMutation.isPending) ||
-    (moderationDialog?.type === "ban" && banMutation.isPending)
-  const moderationActionLabel =
-    moderationDialog?.type === "kick" ? "Kick member" : "Ban member"
+    moderationDialog?.type === "kick" && kickMutation.isPending
+  const moderationActionLabel = "Kick member"
 
   return (
     <>
@@ -680,13 +499,10 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
                           key={member.userId}
                           member={member}
                           currentUserId={currentUserId}
-                          currentRole={currentRole}
-                          currentIsOwner={currentIsOwner}
+                          currentMember={currentMember}
+                          ownerId={ownerId}
                           onRoleChange={handleRoleChange}
                           onKick={handleKick}
-                          onBan={handleBan}
-                          onTimeout={handleTimeout}
-                          onClearTimeout={handleClearTimeout}
                           isBusy={isMutating}
                         />
                       ))}
@@ -705,13 +521,10 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
                           key={member.userId}
                           member={member}
                           currentUserId={currentUserId}
-                          currentRole={currentRole}
-                          currentIsOwner={currentIsOwner}
+                          currentMember={currentMember}
+                          ownerId={ownerId}
                           onRoleChange={handleRoleChange}
                           onKick={handleKick}
-                          onBan={handleBan}
-                          onTimeout={handleTimeout}
-                          onClearTimeout={handleClearTimeout}
                           isBusy={isMutating}
                         />
                       ))}

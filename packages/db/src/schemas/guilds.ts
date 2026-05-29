@@ -11,7 +11,6 @@ import {
   createSelectSchema,
   createUpdateSchema,
 } from "drizzle-zod"
-import { guildBan } from "./guild-bans"
 import { guildInvite } from "./guild-invites"
 import { guildMember } from "./guild-members"
 import { guildRole } from "./guild-roles"
@@ -26,7 +25,7 @@ export const guild = pgTable(
     slug: text("slug").notNull().unique(),
     logo: text("logo"),
     createdAt: timestamp("created_at").notNull(),
-    ownerId: uuid("owner_id") // this is the source of truth for the owner of the guild, the guildMember who owns this guild will also have role === "owner" so we will need to keep these in sync
+    ownerId: uuid("owner_id") // source of truth for guild ownership — derive owner status by comparing user.id against guild.ownerId, NOT from guild_member.role
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }), // don't delete guild if owner deletes account
     metadata: text("metadata"),
@@ -39,9 +38,8 @@ export const guildRelations = relations(guild, ({ one, many }) => ({
     fields: [guild.ownerId],
     references: [user.id],
   }),
-  guildBans: many(guildBan),
-  guildRoles: many(guildRole),
   guildMembers: many(guildMember),
+  guildRoles: many(guildRole),
   invitations: many(invitation),
   guildInvites: many(guildInvite),
 }))

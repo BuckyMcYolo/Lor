@@ -17,16 +17,6 @@ import {
   assertUserCanAccessChannel,
 } from "./channel-access"
 
-function assertChannelCommunicationAllowed(channel: AccessibleChannel) {
-  if (!channel.guildId) return
-  if (!channel.communicationDisabledUntil) return
-  if (channel.communicationDisabledUntil.getTime() <= Date.now()) return
-
-  throw new Error(
-    "You are temporarily timed out and cannot perform this action"
-  )
-}
-
 type CreateMessageInput = {
   userId: string
   payload: SendMessagePayload
@@ -71,7 +61,6 @@ export async function createMessage(input: CreateMessageInput) {
   }
 
   const channelRecord = input.accessibleChannel
-  assertChannelCommunicationAllowed(channelRecord)
 
   // Block sending in announcement channels for users without permission
   if (channelRecord.type === "announcement" && channelRecord.guildId) {
@@ -81,11 +70,11 @@ export async function createMessage(input: CreateMessageInput) {
       !isGuildRole(role) ||
       !guildAuthorityHasPermissions(
         { role: role as GuildRole, isOwner: channelRecord.memberIsOwner },
-        { announcement: ["send"] }
+        { channel: ["create"] }
       )
     ) {
       throw new Error(
-        "Only owners, admins, and wardens can post in decree channels"
+        "Only admins and owners can post in announcement channels"
       )
     }
   }
@@ -235,7 +224,6 @@ export async function deleteMessage(
     input.userId,
     input.payload.channelId
   )
-  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({
@@ -286,7 +274,6 @@ export async function editMessage(
     input.userId,
     input.payload.channelId
   )
-  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({
@@ -332,7 +319,6 @@ export async function toggleMessageReaction(input: ToggleMessageReactionInput) {
     input.userId,
     input.payload.channelId
   )
-  assertChannelCommunicationAllowed(channelRecord)
 
   const messageRecord = await db
     .select({
