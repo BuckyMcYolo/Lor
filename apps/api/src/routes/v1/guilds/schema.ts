@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi"
+import { assignableGuildRoles } from "@repo/auth/permissions"
 import { messageAuthorSchema } from "@/lib/helpers/openapi/message-schemas"
 import {
   paginatedResponseSchema,
@@ -46,7 +47,7 @@ export const moderateGuildMemberResponseSchema = z.object({
 })
 
 export const updateGuildMemberRoleRequestSchema = z.object({
-  role: z.enum(["admin", "member"]),
+  role: z.enum(assignableGuildRoles),
 })
 
 export const updateGuildMemberRoleResponseSchema = z.object({
