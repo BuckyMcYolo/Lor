@@ -15,7 +15,6 @@ import { MessageList, scrollToMessage } from "@/components/chat/message-list"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useSocket } from "@/context/socket-context"
 import { useAutoMarkRead } from "@/hooks/use-auto-mark-read"
-import { useBlockedUserIds } from "@/hooks/use-blocked-users"
 import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
 import { useMessageEditing } from "@/hooks/use-message-editing"
@@ -45,7 +44,6 @@ function DMConversation() {
   const queryClient = useQueryClient()
   const { data: session } = authClient.useSession()
   const currentUserId = session?.user.id
-  const blockedUserIds = useBlockedUserIds()
 
   const { data: dm, isPending } = useQuery({
     queryKey: ["dms", dmId],
@@ -137,7 +135,6 @@ function DMConversation() {
     socket,
     channelId: dmId,
     currentUserId,
-    blockedUserIds,
   })
 
   // Clear reply state when switching DMs
@@ -195,13 +192,6 @@ function DMConversation() {
           avatarUrl: dm.members[0]?.image ?? undefined,
         }
 
-  // For 1:1 DMs, check if the other user is blocked
-  const isDirect = dm.type === "dm"
-  const otherMemberId = isDirect ? dm.members[0]?.id : undefined
-  const isOtherBlocked = otherMemberId
-    ? blockedUserIds.has(otherMemberId)
-    : false
-
   const mentionCandidates = dm.members.map((member) => ({
     id: member.id,
     label: member.displayUsername ?? member.username ?? member.name,
@@ -228,7 +218,6 @@ function DMConversation() {
         onLoadMore={() => fetchNextPage()}
         isFetchingMore={isFetchingNextPage}
         currentUserId={currentUserId}
-        blockedUserIds={blockedUserIds}
         onReact={handleReact}
         onReply={setReplyingTo}
         onDelete={handleDelete}
@@ -237,27 +226,21 @@ function DMConversation() {
         isLoading={messagesLoading}
       />
       <TypingIndicator users={typingUsers} />
-      {isOtherBlocked ? (
-        <div className="border-t border-border px-4 py-3 text-center text-sm text-muted-foreground">
-          You have blocked this user. Unblock them to send messages.
-        </div>
-      ) : (
-        <MessageInput
-          context={context}
-          onSend={handleSend}
-          currentUserId={currentUserId}
-          mentionCandidates={mentionCandidates}
-          replyingTo={replyingTo}
-          onCancelReply={clearReply}
-          pendingAttachments={fileUpload.attachments}
-          addFiles={fileUpload.addFiles}
-          removeAttachment={fileUpload.removeAttachment}
-          clearAttachments={fileUpload.clearAttachments}
-          getUploadedAttachments={fileUpload.getUploadedAttachments}
-          isUploading={fileUpload.isUploading}
-          onTyping={emitTyping}
-        />
-      )}
+      <MessageInput
+        context={context}
+        onSend={handleSend}
+        currentUserId={currentUserId}
+        mentionCandidates={mentionCandidates}
+        replyingTo={replyingTo}
+        onCancelReply={clearReply}
+        pendingAttachments={fileUpload.attachments}
+        addFiles={fileUpload.addFiles}
+        removeAttachment={fileUpload.removeAttachment}
+        clearAttachments={fileUpload.clearAttachments}
+        getUploadedAttachments={fileUpload.getUploadedAttachments}
+        isUploading={fileUpload.isUploading}
+        onTyping={emitTyping}
+      />
     </div>
   )
 }

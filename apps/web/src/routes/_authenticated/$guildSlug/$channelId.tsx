@@ -22,7 +22,6 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
 import { useAutoMarkRead } from "@/hooks/use-auto-mark-read"
-import { useBlockedUserIds } from "@/hooks/use-blocked-users"
 import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
 import { useMessageEditing } from "@/hooks/use-message-editing"
@@ -57,7 +56,6 @@ function ChannelView() {
     useRightSidebar()
   const { data: session } = authClient.useSession()
   const currentUserId = session?.user.id
-  const blockedUserIds = useBlockedUserIds()
 
   useEffect(() => {
     if (!guildSlug || !channelId) return
@@ -229,7 +227,6 @@ function ChannelView() {
     socket,
     channelId,
     currentUserId,
-    blockedUserIds,
   })
 
   // Clear reply state when switching channels
@@ -321,7 +318,6 @@ function ChannelView() {
         onLoadMore={() => fetchNextPage()}
         isFetchingMore={isFetchingNextPage}
         currentUserId={currentUserId}
-        blockedUserIds={blockedUserIds}
         onReact={handleReact}
         onReply={setReplyingTo}
         onDelete={handleDelete}

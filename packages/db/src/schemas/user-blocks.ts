@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 import {
   check,
   index,
@@ -41,16 +41,3 @@ export const insertUserBlockSchema = createInsertSchema(userBlock).omit({
   id: true,
   createdAt: true,
 })
-
-export const userBlockRelations = relations(userBlock, ({ one }) => ({
-  blocker: one(user, {
-    relationName: "userBlockBlocker",
-    fields: [userBlock.blockerId],
-    references: [user.id],
-  }),
-  blocked: one(user, {
-    relationName: "userBlockBlocked",
-    fields: [userBlock.blockedId],
-    references: [user.id],
-  }),
-}))
