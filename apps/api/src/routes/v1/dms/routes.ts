@@ -27,7 +27,7 @@ export const createDM = createRoute({
   method: "post",
   summary: "Create or find a DM",
   description:
-    "Creates a new DM or group DM with the specified users, or returns an existing one. For 1-on-1 DMs, requires the target user to be an ally. For group DMs, requires all target users to be allies of the creator.",
+    "Creates a new DM or group DM with the specified users, or returns an existing one. All target users must share at least one workspace with the requester.",
   tags: ["DMs"],
   middleware: [sessionAuthMiddleware] as const,
   request: {

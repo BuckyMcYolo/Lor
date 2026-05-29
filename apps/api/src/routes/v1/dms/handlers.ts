@@ -1,14 +1,12 @@
 import { db } from "@repo/db"
 import {
-  allyRequest,
   channel,
   channelMember,
+  guildMember,
   message,
   user,
-  userBlock,
-  userPrivacySettings,
 } from "@repo/db/schema"
-import { and, count, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm"
+import { and, count, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
@@ -74,99 +72,47 @@ export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
     )
   }
 
-  // Check if any target user has a block relationship with the current user
-  const blockRows = await db
-    .select({ id: userBlock.id })
-    .from(userBlock)
+  // Workspace-scope check: every target must share at least one workspace
+  // (guild) with the requester. DMs are scoped to workspace membership in
+  // Lor — you can't DM someone you don't share a workspace with.
+  const myGuildRows = await db
+    .select({ guildId: guildMember.guildId })
+    .from(guildMember)
+    .where(eq(guildMember.userId, currentUser.id))
+
+  const myGuildIds = myGuildRows.map((row) => row.guildId)
+
+  if (myGuildIds.length === 0) {
+    return c.json(
+      {
+        success: false,
+        message: "You must belong to a workspace to start a conversation",
+      },
+      HttpStatusCodes.FORBIDDEN
+    )
+  }
+
+  const sharedRows = await db
+    .selectDistinct({ userId: guildMember.userId })
+    .from(guildMember)
     .where(
-      or(
-        and(
-          eq(userBlock.blockerId, currentUser.id),
-          inArray(userBlock.blockedId, targetUserIds)
-        ),
-        and(
-          inArray(userBlock.blockerId, targetUserIds),
-          eq(userBlock.blockedId, currentUser.id)
-        )
+      and(
+        inArray(guildMember.guildId, myGuildIds),
+        inArray(guildMember.userId, targetUserIds)
       )
     )
-    .limit(1)
 
-  if (blockRows.length > 0) {
+  const sharedUserIds = new Set(sharedRows.map((row) => row.userId))
+  const unreachable = targetUserIds.filter((id) => !sharedUserIds.has(id))
+
+  if (unreachable.length > 0) {
     return c.json(
-      { success: false, message: "Unable to create conversation" },
+      {
+        success: false,
+        message: "You can only DM members of a workspace you share",
+      },
       HttpStatusCodes.FORBIDDEN
     )
-  }
-
-  // Fetch target users' privacy settings
-  const targetPrivacyRows = await db
-    .select({
-      userId: userPrivacySettings.userId,
-      dmPrivacy: userPrivacySettings.dmPrivacy,
-    })
-    .from(userPrivacySettings)
-    .where(inArray(userPrivacySettings.userId, targetUserIds))
-
-  const privacyByUserId = new Map(
-    targetPrivacyRows.map((r) => [r.userId, r.dmPrivacy])
-  )
-
-  // Check if any target user has DMs set to "no_one"
-  const noOneIds = targetUserIds.filter(
-    (id) => privacyByUserId.get(id) === "no_one"
-  )
-  if (noOneIds.length > 0) {
-    return c.json(
-      { success: false, message: "This user is not accepting direct messages" },
-      HttpStatusCodes.FORBIDDEN
-    )
-  }
-
-  // For users with "allies_only" privacy, verify ally relationship
-  const alliesOnlyIds = targetUserIds.filter(
-    (id) => privacyByUserId.get(id) === "allies_only"
-  )
-
-  if (alliesOnlyIds.length > 0) {
-    const allyRows = await db
-      .select({
-        senderId: allyRequest.senderId,
-        receiverId: allyRequest.receiverId,
-      })
-      .from(allyRequest)
-      .where(
-        and(
-          eq(allyRequest.status, "accepted"),
-          or(
-            and(
-              eq(allyRequest.senderId, currentUser.id),
-              inArray(allyRequest.receiverId, alliesOnlyIds)
-            ),
-            and(
-              inArray(allyRequest.senderId, alliesOnlyIds),
-              eq(allyRequest.receiverId, currentUser.id)
-            )
-          )
-        )
-      )
-
-    const allyUserIds = new Set(
-      allyRows.map((r) =>
-        r.senderId === currentUser.id ? r.receiverId : r.senderId
-      )
-    )
-
-    const nonAllyIds = alliesOnlyIds.filter((id) => !allyUserIds.has(id))
-    if (nonAllyIds.length > 0) {
-      return c.json(
-        {
-          success: false,
-          message: "This user only accepts DMs from allies",
-        },
-        HttpStatusCodes.FORBIDDEN
-      )
-    }
   }
 
   const allMemberIds = [currentUser.id, ...targetUserIds].sort()

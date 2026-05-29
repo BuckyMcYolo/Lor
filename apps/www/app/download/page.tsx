@@ -10,18 +10,18 @@ import {
 import { Separator } from "@repo/ui/components/separator"
 import { Download, ExternalLink, Github, Globe } from "lucide-react"
 import type { Metadata } from "next"
-import Image from "next/image"
 import Link from "next/link"
 
 export const metadata: Metadata = {
-  title: "Download Townhall",
-  description: "Download Townhall for macOS, Windows, or Linux.",
+  title: "Download Lor",
+  description: "Download Lor for macOS, Windows, or Linux.",
 }
 
 const VERSION = "0.1.0"
-const RELEASES_URL = "https://github.com/BuckyMcYolo/townhall/releases"
-const LATEST =
-  "https://github.com/BuckyMcYolo/townhall/releases/latest/download"
+const GITHUB_URL = "https://github.com/BuckyMcYolo/lor"
+const RELEASES_URL = `${GITHUB_URL}/releases`
+const LATEST = `${GITHUB_URL}/releases/latest/download`
+const APP_URL = "https://app.lor.chat"
 
 function AppleIcon({ className }: { className?: string }) {
   return (
@@ -53,7 +53,7 @@ const platforms = [
     icon: AppleIcon,
     subtitle: "Apple Silicon",
     description: "Download the .dmg installer for macOS 11+",
-    href: `${LATEST}/Townhall_${VERSION}_aarch64.dmg`,
+    href: `${LATEST}/Lor_${VERSION}_aarch64.dmg`,
     note: "Need Intel? Check all releases below.",
   },
   {
@@ -61,7 +61,7 @@ const platforms = [
     icon: WindowsIcon,
     subtitle: "Windows 10+",
     description: "Download the .exe installer for Windows",
-    href: `${LATEST}/Townhall_${VERSION}_x64-setup.exe`,
+    href: `${LATEST}/Lor_${VERSION}_x64-setup.exe`,
   },
   {
     name: "Linux",
@@ -77,22 +77,13 @@ export default function DownloadPage() {
   return (
     <div className="flex min-h-svh flex-col">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/townhallicon.png"
-              alt="Townhall"
-              width={40}
-              height={40}
-              className="rounded-full"
-            />
-            <span className="text-xl font-semibold tracking-tight">
-              Townhall
-            </span>
+          <Link href="/" className="text-xl font-semibold tracking-tight">
+            Lor
           </Link>
           <Button size="sm" asChild>
-            <a href="https://app.townhall.chat">Try in Browser</a>
+            <a href={APP_URL}>Open in browser</a>
           </Button>
         </nav>
       </header>
@@ -100,11 +91,12 @@ export default function DownloadPage() {
       <main className="flex-1">
         {/* Hero */}
         <section className="mx-auto max-w-4xl px-6 py-20 text-center md:py-28">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Download Townhall
+          <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
+            Download Lor for desktop.
           </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Available for macOS, Windows, and Linux. Free and open source.
+          <p className="mt-5 text-lg text-muted-foreground">
+            Native apps for macOS, Windows, and Linux. Same Lor, in a faster
+            shell.
           </p>
         </section>
 
@@ -165,39 +157,35 @@ export default function DownloadPage() {
 
         <Separator className="mx-auto max-w-4xl" />
 
-        {/* Try in browser */}
+        {/* Browser alternative */}
         <section className="mx-auto max-w-4xl px-6 py-16 text-center">
           <Globe className="mx-auto mb-4 size-10 text-muted-foreground" />
-          <h2 className="text-2xl font-bold tracking-tight">
-            Don&apos;t want to download?
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Don&rsquo;t want to download?
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Try Townhall instantly in your browser — no installation required.
+            Use Lor in your browser &mdash; no installation required.
           </p>
           <div className="mt-8">
             <Button size="lg" variant="outline" asChild>
-              <a href="https://app.townhall.chat">Open Townhall in Browser</a>
+              <a href={APP_URL}>Open Lor in browser</a>
             </Button>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 py-8">
+      <footer className="border-t border-border/40 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Image
-              src="/townhallicon.png"
-              alt="Townhall"
-              width={28}
-              height={28}
-              className="rounded"
-            />
-            <span>&copy; {new Date().getFullYear()} Townhall</span>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <Link href="/" className="font-semibold text-foreground">
+              Lor
+            </Link>
+            <span>&copy; {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-6 text-sm text-muted-foreground">
             <a
-              href="https://github.com/BuckyMcYolo/townhall"
+              href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-foreground"
