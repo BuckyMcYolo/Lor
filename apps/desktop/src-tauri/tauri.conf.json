@@ -45,7 +45,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQxNjNCOUYwOEIwQ0RCRTAKUldUZzJ3eUw4TGxqUWJkKzl4emczdUNLMlNJVWZLc24rWFpOaWNVaTEzV0doSUdPMzVHTzBYcXYK",
       "endpoints": [
-        "https://github.com/BuckyMcYolo/townhall/releases/latest/download/latest.json"
+        "https://github.com/BuckyMcYolo/lor/releases/latest/download/latest.json"
       ]
     }
   }
