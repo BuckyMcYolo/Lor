@@ -277,7 +277,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     Choose a username
                   </DialogTitle>
                   <DialogDescription className="text-sm">
-                    Pick a unique username for your Townhall identity.
+                    Pick a unique username for your Lor identity.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -353,9 +353,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
             {step === "welcome" && (
               <>
                 <DialogHeader className="mb-8 text-left">
-                  <DialogTitle className="text-2xl">
-                    Welcome to Townhall
-                  </DialogTitle>
+                  <DialogTitle className="text-2xl">Welcome to Lor</DialogTitle>
                   <DialogDescription className="text-sm">
                     Get started by creating a new guild or joining one you've
                     been invited to.
@@ -415,7 +413,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                       htmlFor="join-townhall"
                       className="cursor-pointer font-normal"
                     >
-                      <p className="font-medium">Join Townhall's Townhall</p>
+                      <p className="font-medium">Join Lor's workspace</p>
                       <p className="text-sm text-muted-foreground">
                         Join our open-source community and help shape the
                         product roadmap

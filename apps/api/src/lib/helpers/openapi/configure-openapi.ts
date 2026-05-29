@@ -5,7 +5,7 @@ export default function configureOpenAPI(app: AppOpenAPI) {
     openapi: "3.0.0",
     info: {
       version: "0.1.0",
-      title: "Townhall API",
+      title: "Lor API",
     },
     servers: [
       {

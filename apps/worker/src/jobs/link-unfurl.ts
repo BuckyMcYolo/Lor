@@ -91,7 +91,7 @@ async function fetchOgEmbed(url: string): Promise<Embed | null> {
       timeout: OG_FETCH_TIMEOUT_MS,
       fetchOptions: {
         headers: {
-          "user-agent": "Townhall/1.0 OGBot",
+          "user-agent": "Lor/1.0 OGBot",
         },
       },
     })

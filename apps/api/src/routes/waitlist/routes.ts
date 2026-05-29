@@ -11,7 +11,7 @@ export const createWaitlistEntry = createRoute({
   path: "/waitlist",
   method: "post",
   summary: "Join the waitlist",
-  description: "Adds an email address to the Townhall waitlist.",
+  description: "Adds an email address to the Lor waitlist.",
   tags: ["Waitlist"],
   request: {
     body: {

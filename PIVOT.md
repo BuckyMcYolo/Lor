@@ -274,8 +274,9 @@ Three buckets. Execute in order: deletes first on a branch, get to a minimal cha
 **Channel types we don't need:**
 - `announcement` (Decrees) — B2B teams don't broadcast like communities
 - `forum` — threads live inside text channels
-- `category` — categories are sidebar UI grouping, not a channel-type row
 - Remove these values from the channel-type enum in `packages/db/src/schemas/channels.ts` and any UI branches that render them
+
+**`category` channel-type stays.** Earlier draft said "categories are sidebar UI grouping, not a channel-type row." Revisited 2026-05-28: that was an aesthetic preference, not a load-bearing requirement. Discord uses the same channel-as-category-row pattern at scale. Migrating to a separate `channel_category` table would touch ~25-30 files + a real DB migration for marginal cleanup. Skipped. Revisit only if it causes concrete pain.
 
 **Private channels:**
 - Do not implement a private channel primitive. Channels are public to the workspace, full stop. If a `private`/`visibility` field gets added later, it must come with a maintainer decision — not as a quiet build.

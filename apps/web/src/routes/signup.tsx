@@ -62,10 +62,10 @@ function SignUpPage() {
         >
           <img
             src="/townhallicon.png"
-            alt="Townhall"
+            alt="Lor"
             className="size-6 rounded-md"
           />
-          Townhall
+          Lor
         </Link>
         <div className="flex flex-col gap-6">
           <Card>

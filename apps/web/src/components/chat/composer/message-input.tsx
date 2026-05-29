@@ -434,7 +434,7 @@ export function MessageInput({
   const placeholder =
     context.type === "channel"
       ? `Message #${context.name}`
-      : `Send a Raven to ${context.name}`
+      : `Message ${context.name}`
 
   const normalizedMentionCandidates = useMemo(() => {
     const uniqueCandidates = new Map<string, MentionCandidate>()

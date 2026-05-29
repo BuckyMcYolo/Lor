@@ -8,11 +8,11 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div className="mb-8 flex flex-col items-center gap-3">
           <img
             src="/townhallicon.png"
-            alt="Townhall"
+            alt="Lor"
             className="size-14 rounded-2xl"
           />
           <span className="text-2xl font-bold tracking-tight text-foreground">
-            Townhall
+            Lor
           </span>
         </div>
 

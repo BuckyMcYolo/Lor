@@ -68,18 +68,16 @@ function LoginPage() {
         >
           <img
             src="/townhallicon.png"
-            alt="Townhall"
+            alt="Lor"
             className="size-6 rounded-md"
           />
-          Townhall
+          Lor
         </Link>
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader className="text-center">
               <CardTitle className="text-xl">Welcome back</CardTitle>
-              <CardDescription>
-                Sign in to your Townhall account
-              </CardDescription>
+              <CardDescription>Sign in to your Lor account</CardDescription>
             </CardHeader>
             <CardContent>
               <form

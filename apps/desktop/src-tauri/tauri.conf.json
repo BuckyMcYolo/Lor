@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Townhall",
+  "productName": "Lor",
   "version": "0.1.1",
   "identifier": "com.townhall.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Townhall",
+        "title": "Lor",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
