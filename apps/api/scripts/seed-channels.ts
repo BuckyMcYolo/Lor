@@ -38,7 +38,6 @@ const categories = [
   {
     name: "Community",
     channels: [
-      { name: "announcements", type: "announcement" as const },
       { name: "feedback", type: "text" as const },
       { name: "showcase", type: "text" as const },
     ],

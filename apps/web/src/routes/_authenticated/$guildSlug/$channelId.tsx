@@ -26,7 +26,7 @@ import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
 import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
-import { canPinMessages, canSendInAnnouncement } from "@/lib/permissions"
+import { canPinMessages } from "@/lib/permissions"
 
 type ChannelSearchParams = {
   msgId?: string
@@ -201,12 +201,6 @@ function ChannelView() {
     ? canPinMessages(activeMemberCtx.actor, activeMemberCtx.guild)
     : false
 
-  const canSendMessages =
-    data?.type !== "announcement" ||
-    (activeMemberCtx
-      ? canSendInAnnouncement(activeMemberCtx.actor, activeMemberCtx.guild)
-      : false)
-
   const { handleTogglePin } = useMessagePinning({
     socket,
     queryClient,
@@ -253,7 +247,6 @@ function ChannelView() {
     onDrop,
     noClick: true,
     noKeyboard: true,
-    disabled: !canSendMessages,
   })
 
   const mentionCandidates = useMemo(
@@ -334,8 +327,6 @@ function ChannelView() {
       <TypingIndicator users={typingUsers} />
       <MessageInput
         context={context}
-        disabled={!canSendMessages}
-        disabledReason="Only owners, admins, and wardens can post in decree channels"
         onSend={handleSend}
         currentUserId={currentUserId}
         mentionCandidates={mentionCandidates}

@@ -325,10 +325,7 @@ export const searchMessages: AppRouteHandler<SearchMessagesRoute> = async (
     })
     .from(schema.channel)
     .where(
-      and(
-        eq(schema.channel.guildId, guild.id),
-        inArray(schema.channel.type, ["text", "announcement", "forum"])
-      )
+      and(eq(schema.channel.guildId, guild.id), eq(schema.channel.type, "text"))
     )
 
   const emptyResult = {

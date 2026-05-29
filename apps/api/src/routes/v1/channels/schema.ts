@@ -44,7 +44,11 @@ export const listChannelsResponseSchema = z.object({
   categories: z.array(categoryWithChannelsSchema),
 })
 
-export const createChannelRequestSchema = insertChannelSchema
+// Narrow the create endpoint to guild-creatable types only.
+// DMs / group DMs are created via the /dms route, not generic create-channel.
+export const createChannelRequestSchema = insertChannelSchema.extend({
+  type: z.enum(["text", "voice", "category"]).default("text"),
+})
 
 export const createChannelResponseSchema = selectChannelSchema
 

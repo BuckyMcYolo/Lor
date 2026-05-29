@@ -71,27 +71,6 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
         HttpStatusCodes.FORBIDDEN
       )
     }
-
-    // Block uploads in announcement channels for non-admins/owners
-    if (ch.type === "announcement") {
-      const guildRecord = await db
-        .select({ ownerId: guild.ownerId })
-        .from(guild)
-        .where(eq(guild.id, ch.guildId))
-        .limit(1)
-        .then((rows) => rows[0])
-
-      if (!guildRecord) {
-        return c.json(
-          { success: false, message: "Forbidden" },
-          HttpStatusCodes.FORBIDDEN
-        )
-      }
-
-      assertGuildPermission(member, guildRecord, {
-        channel: ["update"],
-      })
-    }
   } else if (
     DM_CHANNEL_TYPES.includes(ch.type as (typeof DM_CHANNEL_TYPES)[number])
   ) {

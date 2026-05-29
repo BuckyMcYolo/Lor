@@ -15,7 +15,6 @@ import { user } from "./users"
 export const notificationEventTypeEnum = pgEnum("notification_event_type", [
   "direct_mention",
   "everyone_mention",
-  "guild_announcement",
   "system",
 ])
 

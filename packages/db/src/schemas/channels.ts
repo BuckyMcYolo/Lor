@@ -22,8 +22,6 @@ import { user } from "./users"
 export const channelTypeEnum = pgEnum("channel_type", [
   "text",
   "voice",
-  "announcement",
-  "forum",
   "dm",
   "group_dm",
   "category",

@@ -17,23 +17,22 @@ import {
 } from "@repo/ui/components/select"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { Loader2, Megaphone, Scroll } from "lucide-react"
+import { Loader2, Scroll, Volume2 } from "lucide-react"
 import { useState } from "react"
 import { apiClient } from "@/lib/api-client"
 
 const channelTypes = [
   {
     value: "text",
-    label: "Scroll",
+    label: "Text",
     icon: Scroll,
     description: "A text channel for general conversation and discussion",
   },
   {
-    value: "announcement",
-    label: "Decree",
-    icon: Megaphone,
-    description:
-      "A read-only channel for important announcements. Only admins and wardens can post",
+    value: "voice",
+    label: "Voice",
+    icon: Volume2,
+    description: "A voice channel for huddles and meetings",
   },
 ] as const
 
@@ -52,7 +51,7 @@ export function CreateChannelDialog({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
-  const [type, setType] = useState<"text" | "announcement">("text")
+  const [type, setType] = useState<"text" | "voice">("text")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -143,7 +142,7 @@ export function CreateChannelDialog({
               <Label htmlFor="channel-type">Type</Label>
               <Select
                 value={type}
-                onValueChange={(v) => setType(v as "text" | "announcement")}
+                onValueChange={(v) => setType(v as "text" | "voice")}
               >
                 <SelectTrigger>
                   <SelectValue />

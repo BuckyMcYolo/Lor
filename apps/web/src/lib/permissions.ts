@@ -79,16 +79,6 @@ export function canPinMessages(
   return hasPermissions(member, guild, { message: ["pin"] })
 }
 
-export function canSendInAnnouncement(
-  member: { userId: string; role: string },
-  guild: { ownerId: string }
-): boolean {
-  // The `announcement` statement was removed in the Lor pivot. Posting in
-  // announcement channels is gated by the same tier as channel creation
-  // (admin/owner).
-  return hasPermissions(member, guild, { channel: ["create"] })
-}
-
 export function canKickGuildMembers(
   member: { userId: string; role: string },
   guild: { ownerId: string }

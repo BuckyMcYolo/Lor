@@ -31,8 +31,6 @@ import { useNavigate, useParams } from "@tanstack/react-router"
 import {
   ChevronDown,
   FolderPlus,
-  Megaphone,
-  MessageSquare,
   MoreHorizontal,
   Plus,
   Scroll,
@@ -56,8 +54,6 @@ import { EditChannelDialog } from "./edit-channel-dialog"
 const channelIcons = {
   text: Scroll,
   voice: Volume2,
-  announcement: Megaphone,
-  forum: MessageSquare,
 } as const
 
 type ChannelData = ListChannelsResponse

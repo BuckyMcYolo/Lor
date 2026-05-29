@@ -21,15 +21,9 @@ const defaultGuildChannels = {
   uncategorized: [
     { name: "general", type: "text" as const },
     { name: "introductions", type: "text" as const },
+    { name: "rules", type: "text" as const },
   ],
   categories: [
-    {
-      name: "Information",
-      channels: [
-        { name: "decrees", type: "announcement" as const },
-        { name: "rules", type: "text" as const },
-      ],
-    },
     {
       name: "Community",
       channels: [
