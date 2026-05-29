@@ -1,7 +1,6 @@
 export * from "./accounts"
 export * from "./channel-read-states"
 export * from "./channels"
-export * from "./guild-bans"
 export * from "./guild-invites"
 export * from "./guild-members"
 export * from "./guild-roles"

@@ -6,6 +6,13 @@ type RedisClient = ReturnType<typeof createClient>
 const WINDOW_SECONDS = 60
 const KEY_TTL_SECONDS = 90
 
+// The DB role column is plain text — unknown values fall back to the
+// `member` tier (the safest/strictest rate limit).
+function getRoleRateLimit(role: string): number {
+  if (isGuildRole(role)) return getGuildMessageRateLimit(role)
+  return getGuildMessageRateLimit("member")
+}
+
 function getMessageRateLimitKey(
   guildId: string,
   userId: string,
@@ -28,10 +35,6 @@ export async function enforceGuildMessageRateLimit(
     role: string
   }
 ) {
-  if (!isGuildRole(input.role)) {
-    throw new Error(`Unknown guild role: ${input.role}`)
-  }
-
   const now = Date.now()
   const key = getMessageRateLimitKey(input.guildId, input.userId, now)
   const nextCount = await redis.incr(key)
@@ -40,7 +43,7 @@ export async function enforceGuildMessageRateLimit(
     await redis.expire(key, KEY_TTL_SECONDS)
   }
 
-  const limit = getGuildMessageRateLimit(input.role)
+  const limit = getRoleRateLimit(input.role)
   if (nextCount <= limit) return
 
   throw new Error(

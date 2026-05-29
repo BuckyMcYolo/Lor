@@ -8,7 +8,6 @@ import {
   varchar,
 } from "drizzle-orm/pg-core"
 import { account } from "./accounts"
-import { guildBan } from "./guild-bans"
 import { guildMember } from "./guild-members"
 import { guild } from "./guilds"
 import { invitation } from "./invitations"
@@ -42,18 +41,7 @@ export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
   guilds: many(guild), // can be owners of many guilds
-  guildBans: many(guildBan, {
-    relationName: "guildBanUser",
-  }),
-  issuedGuildBans: many(guildBan, {
-    relationName: "guildBanModerator",
-  }),
-  guildMembers: many(guildMember, {
-    relationName: "guildMembershipUser",
-  }),
-  moderatedGuildMembers: many(guildMember, {
-    relationName: "guildMemberModerator",
-  }),
+  guildMembers: many(guildMember),
   invitations: many(invitation),
   twoFactors: many(twoFactor),
 }))

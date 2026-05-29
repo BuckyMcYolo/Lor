@@ -10,8 +10,7 @@ const statement = {
   ...defaultStatements,
   channel: ["create", "update", "delete"],
   message: ["delete", "pin"], // delete/pin others' messages (own messages are always deletable)
-  guildMember: ["kick", "ban", "timeout", "role:update"],
-  announcement: ["send"],
+  guildMember: ["kick", "role:update"],
 } as const
 
 const ac = createAccessControl(statement)
@@ -19,59 +18,44 @@ const ac = createAccessControl(statement)
 const owner = ac.newRole({
   channel: ["create", "update", "delete"],
   message: ["delete", "pin"],
-  guildMember: ["kick", "ban", "timeout", "role:update"],
-  announcement: ["send"],
+  guildMember: ["kick", "role:update"],
   ...ownerAc.statements,
 })
 
 const admin = ac.newRole({
   channel: ["create", "update", "delete"],
   message: ["delete", "pin"],
-  guildMember: ["kick", "ban", "timeout", "role:update"],
-  announcement: ["send"],
+  guildMember: ["kick", "role:update"],
   ...adminAc.statements,
 })
 
-// Warden (moderator) — can create/update channels and moderate messages/members
-const warden = ac.newRole({
-  channel: ["create", "update"],
-  message: ["delete", "pin"],
-  guildMember: ["kick", "ban", "timeout"],
-  announcement: ["send"],
-  ...memberAc.statements,
-})
-
-// Member (citizen) — basic access only, displayed as "Citizen" in UI
+// Member — basic access only
 const member = ac.newRole({
   ...memberAc.statements,
 })
 
-const roles = { owner, admin, warden, member }
+const roles = { owner, admin, member }
 
 const guildRoleLabels = {
   owner: "Owner",
   admin: "Admin",
-  warden: "Warden",
-  member: "Citizen",
+  member: "Member",
 } as const satisfies Record<keyof typeof roles, string>
 
 const guildRolePositions = {
   owner: 0,
   admin: 10,
-  warden: 20,
-  member: 30,
+  member: 20,
 } as const satisfies Record<keyof typeof roles, number>
 
 const guildMessageRateLimitsPerMinute = {
   owner: 120,
   admin: 120,
-  warden: 60,
   member: 30,
 } as const satisfies Record<keyof typeof roles, number>
 
 const assignableGuildRoles = [
   "admin",
-  "warden",
   "member",
 ] as const satisfies ReadonlyArray<Exclude<keyof typeof roles, "owner">>
 
@@ -179,5 +163,4 @@ export {
   owner,
   roles,
   statement,
-  warden,
 }

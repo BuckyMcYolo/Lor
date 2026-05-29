@@ -1,9 +1,4 @@
 import { authClient } from "@repo/auth/client"
-import {
-  type GuildRole,
-  isGuildRole,
-  roleHasPermissions,
-} from "@repo/auth/permissions"
 import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import {
   useInfiniteQuery,
@@ -31,7 +26,7 @@ import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
 import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
-import { canSendInAnnouncement } from "@/lib/permissions"
+import { canPinMessages, canSendInAnnouncement } from "@/lib/permissions"
 
 type ChannelSearchParams = {
   msgId?: string
@@ -192,16 +187,25 @@ function ChannelView() {
     },
   })
 
-  const canPin =
+  const activeMemberCtx =
     typeof activeMember?.role === "string" &&
-    isGuildRole(activeMember.role) &&
-    roleHasPermissions(activeMember.role as GuildRole, { message: ["pin"] })
+    typeof activeMember.userId === "string" &&
+    guildMembersData?.ownerId
+      ? {
+          actor: { userId: activeMember.userId, role: activeMember.role },
+          guild: { ownerId: guildMembersData.ownerId },
+        }
+      : null
+
+  const canPin = activeMemberCtx
+    ? canPinMessages(activeMemberCtx.actor, activeMemberCtx.guild)
+    : false
 
   const canSendMessages =
     data?.type !== "announcement" ||
-    (typeof activeMember?.role === "string" &&
-      isGuildRole(activeMember.role) &&
-      canSendInAnnouncement(activeMember.role as GuildRole))
+    (activeMemberCtx
+      ? canSendInAnnouncement(activeMemberCtx.actor, activeMemberCtx.guild)
+      : false)
 
   const { handleTogglePin } = useMessagePinning({
     socket,

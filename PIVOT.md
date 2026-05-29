@@ -258,13 +258,18 @@ Three buckets. Execute in order: deletes first on a branch, get to a minimal cha
 - `packages/db/src/schemas/user-privacy-settings.ts` + `apps/api/src/routes/v1/privacy-settings/` (peer-to-peer privacy controls don't apply inside a tenant)
 - `realtime/src/services/blocks.ts` block enforcement in DMs (the `user-blocks` table itself stays for now per maintainer call — UI hidden)
 
-**Per-guild role / permission system** (collapse to `member | admin | owner`):
-- `packages/db/src/schemas/guild-roles.ts` (role definitions + permission strings)
-- `packages/db/src/schemas/guild-bans.ts` (bans + timeouts — remove-from-workspace is enough)
-- `communication_timeout` field on `guild-members.ts`
-- Role/ban/timeout endpoints in `apps/api/src/routes/v1/guilds/`
-- Roles / bans / moderation panes in `apps/web/src/components/guild/`
-- Role-permission helpers in `packages/auth/src/lib/permissions.ts`
+**Banishment and timeouts — gone for good:**
+- `packages/db/src/schemas/guild-bans.ts`
+- `communicationDisabledUntil` / `communicationDisabledBy` / `communicationDisabledReason` fields on `guild-members.ts`
+- `banGuildMember`, `timeoutGuildMember`, `clearGuildMemberTimeout` endpoints in `apps/api/src/routes/v1/guilds/`
+- Ban / timeout UI in `apps/web/src/components/sidebar/right-panel/guild-members-panel.tsx`
+- `isCommunicationDisabled` / `assertMemberCanCommunicate` helpers in `apps/api/src/lib/permissions.ts`
+
+**Granular permission system — KEPT** (decision reversed 2026-05-28):
+- The better-auth `createAccessControl` system in `packages/auth/src/lib/permissions.ts` stays. `guild-roles.ts` schema stays. Dynamic per-guild role grants stay. `assertGuildPermission(actor, guild, { channel: ["update"] })` pattern stays — it scales better than `if role === "admin"` sprinkled in handlers.
+- Trims to the system for Lor scope: drop `announcement` statement (no announcement channels), drop `ban`/`timeout` actions from `guildMember` (features removed), drop the `warden` role (no moderator tier; teams can define their own moderator role via the dynamic `guild_role` table), drop "Citizen" label → "Member."
+- Final core roles: `owner`, `admin`, `member`. Assignable via API: `["admin", "member"]`.
+- `role` column on `guild_member` is plain `text` (no DB enum constraint) — better-auth pattern, allows dynamic role names.
 
 **Channel types we don't need:**
 - `announcement` (Decrees) — B2B teams don't broadcast like communities

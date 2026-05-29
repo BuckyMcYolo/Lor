@@ -16,7 +16,6 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { authClient } from "@repo/auth/client"
-import type { GuildRole } from "@repo/auth/permissions"
 import { Button } from "@repo/ui/components/button"
 import {
   DropdownMenu,
@@ -155,20 +154,46 @@ export function ChannelList() {
 
   const { data: activeMember } = useQuery({
     queryKey: ["active-guild-member", guildSlug],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ userId: string; role: string } | null> => {
       const res = await authClient.organization.getActiveMember()
       return res.data
+        ? {
+            userId: res.data.userId as string,
+            role: res.data.role as string,
+          }
+        : null
     },
     enabled: !!guildSlug,
   })
-  const canCreate = activeMember?.role
-    ? canCreateChannels(activeMember.role as GuildRole)
+
+  const { data: guildMembersData } = useQuery({
+    queryKey: ["guild-members", guildSlug],
+    queryFn: async () => {
+      const res = await apiClient.v1.guilds[":guildSlug"].members.$get({
+        param: { guildSlug: guildSlug as string },
+      })
+      if (!res.ok) throw new Error("Failed to fetch guild members")
+      return res.json()
+    },
+    enabled: !!guildSlug,
+  })
+
+  const permissionCtx =
+    activeMember && guildMembersData?.ownerId
+      ? {
+          actor: activeMember,
+          guild: { ownerId: guildMembersData.ownerId },
+        }
+      : null
+
+  const canCreate = permissionCtx
+    ? canCreateChannels(permissionCtx.actor, permissionCtx.guild)
     : false
-  const canManage = activeMember?.role
-    ? canManageChannels(activeMember.role as GuildRole)
+  const canManage = permissionCtx
+    ? canManageChannels(permissionCtx.actor, permissionCtx.guild)
     : false
-  const canDelete = activeMember?.role
-    ? canDeleteChannels(activeMember.role as GuildRole)
+  const canDelete = permissionCtx
+    ? canDeleteChannels(permissionCtx.actor, permissionCtx.guild)
     : false
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)

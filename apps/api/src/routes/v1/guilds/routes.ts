@@ -9,16 +9,12 @@ import {
 } from "@/lib/helpers/openapi/schemas"
 import { guildAuthMiddleware } from "@/middleware/guild-auth"
 import {
-  banGuildMemberRequestSchema,
-  banGuildMemberResponseSchema,
   guildMemberParamsSchema,
   guildSlugParamsSchema,
   listGuildMembersResponseSchema,
   moderateGuildMemberResponseSchema,
   searchMessagesQuerySchema,
   searchMessagesResponseSchema,
-  timeoutGuildMemberRequestSchema,
-  timeoutGuildMemberResponseSchema,
   updateGuildMemberRoleRequestSchema,
   updateGuildMemberRoleResponseSchema,
   updateGuildRequestSchema,
@@ -84,7 +80,7 @@ export const kickGuildMember = createRoute({
   method: "post",
   summary: "Kick a guild member",
   description:
-    "Removes a member from the guild. Requires member kick permission and sufficient hierarchy.",
+    "Removes a member from the guild. Requires admin or owner role; the owner cannot be kicked, and admins cannot kick other admins.",
   tags: ["Guilds"],
   middleware: [guildAuthMiddleware] as const,
   request: {
@@ -103,89 +99,6 @@ export const kickGuildMember = createRoute({
 })
 
 export type KickGuildMemberRoute = typeof kickGuildMember
-
-export const banGuildMember = createRoute({
-  path: "/guilds/{guildSlug}/members/{userId}/ban",
-  method: "post",
-  summary: "Ban a guild member",
-  description:
-    "Bans a member from the guild and removes their active membership. Requires member ban permission and sufficient hierarchy.",
-  tags: ["Guilds"],
-  middleware: [guildAuthMiddleware] as const,
-  request: {
-    params: guildMemberParamsSchema,
-    body: jsonContent({
-      schema: banGuildMemberRequestSchema,
-      description: "Ban metadata",
-    }),
-  },
-  responses: {
-    [HttpStatusCodes.OK]: jsonContent({
-      schema: banGuildMemberResponseSchema,
-      description: "Member banned",
-    }),
-    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
-    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
-    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
-  },
-})
-
-export type BanGuildMemberRoute = typeof banGuildMember
-
-export const timeoutGuildMember = createRoute({
-  path: "/guilds/{guildSlug}/members/{userId}/timeout",
-  method: "post",
-  summary: "Time out a guild member",
-  description:
-    "Temporarily disables a guild member's ability to communicate. Requires member timeout permission and sufficient hierarchy.",
-  tags: ["Guilds"],
-  middleware: [guildAuthMiddleware] as const,
-  request: {
-    params: guildMemberParamsSchema,
-    body: jsonContent({
-      schema: timeoutGuildMemberRequestSchema,
-      description: "Timeout duration and optional reason",
-    }),
-  },
-  responses: {
-    [HttpStatusCodes.OK]: jsonContent({
-      schema: timeoutGuildMemberResponseSchema,
-      description: "Timed out guild member",
-    }),
-    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
-    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
-    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
-  },
-})
-
-export type TimeoutGuildMemberRoute = typeof timeoutGuildMember
-
-export const clearGuildMemberTimeout = createRoute({
-  path: "/guilds/{guildSlug}/members/{userId}/timeout",
-  method: "delete",
-  summary: "Clear a guild member timeout",
-  description:
-    "Restores a timed out member's ability to communicate. Requires member timeout permission and sufficient hierarchy.",
-  tags: ["Guilds"],
-  middleware: [guildAuthMiddleware] as const,
-  request: {
-    params: guildMemberParamsSchema,
-  },
-  responses: {
-    [HttpStatusCodes.OK]: jsonContent({
-      schema: timeoutGuildMemberResponseSchema,
-      description: "Updated guild member",
-    }),
-    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
-    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
-    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
-  },
-})
-
-export type ClearGuildMemberTimeoutRoute = typeof clearGuildMemberTimeout
 
 export const searchMessages = createRoute({
   path: "/guilds/{guildSlug}/search",

@@ -1,19 +1,11 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
-import {
-  type GuildRole,
-  guildAuthorityHasPermissions,
-  isGuildRole,
-} from "@repo/auth/permissions"
 import { db } from "@repo/db"
 import { channel, channelMember, guild, guildMember } from "@repo/db/schema"
 import { env } from "@repo/env/server"
 import { and, eq } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
-import {
-  assertGuildPermission,
-  assertMemberCanCommunicate,
-} from "@/lib/permissions"
+import { assertGuildPermission } from "@/lib/permissions"
 import { s3Client } from "@/lib/s3"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
@@ -62,7 +54,6 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
         id: guildMember.id,
         role: guildMember.role,
         userId: guildMember.userId,
-        communicationDisabledUntil: guildMember.communicationDisabledUntil,
       })
       .from(guildMember)
       .where(
@@ -81,17 +72,8 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
       )
     }
 
-    assertMemberCanCommunicate(member)
-
-    // Block uploads in announcement channels for users without permission
+    // Block uploads in announcement channels for non-admins/owners
     if (ch.type === "announcement") {
-      if (!isGuildRole(member.role)) {
-        return c.json(
-          { success: false, message: "Forbidden" },
-          HttpStatusCodes.FORBIDDEN
-        )
-      }
-
       const guildRecord = await db
         .select({ ownerId: guild.ownerId })
         .from(guild)
@@ -99,21 +81,16 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
         .limit(1)
         .then((rows) => rows[0])
 
-      if (
-        !guildRecord ||
-        !guildAuthorityHasPermissions(
-          {
-            role: member.role as GuildRole,
-            isOwner: guildRecord.ownerId === member.userId,
-          },
-          { announcement: ["send"] }
-        )
-      ) {
+      if (!guildRecord) {
         return c.json(
           { success: false, message: "Forbidden" },
           HttpStatusCodes.FORBIDDEN
         )
       }
+
+      assertGuildPermission(member, guildRecord, {
+        channel: ["update"],
+      })
     }
   } else if (
     DM_CHANNEL_TYPES.includes(ch.type as (typeof DM_CHANNEL_TYPES)[number])

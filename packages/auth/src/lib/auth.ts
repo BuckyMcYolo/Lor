@@ -12,7 +12,6 @@ import {
   admin as adminRole,
   member as memberRole,
   owner as ownerRole,
-  warden,
 } from "./permissions"
 
 const redis = new Redis(env.REDIS_URL)
@@ -213,7 +212,6 @@ export const auth = betterAuth({
       roles: {
         owner: ownerRole,
         admin: adminRole,
-        warden,
         member: memberRole,
       },
       schema: {

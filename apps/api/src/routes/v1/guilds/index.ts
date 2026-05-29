@@ -8,8 +8,5 @@ const guildsRouter = createRouter()
   .openapi(routes.updateGuild, handlers.updateGuild)
   .openapi(routes.updateGuildMemberRole, handlers.updateGuildMemberRole)
   .openapi(routes.kickGuildMember, handlers.kickGuildMember)
-  .openapi(routes.banGuildMember, handlers.banGuildMember)
-  .openapi(routes.timeoutGuildMember, handlers.timeoutGuildMember)
-  .openapi(routes.clearGuildMemberTimeout, handlers.clearGuildMemberTimeout)
 
 export default guildsRouter
