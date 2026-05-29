@@ -1,6 +1,6 @@
 import {
-  getGuildAuthorityPosition,
-  getGuildRolePosition,
+  getWorkspaceAuthorityPosition,
+  getWorkspaceRolePosition,
 } from "@repo/auth/permissions"
 import { and, count, db, desc, eq, ilike, inArray, schema } from "@repo/db"
 import { env } from "@repo/env/server"
@@ -10,18 +10,18 @@ import { HTTPException } from "hono/http-exception"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { logger } from "@/lib/logger"
 import {
-  assertCanManageGuildMember,
-  assertGuildPermission,
+  assertCanManageWorkspaceMember,
+  assertWorkspacePermission,
 } from "@/lib/permissions"
 import { getRedisClient } from "@/lib/redis"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
-  KickGuildMemberRoute,
-  ListGuildMembersRoute,
+  KickWorkspaceMemberRoute,
+  ListWorkspaceMembersRoute,
   SearchMessagesRoute,
-  UpdateGuildMemberRoleRoute,
-  UpdateGuildRoute,
-} from "@/routes/v1/guilds/routes"
+  UpdateWorkspaceMemberRoleRoute,
+  UpdateWorkspaceRoute,
+} from "@/routes/v1/workspaces/routes"
 
 const PRESENCE_MEMBERSHIP_CHUNK_SIZE = 250
 
@@ -54,7 +54,7 @@ async function listOnlineUserIds(userIds: string[]) {
   }
 }
 
-function toGuildMemberPresence(
+function toWorkspaceMemberPresence(
   member: {
     userId: string
     name: string
@@ -80,45 +80,45 @@ function toGuildMemberPresence(
   }
 }
 
-async function getGuildMemberRow(guildId: string, userId: string) {
+async function getWorkspaceMemberRow(workspaceId: string, userId: string) {
   return db
     .select({
-      userId: schema.guildMember.userId,
-      role: schema.guildMember.role,
+      userId: schema.workspaceMember.userId,
+      role: schema.workspaceMember.role,
       name: schema.user.name,
       username: schema.user.username,
       displayUsername: schema.user.displayUsername,
       image: schema.user.image,
     })
-    .from(schema.guildMember)
-    .innerJoin(schema.user, eq(schema.guildMember.userId, schema.user.id))
+    .from(schema.workspaceMember)
+    .innerJoin(schema.user, eq(schema.workspaceMember.userId, schema.user.id))
     .where(
       and(
-        eq(schema.guildMember.guildId, guildId),
-        eq(schema.guildMember.userId, userId)
+        eq(schema.workspaceMember.workspaceId, workspaceId),
+        eq(schema.workspaceMember.userId, userId)
       )
     )
     .limit(1)
     .then((rows) => rows[0] ?? null)
 }
 
-export const listGuildMembers: AppRouteHandler<ListGuildMembersRoute> = async (
-  c
-) => {
-  const guild = c.var.guild
+export const listWorkspaceMembers: AppRouteHandler<
+  ListWorkspaceMembersRoute
+> = async (c) => {
+  const workspace = c.var.workspace
 
   const memberRows = await db
     .select({
-      userId: schema.guildMember.userId,
-      role: schema.guildMember.role,
+      userId: schema.workspaceMember.userId,
+      role: schema.workspaceMember.role,
       name: schema.user.name,
       username: schema.user.username,
       displayUsername: schema.user.displayUsername,
       image: schema.user.image,
     })
-    .from(schema.guildMember)
-    .innerJoin(schema.user, eq(schema.guildMember.userId, schema.user.id))
-    .where(eq(schema.guildMember.guildId, guild.id))
+    .from(schema.workspaceMember)
+    .innerJoin(schema.user, eq(schema.workspaceMember.userId, schema.user.id))
+    .where(eq(schema.workspaceMember.workspaceId, workspace.id))
     .orderBy(asc(schema.user.name))
 
   const userIds = memberRows.map((row) => row.userId)
@@ -126,44 +126,45 @@ export const listGuildMembers: AppRouteHandler<ListGuildMembersRoute> = async (
 
   return c.json(
     {
-      guildId: guild.id,
-      guildSlug: guild.slug,
-      guildName: guild.name,
-      ownerId: guild.ownerId,
+      workspaceId: workspace.id,
+      workspaceSlug: workspace.slug,
+      workspaceName: workspace.name,
+      ownerId: workspace.ownerId,
       members: memberRows.map((member) =>
-        toGuildMemberPresence(member, guild.ownerId, onlineUserIds)
+        toWorkspaceMemberPresence(member, workspace.ownerId, onlineUserIds)
       ),
     },
     HttpStatusCodes.OK
   )
 }
 
-export const updateGuildMemberRole: AppRouteHandler<
-  UpdateGuildMemberRoleRoute
+export const updateWorkspaceMemberRole: AppRouteHandler<
+  UpdateWorkspaceMemberRoleRoute
 > = async (c) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const actor = c.var.member
   const { userId } = c.req.valid("param")
   const { role } = c.req.valid("json")
 
-  const actorAuthority = assertGuildPermission(actor, guild, {
-    guildMember: ["role:update"],
+  const actorAuthority = assertWorkspacePermission(actor, workspace, {
+    workspaceMember: ["role:update"],
   })
 
-  const target = await getGuildMemberRow(guild.id, userId)
+  const target = await getWorkspaceMemberRow(workspace.id, userId)
 
   if (!target) {
     return c.json(
-      { success: false, message: "Guild member not found" },
+      { success: false, message: "Workspace member not found" },
       HttpStatusCodes.NOT_FOUND
     )
   }
 
-  assertCanManageGuildMember(actor, target, guild)
+  assertCanManageWorkspaceMember(actor, target, workspace)
 
   if (
     !actorAuthority.isOwner &&
-    getGuildRolePosition(role) <= getGuildAuthorityPosition(actorAuthority)
+    getWorkspaceRolePosition(role) <=
+      getWorkspaceAuthorityPosition(actorAuthority)
   ) {
     return c.json(
       { success: false, message: "You cannot assign that role" },
@@ -172,20 +173,20 @@ export const updateGuildMemberRole: AppRouteHandler<
   }
 
   await db
-    .update(schema.guildMember)
+    .update(schema.workspaceMember)
     .set({ role })
     .where(
       and(
-        eq(schema.guildMember.guildId, guild.id),
-        eq(schema.guildMember.userId, userId)
+        eq(schema.workspaceMember.workspaceId, workspace.id),
+        eq(schema.workspaceMember.userId, userId)
       )
     )
 
-  const updatedMember = await getGuildMemberRow(guild.id, userId)
+  const updatedMember = await getWorkspaceMemberRow(workspace.id, userId)
 
   if (!updatedMember) {
     return c.json(
-      { success: false, message: "Guild member not found" },
+      { success: false, message: "Workspace member not found" },
       HttpStatusCodes.NOT_FOUND
     )
   }
@@ -195,9 +196,9 @@ export const updateGuildMemberRole: AppRouteHandler<
   return c.json(
     {
       success: true as const,
-      member: toGuildMemberPresence(
+      member: toWorkspaceMemberPresence(
         updatedMember,
-        guild.ownerId,
+        workspace.ownerId,
         onlineUserIds
       ),
     },
@@ -205,54 +206,56 @@ export const updateGuildMemberRole: AppRouteHandler<
   )
 }
 
-export const kickGuildMember: AppRouteHandler<KickGuildMemberRoute> = async (
-  c
-) => {
-  const guild = c.var.guild
+export const kickWorkspaceMember: AppRouteHandler<
+  KickWorkspaceMemberRoute
+> = async (c) => {
+  const workspace = c.var.workspace
   const actor = c.var.member
   const { userId } = c.req.valid("param")
 
-  assertGuildPermission(actor, guild, {
-    guildMember: ["kick"],
+  assertWorkspacePermission(actor, workspace, {
+    workspaceMember: ["kick"],
   })
 
-  const target = await getGuildMemberRow(guild.id, userId)
+  const target = await getWorkspaceMemberRow(workspace.id, userId)
 
   if (!target) {
     return c.json(
-      { success: false, message: "Guild member not found" },
+      { success: false, message: "Workspace member not found" },
       HttpStatusCodes.NOT_FOUND
     )
   }
 
-  assertCanManageGuildMember(actor, target, guild)
+  assertCanManageWorkspaceMember(actor, target, workspace)
 
   await db
-    .delete(schema.guildMember)
+    .delete(schema.workspaceMember)
     .where(
       and(
-        eq(schema.guildMember.guildId, guild.id),
-        eq(schema.guildMember.userId, userId)
+        eq(schema.workspaceMember.workspaceId, workspace.id),
+        eq(schema.workspaceMember.userId, userId)
       )
     )
 
   return c.json({ success: true as const }, HttpStatusCodes.OK)
 }
 
-// ── Guild Settings ─────────────────────────────────────
+// ── Workspace Settings ─────────────────────────────────────
 
-export const updateGuild: AppRouteHandler<UpdateGuildRoute> = async (c) => {
-  const guild = c.var.guild
+export const updateWorkspace: AppRouteHandler<UpdateWorkspaceRoute> = async (
+  c
+) => {
+  const workspace = c.var.workspace
   const actor = c.var.member
 
-  assertGuildPermission(actor, guild, {
+  assertWorkspacePermission(actor, workspace, {
     organization: ["update"],
   })
 
   const body = c.req.valid("json")
 
-  const guildIconPrefix = `${env.S3_PUBLIC_URL.replace(/\/$/, "")}/guild-icons/${guild.id}/`
-  if (body.logo && !body.logo.startsWith(guildIconPrefix)) {
+  const workspaceIconPrefix = `${env.S3_PUBLIC_URL.replace(/\/$/, "")}/workspace-icons/${workspace.id}/`
+  if (body.logo && !body.logo.startsWith(workspaceIconPrefix)) {
     throw new HTTPException(HttpStatusCodes.BAD_REQUEST, {
       message: "Invalid logo URL",
     })
@@ -266,11 +269,11 @@ export const updateGuild: AppRouteHandler<UpdateGuildRoute> = async (c) => {
     return c.json(
       {
         success: true as const,
-        guild: {
-          id: guild.id,
-          name: guild.name,
-          slug: guild.slug,
-          logo: guild.logo,
+        workspace: {
+          id: workspace.id,
+          name: workspace.name,
+          slug: workspace.slug,
+          logo: workspace.logo,
         },
       },
       HttpStatusCodes.OK
@@ -278,19 +281,19 @@ export const updateGuild: AppRouteHandler<UpdateGuildRoute> = async (c) => {
   }
 
   const [updated] = await db
-    .update(schema.guild)
+    .update(schema.workspace)
     .set(updates)
-    .where(eq(schema.guild.id, guild.id))
+    .where(eq(schema.workspace.id, workspace.id))
     .returning({
-      id: schema.guild.id,
-      name: schema.guild.name,
-      slug: schema.guild.slug,
-      logo: schema.guild.logo,
+      id: schema.workspace.id,
+      name: schema.workspace.name,
+      slug: schema.workspace.slug,
+      logo: schema.workspace.logo,
     })
 
   if (!updated) {
     return c.json(
-      { success: false, message: "Guild not found" },
+      { success: false, message: "Workspace not found" },
       HttpStatusCodes.NOT_FOUND
     )
   }
@@ -298,7 +301,7 @@ export const updateGuild: AppRouteHandler<UpdateGuildRoute> = async (c) => {
   return c.json(
     {
       success: true as const,
-      guild: {
+      workspace: {
         id: updated.id,
         name: updated.name,
         slug: updated.slug,
@@ -314,18 +317,21 @@ export const updateGuild: AppRouteHandler<UpdateGuildRoute> = async (c) => {
 export const searchMessages: AppRouteHandler<SearchMessagesRoute> = async (
   c
 ) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const { query, channelId, page, perPage } = c.req.valid("query")
   const offset = (page - 1) * perPage
 
-  const guildChannels = await db
+  const workspaceChannels = await db
     .select({
       id: schema.channel.id,
       name: schema.channel.name,
     })
     .from(schema.channel)
     .where(
-      and(eq(schema.channel.guildId, guild.id), eq(schema.channel.type, "text"))
+      and(
+        eq(schema.channel.workspaceId, workspace.id),
+        eq(schema.channel.type, "text")
+      )
     )
 
   const emptyResult = {
@@ -336,14 +342,14 @@ export const searchMessages: AppRouteHandler<SearchMessagesRoute> = async (
     data: [],
   }
 
-  if (guildChannels.length === 0) {
+  if (workspaceChannels.length === 0) {
     return c.json(emptyResult, HttpStatusCodes.OK)
   }
 
-  const channelMap = new Map(guildChannels.map((ch) => [ch.id, ch.name]))
+  const channelMap = new Map(workspaceChannels.map((ch) => [ch.id, ch.name]))
   const searchChannelIds = channelId
-    ? guildChannels.filter((ch) => ch.id === channelId).map((ch) => ch.id)
-    : guildChannels.map((ch) => ch.id)
+    ? workspaceChannels.filter((ch) => ch.id === channelId).map((ch) => ch.id)
+    : workspaceChannels.map((ch) => ch.id)
 
   if (searchChannelIds.length === 0) {
     return c.json(emptyResult, HttpStatusCodes.OK)

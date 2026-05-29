@@ -162,24 +162,27 @@ export async function getUnreadStatesForUser(
     .from(schema.channelMember)
     .where(eq(schema.channelMember.userId, userId))
 
-  // Get guild channel IDs via guild_member -> channels
-  const guildMemberships = await db
-    .select({ guildId: schema.guildMember.guildId })
-    .from(schema.guildMember)
-    .where(eq(schema.guildMember.userId, userId))
+  // Get workspace channel IDs via workspace_member -> channels
+  const workspaceMemberships = await db
+    .select({ workspaceId: schema.workspaceMember.workspaceId })
+    .from(schema.workspaceMember)
+    .where(eq(schema.workspaceMember.userId, userId))
 
-  let guildChannelIds: string[] = []
-  if (guildMemberships.length > 0) {
-    const guildIds = guildMemberships.map((m) => m.guildId)
-    const guildChannels = await db
+  let workspaceChannelIds: string[] = []
+  if (workspaceMemberships.length > 0) {
+    const workspaceIds = workspaceMemberships.map((m) => m.workspaceId)
+    const workspaceChannels = await db
       .select({ id: schema.channel.id })
       .from(schema.channel)
-      .where(inArray(schema.channel.guildId, guildIds))
-    guildChannelIds = guildChannels.map((c) => c.id)
+      .where(inArray(schema.channel.workspaceId, workspaceIds))
+    workspaceChannelIds = workspaceChannels.map((c) => c.id)
   }
 
   const channelIds = [
-    ...new Set([...dmMemberships.map((m) => m.channelId), ...guildChannelIds]),
+    ...new Set([
+      ...dmMemberships.map((m) => m.channelId),
+      ...workspaceChannelIds,
+    ]),
   ]
 
   if (channelIds.length === 0) {

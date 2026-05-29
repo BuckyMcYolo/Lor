@@ -1,15 +1,15 @@
 import { z } from "@hono/zod-openapi"
-import { assignableGuildRoles } from "@repo/auth/permissions"
+import { assignableWorkspaceRoles } from "@repo/auth/permissions"
 import { messageAuthorSchema } from "@/lib/helpers/openapi/message-schemas"
 import {
   paginatedResponseSchema,
   paginationQuerySchema,
 } from "@/lib/helpers/openapi/schemas"
-import { guildSlugParamsSchema } from "@/routes/v1/channels/schema"
+import { workspaceSlugParamsSchema } from "@/routes/v1/channels/schema"
 
-export { guildSlugParamsSchema }
+export { workspaceSlugParamsSchema }
 
-export const guildMemberPresenceSchema = z.object({
+export const workspaceMemberPresenceSchema = z.object({
   userId: z.string().uuid(),
   name: z.string(),
   username: z.string().nullable(),
@@ -20,15 +20,15 @@ export const guildMemberPresenceSchema = z.object({
   status: z.enum(["online", "offline"]),
 })
 
-export const listGuildMembersResponseSchema = z.object({
-  guildId: z.string().uuid(),
-  guildSlug: z.string(),
-  guildName: z.string(),
+export const listWorkspaceMembersResponseSchema = z.object({
+  workspaceId: z.string().uuid(),
+  workspaceSlug: z.string(),
+  workspaceName: z.string(),
   ownerId: z.string().uuid(),
-  members: z.array(guildMemberPresenceSchema),
+  members: z.array(workspaceMemberPresenceSchema),
 })
 
-export const guildMemberParamsSchema = guildSlugParamsSchema.extend({
+export const workspaceMemberParamsSchema = workspaceSlugParamsSchema.extend({
   userId: z
     .string()
     .uuid()
@@ -42,22 +42,22 @@ export const guildMemberParamsSchema = guildSlugParamsSchema.extend({
     }),
 })
 
-export const moderateGuildMemberResponseSchema = z.object({
+export const moderateWorkspaceMemberResponseSchema = z.object({
   success: z.literal(true),
 })
 
-export const updateGuildMemberRoleRequestSchema = z.object({
-  role: z.enum(assignableGuildRoles),
+export const updateWorkspaceMemberRoleRequestSchema = z.object({
+  role: z.enum(assignableWorkspaceRoles),
 })
 
-export const updateGuildMemberRoleResponseSchema = z.object({
+export const updateWorkspaceMemberRoleResponseSchema = z.object({
   success: z.literal(true),
-  member: guildMemberPresenceSchema,
+  member: workspaceMemberPresenceSchema,
 })
 
-// ── Guild Settings ─────────────────────────────────────
+// ── Workspace Settings ─────────────────────────────────────
 
-export const updateGuildRequestSchema = z
+export const updateWorkspaceRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(100).optional(),
     logo: z.string().url().nullable().optional(),
@@ -66,9 +66,9 @@ export const updateGuildRequestSchema = z
     message: "At least one field (name or logo) must be provided",
   })
 
-export const updateGuildResponseSchema = z.object({
+export const updateWorkspaceResponseSchema = z.object({
   success: z.literal(true),
-  guild: z.object({
+  workspace: z.object({
     id: z.string().uuid(),
     name: z.string(),
     slug: z.string(),

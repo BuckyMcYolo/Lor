@@ -25,7 +25,7 @@ function normalizeSlugInput(value: string) {
     .replace(/[^a-z0-9-]/g, "")
 }
 
-export function CreateGuildDialog({
+export function CreateWorkspaceDialog({
   open,
   onOpenChange,
 }: {
@@ -61,9 +61,11 @@ export function CreateGuildDialog({
     }
   }, [name, slugEdited])
 
-  const getFirstChannelId = async (guildSlug: string) => {
-    const channelsRes = await apiClient.v1.guilds[":guildSlug"].channels.$get({
-      param: { guildSlug },
+  const getFirstChannelId = async (workspaceSlug: string) => {
+    const channelsRes = await apiClient.v1.workspaces[
+      ":workspaceSlug"
+    ].channels.$get({
+      param: { workspaceSlug },
     })
     if (!channelsRes.ok) return null
     const channels = await channelsRes.json()
@@ -88,33 +90,35 @@ export function CreateGuildDialog({
       })
 
       if (res.error) {
-        const message = (res.error.message ?? "Failed to create guild").replace(
-          /organization/gi,
-          "Guild"
-        )
+        const message = (
+          res.error.message ?? "Failed to create workspace"
+        ).replace(/organization/gi, "Workspace")
         setError(message)
         return
       }
 
-      const createdGuildSlug = res.data?.slug ?? normalizedSlug
-      await queryClient.invalidateQueries({ queryKey: ["guilds"] })
+      const createdWorkspaceSlug = res.data?.slug ?? normalizedSlug
+      await queryClient.invalidateQueries({ queryKey: ["workspaces"] })
 
       let firstChannelId: string | null = null
       try {
-        firstChannelId = await getFirstChannelId(createdGuildSlug)
+        firstChannelId = await getFirstChannelId(createdWorkspaceSlug)
       } catch {}
 
       onOpenChange(false)
 
       if (firstChannelId) {
         navigate({
-          to: "/$guildSlug/$channelId",
-          params: { guildSlug: createdGuildSlug, channelId: firstChannelId },
+          to: "/$workspaceSlug/$channelId",
+          params: {
+            workspaceSlug: createdWorkspaceSlug,
+            channelId: firstChannelId,
+          },
         })
       } else {
         navigate({
-          to: "/$guildSlug",
-          params: { guildSlug: createdGuildSlug },
+          to: "/$workspaceSlug",
+          params: { workspaceSlug: createdWorkspaceSlug },
         })
       }
     } catch {
@@ -157,9 +161,9 @@ export function CreateGuildDialog({
         {step === "choose" && (
           <>
             <DialogHeader>
-              <DialogTitle>Add a Guild</DialogTitle>
+              <DialogTitle>Add a Workspace</DialogTitle>
               <DialogDescription>
-                Create a new guild or join an existing one.
+                Create a new workspace or join an existing one.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 pt-2">
@@ -172,7 +176,7 @@ export function CreateGuildDialog({
                   <Plus className="size-5" />
                 </div>
                 <div>
-                  <p className="font-medium">Create a Guild</p>
+                  <p className="font-medium">Create a Workspace</p>
                   <p className="text-sm text-muted-foreground">
                     Start your own community from scratch
                   </p>
@@ -187,9 +191,9 @@ export function CreateGuildDialog({
                   <Users className="size-5" />
                 </div>
                 <div>
-                  <p className="font-medium">Join an Existing Guild</p>
+                  <p className="font-medium">Join an Existing Workspace</p>
                   <p className="text-sm text-muted-foreground">
-                    Enter an invite link to join a guild
+                    Enter an invite link to join a workspace
                   </p>
                 </div>
               </button>
@@ -211,17 +215,17 @@ export function CreateGuildDialog({
               Back
             </button>
             <DialogHeader>
-              <DialogTitle>Create a Guild</DialogTitle>
+              <DialogTitle>Create a Workspace</DialogTitle>
               <DialogDescription>
                 Give your community a name and a unique URL.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="guild-name">Guild Name</Label>
+                <Label htmlFor="workspace-name">Workspace Name</Label>
                 <Input
-                  id="guild-name"
-                  placeholder="My Awesome Guild"
+                  id="workspace-name"
+                  placeholder="My Awesome Workspace"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={loading}
@@ -229,15 +233,15 @@ export function CreateGuildDialog({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="guild-slug">Slug</Label>
+                <Label htmlFor="workspace-slug">Slug</Label>
                 <div className="flex items-center rounded-md border border-input bg-muted px-3 text-sm focus-within:ring-1 focus-within:ring-ring">
                   <span className="shrink-0 text-muted-foreground">
                     lor.chat/
                   </span>
                   <Input
-                    id="guild-slug"
+                    id="workspace-slug"
                     className="min-w-0 flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
-                    placeholder="my-awesome-guild"
+                    placeholder="my-awesome-workspace"
                     value={slug}
                     onChange={(e) => {
                       setSlugEdited(true)
@@ -257,7 +261,7 @@ export function CreateGuildDialog({
                 disabled={loading || !name.trim() || !sluggify(slug)}
               >
                 {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Create Guild
+                Create Workspace
               </Button>
             </form>
           </>
@@ -277,9 +281,9 @@ export function CreateGuildDialog({
               Back
             </button>
             <DialogHeader>
-              <DialogTitle>Join a Guild</DialogTitle>
+              <DialogTitle>Join a Workspace</DialogTitle>
               <DialogDescription>
-                Paste an invite link or code to join an existing guild.
+                Paste an invite link or code to join an existing workspace.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleJoin} className="space-y-4">
@@ -301,7 +305,7 @@ export function CreateGuildDialog({
                 disabled={loading || !inviteLink.trim()}
               >
                 {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Join Guild
+                Join Workspace
               </Button>
             </form>
           </>

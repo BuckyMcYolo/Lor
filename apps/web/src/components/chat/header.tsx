@@ -34,7 +34,7 @@ export function ChatHeader({
     useRightSidebar()
   const isMobile = useIsMobile()
   const { setOpen: openMobileSidebar } = useMobileSidebar()
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
@@ -76,7 +76,7 @@ export function ChatHeader({
       )}
       <div className="ml-auto flex items-center gap-1">
         <HeaderSearch
-          mode={context.type === "channel" ? "guild" : "dm"}
+          mode={context.type === "channel" ? "workspace" : "dm"}
           channelId={channelId}
         />
         {context.type === "channel" && onTogglePinnedMessages && (
@@ -104,8 +104,8 @@ export function ChatHeader({
                       clearView()
                     } else {
                       setView({
-                        type: "guild-members",
-                        guildSlug: guildSlug ?? "",
+                        type: "workspace-members",
+                        workspaceSlug: workspaceSlug ?? "",
                         channelId,
                       })
                     }

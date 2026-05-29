@@ -30,36 +30,36 @@ export function ManageInvitesDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
   const queryClient = useQueryClient()
   const [revokeCode, setRevokeCode] = useState<string | null>(null)
 
   const { data, isPending, isError } = useQuery({
-    queryKey: ["guild-invites", guildSlug],
+    queryKey: ["workspace-invites", workspaceSlug],
     queryFn: async () => {
-      if (!guildSlug) throw new Error("Missing guild slug")
-      const res = await apiClient.v1.guilds[":guildSlug"].invites.$get({
-        param: { guildSlug },
+      if (!workspaceSlug) throw new Error("Missing workspace slug")
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].invites.$get({
+        param: { workspaceSlug },
       })
       if (!res.ok) throw new Error("Failed to fetch invites")
       return res.json()
     },
-    enabled: open && !!guildSlug,
+    enabled: open && !!workspaceSlug,
   })
 
   const revokeMutation = useMutation({
     mutationFn: async (code: string) => {
-      if (!guildSlug) throw new Error("Missing guild slug")
-      const res = await apiClient.v1.guilds[":guildSlug"].invites[
+      if (!workspaceSlug) throw new Error("Missing workspace slug")
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].invites[
         ":code"
       ].$delete({
-        param: { guildSlug, code },
+        param: { workspaceSlug, code },
       })
       if (!res.ok) throw new Error("Failed to revoke invite")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["guild-invites", guildSlug],
+        queryKey: ["workspace-invites", workspaceSlug],
       })
       toast.success("Invite revoked")
       setRevokeCode(null)
@@ -100,7 +100,7 @@ export function ManageInvitesDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Guild Invites</DialogTitle>
+            <DialogTitle>Workspace Invites</DialogTitle>
             <DialogDescription>
               View and manage active invite links.
             </DialogDescription>

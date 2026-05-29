@@ -50,7 +50,7 @@ export function CreateInviteDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
   const [expiresIn, setExpiresIn] = useState("1440")
   const [maxUses, setMaxUses] = useState("none")
   const [inviteCode, setInviteCode] = useState<string | null>(null)
@@ -58,15 +58,17 @@ export function CreateInviteDialog({
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!guildSlug) throw new Error("Missing guild slug")
+      if (!workspaceSlug) throw new Error("Missing workspace slug")
 
-      const res = await apiClient.v1.guilds[":guildSlug"].invites.$post({
-        param: { guildSlug },
-        json: {
-          expiresInMinutes: expiresIn === "never" ? null : Number(expiresIn),
-          maxUses: maxUses === "none" ? null : Number(maxUses),
-        },
-      })
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].invites.$post(
+        {
+          param: { workspaceSlug },
+          json: {
+            expiresInMinutes: expiresIn === "never" ? null : Number(expiresIn),
+            maxUses: maxUses === "none" ? null : Number(maxUses),
+          },
+        }
+      )
 
       if (!res.ok) {
         const body = await res.text()
@@ -125,7 +127,7 @@ export function CreateInviteDialog({
         <DialogHeader>
           <DialogTitle>Create Invite Link</DialogTitle>
           <DialogDescription>
-            Generate a shareable link to invite people to this guild.
+            Generate a shareable link to invite people to this workspace.
           </DialogDescription>
         </DialogHeader>
 

@@ -17,7 +17,7 @@ export const session = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    activeGuildId: uuid("active_guild_id"),
+    activeWorkspaceId: uuid("active_workspace_id"),
     impersonatedBy: text("impersonated_by"),
   },
   (table) => [index("session_userId_idx").on(table.userId)]

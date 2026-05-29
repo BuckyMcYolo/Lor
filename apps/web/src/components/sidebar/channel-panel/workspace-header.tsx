@@ -10,19 +10,19 @@ import { useQuery } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
 import { ChevronDown, Link, Settings, UserPlus } from "lucide-react"
 import { useMemo, useState } from "react"
-import { GuildSettingsDialog } from "@/components/guild/guild-settings-dialog"
 import { CreateInviteDialog } from "@/components/invite/create-invite-dialog"
 import { ManageInvitesDialog } from "@/components/invite/manage-invites-dialog"
-import { canKickGuildMembers, isAdminOrOwner } from "@/lib/permissions"
+import { WorkspaceSettingsDialog } from "@/components/workspace/workspace-settings-dialog"
+import { canKickWorkspaceMembers, isAdminOrOwner } from "@/lib/permissions"
 
-export function GuildHeader() {
-  const { guildSlug } = useParams({ strict: false })
+export function WorkspaceHeader() {
+  const { workspaceSlug } = useParams({ strict: false })
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [manageInvitesOpen, setManageInvitesOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const { data: guilds, isPending } = useQuery({
-    queryKey: ["guilds"],
+  const { data: workspaces, isPending } = useQuery({
+    queryKey: ["workspaces"],
     queryFn: async () => {
       const res = await authClient.organization.list()
       if (res.error) throw res.error
@@ -31,7 +31,7 @@ export function GuildHeader() {
   })
 
   const { data: activeMember } = useQuery({
-    queryKey: ["active-guild-member", guildSlug],
+    queryKey: ["active-workspace-member", workspaceSlug],
     queryFn: async (): Promise<{ userId: string; role: string } | null> => {
       const res = await authClient.organization.getActiveMember()
       if (res.error) {
@@ -45,34 +45,36 @@ export function GuildHeader() {
           }
         : null
     },
-    enabled: !!guildSlug,
+    enabled: !!workspaceSlug,
   })
 
-  const activeGuild = useMemo(
-    () => guilds?.find((g) => g.slug === guildSlug) ?? null,
-    [guilds, guildSlug]
+  const activeWorkspace = useMemo(
+    () => workspaces?.find((g) => g.slug === workspaceSlug) ?? null,
+    [workspaces, workspaceSlug]
   )
 
   const permissionCtx =
-    activeMember && activeGuild?.ownerId
+    activeMember && activeWorkspace?.ownerId
       ? {
           actor: activeMember,
-          guild: { ownerId: activeGuild.ownerId },
+          workspace: { ownerId: activeWorkspace.ownerId },
         }
       : null
 
   const canManageInvites = permissionCtx
-    ? canKickGuildMembers(permissionCtx.actor, permissionCtx.guild)
+    ? canKickWorkspaceMembers(permissionCtx.actor, permissionCtx.workspace)
     : false
-  const canEditGuild = permissionCtx
-    ? isAdminOrOwner(permissionCtx.actor, permissionCtx.guild)
+  const canEditWorkspace = permissionCtx
+    ? isAdminOrOwner(permissionCtx.actor, permissionCtx.workspace)
     : false
 
-  const guildName = activeGuild?.name
+  const workspaceName = activeWorkspace?.name
 
-  const title = isPending ? "Loading..." : (guildName ?? "Guild not found")
+  const title = isPending
+    ? "Loading..."
+    : (workspaceName ?? "Workspace not found")
 
-  const showDropdown = canManageInvites || canEditGuild
+  const showDropdown = canManageInvites || canEditWorkspace
 
   if (!showDropdown) {
     return (
@@ -111,12 +113,12 @@ export function GuildHeader() {
               </DropdownMenuItem>
             </>
           )}
-          {canEditGuild && (
+          {canEditWorkspace && (
             <>
               {canManageInvites && <DropdownMenuSeparator />}
               <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                 <Settings className="mr-2 size-4" />
-                Guild Settings
+                Workspace Settings
               </DropdownMenuItem>
             </>
           )}
@@ -131,11 +133,11 @@ export function GuildHeader() {
         open={manageInvitesOpen}
         onOpenChange={setManageInvitesOpen}
       />
-      {canEditGuild && activeGuild && (
-        <GuildSettingsDialog
+      {canEditWorkspace && activeWorkspace && (
+        <WorkspaceSettingsDialog
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
-          guild={activeGuild}
+          workspace={activeWorkspace}
         />
       )}
     </>

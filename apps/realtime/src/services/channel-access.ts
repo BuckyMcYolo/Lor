@@ -4,7 +4,7 @@ export type AccessibleChannel = {
   id: string
   name: string | null
   type: (typeof schema.channel.$inferSelect)["type"]
-  guildId: string | null
+  workspaceId: string | null
   memberRole: string | null
   memberIsOwner: boolean
 }
@@ -18,7 +18,7 @@ export async function assertUserCanAccessChannel(
       id: schema.channel.id,
       name: schema.channel.name,
       type: schema.channel.type,
-      guildId: schema.channel.guildId,
+      workspaceId: schema.channel.workspaceId,
     })
     .from(schema.channel)
     .where(eq(schema.channel.id, channelId))
@@ -33,18 +33,21 @@ export async function assertUserCanAccessChannel(
     throw new Error("Cannot join a category channel")
   }
 
-  if (channelRecord.guildId) {
+  if (channelRecord.workspaceId) {
     const memberRecord = await db
       .select({
-        role: schema.guildMember.role,
-        ownerId: schema.guild.ownerId,
+        role: schema.workspaceMember.role,
+        ownerId: schema.workspace.ownerId,
       })
-      .from(schema.guildMember)
-      .innerJoin(schema.guild, eq(schema.guild.id, schema.guildMember.guildId))
+      .from(schema.workspaceMember)
+      .innerJoin(
+        schema.workspace,
+        eq(schema.workspace.id, schema.workspaceMember.workspaceId)
+      )
       .where(
         and(
-          eq(schema.guildMember.guildId, channelRecord.guildId),
-          eq(schema.guildMember.userId, userId)
+          eq(schema.workspaceMember.workspaceId, channelRecord.workspaceId),
+          eq(schema.workspaceMember.userId, userId)
         )
       )
       .limit(1)

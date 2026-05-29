@@ -27,8 +27,12 @@ type SearchResponse = {
   data: SearchResult[]
 }
 
-export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
-  const { guildSlug } = useParams({ strict: false })
+export function SearchBar({
+  mode = "workspace",
+}: {
+  mode?: "workspace" | "dm"
+}) {
+  const { workspaceSlug } = useParams({ strict: false })
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -73,8 +77,8 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
 
   const { data, isPending } = useQuery({
     queryKey: [
-      mode === "guild" ? "guild-search" : "dm-search",
-      guildSlug,
+      mode === "workspace" ? "workspace-search" : "dm-search",
+      workspaceSlug,
       debouncedQuery,
     ],
     queryFn: async (): Promise<SearchResponse> => {
@@ -85,14 +89,14 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
         if (!res.ok) throw new Error("Search failed")
         return res.json()
       }
-      const res = await apiClient.v1.guilds[":guildSlug"].search.$get({
-        param: { guildSlug: guildSlug as string },
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].search.$get({
+        param: { workspaceSlug: workspaceSlug as string },
         query: { query: debouncedQuery },
       })
       if (!res.ok) throw new Error("Search failed")
       return res.json()
     },
-    enabled: debouncedQuery.length > 0 && (mode === "dm" || !!guildSlug),
+    enabled: debouncedQuery.length > 0 && (mode === "dm" || !!workspaceSlug),
   })
 
   const handleResultClick = (channelId: string, messageId: string) => {
@@ -111,8 +115,8 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
       })
     } else {
       void navigate({
-        to: "/$guildSlug/$channelId",
-        params: { guildSlug: guildSlug as string, channelId },
+        to: "/$workspaceSlug/$channelId",
+        params: { workspaceSlug: workspaceSlug as string, channelId },
         search: { msgId: messageId },
       })
     }
@@ -186,7 +190,7 @@ export function SearchBar({ mode = "guild" }: { mode?: "guild" | "dm" }) {
                   {msg.author.displayUsername ?? msg.author.name}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  in {mode === "guild" ? "#" : ""}
+                  in {mode === "workspace" ? "#" : ""}
                   {msg.channelName}
                 </span>
                 <span className="ml-auto text-[10px] text-muted-foreground">

@@ -7,14 +7,13 @@ import {
   notFoundSchema,
   unauthorizedSchema,
 } from "@/lib/helpers/openapi/schemas"
-import { guildAuthMiddleware } from "@/middleware/guild-auth"
+import { workspaceAuthMiddleware } from "@/middleware/workspace-auth"
 import {
   channelParamsSchema,
   channelResponseSchema,
   createChannelRequestSchema,
   createChannelResponseSchema,
   deleteChannelResponseSchema,
-  guildSlugParamsSchema,
   listChannelsResponseSchema,
   listMessagesQuerySchema,
   listMessagesResponseSchema,
@@ -25,17 +24,18 @@ import {
   togglePinResponseSchema,
   updateChannelRequestSchema,
   updateChannelResponseSchema,
+  workspaceSlugParamsSchema,
 } from "./schema"
 
 export const listChannels = createRoute({
-  path: "/guilds/{guildSlug}/channels",
+  path: "/workspaces/{workspaceSlug}/channels",
   method: "get",
   summary: "List channels",
-  description: "Lists all channels in the specified guild.",
+  description: "Lists all channels in the specified workspace.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
-    params: guildSlugParamsSchema,
+    params: workspaceSlugParamsSchema,
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent({
@@ -49,14 +49,14 @@ export const listChannels = createRoute({
 })
 
 export const createChannel = createRoute({
-  path: "/guilds/{guildSlug}/channels",
+  path: "/workspaces/{workspaceSlug}/channels",
   method: "post",
   summary: "Create a channel",
-  description: "Creates a new channel in the specified guild.",
+  description: "Creates a new channel in the specified workspace.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
-    params: guildSlugParamsSchema,
+    params: workspaceSlugParamsSchema,
     body: jsonContent({
       schema: createChannelRequestSchema,
       description: "Channel details",
@@ -74,15 +74,15 @@ export const createChannel = createRoute({
 })
 
 export const reorderChannels = createRoute({
-  path: "/guilds/{guildSlug}/channels/reorder",
+  path: "/workspaces/{workspaceSlug}/channels/reorder",
   method: "patch",
   summary: "Reorder channels",
   description:
-    "Batch-update channel positions and parent categories within the specified guild.",
+    "Batch-update channel positions and parent categories within the specified workspace.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
-    params: guildSlugParamsSchema,
+    params: workspaceSlugParamsSchema,
     body: jsonContent({
       schema: reorderChannelsRequestSchema,
       description: "Channel positions to update",
@@ -100,12 +100,12 @@ export const reorderChannels = createRoute({
 })
 
 export const getChannel = createRoute({
-  path: "/guilds/{guildSlug}/channels/{channelId}",
+  path: "/workspaces/{workspaceSlug}/channels/{channelId}",
   method: "get",
   summary: "Get a channel",
-  description: "Gets a single channel by ID within the specified guild.",
+  description: "Gets a single channel by ID within the specified workspace.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
     params: channelParamsSchema,
   },
@@ -122,12 +122,12 @@ export const getChannel = createRoute({
 })
 
 export const listChannelMessages = createRoute({
-  path: "/guilds/{guildSlug}/channels/{channelId}/messages",
+  path: "/workspaces/{workspaceSlug}/channels/{channelId}/messages",
   method: "get",
   summary: "List channel messages",
   description: "Returns paginated messages for a channel.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
     params: channelParamsSchema,
     query: listMessagesQuerySchema,
@@ -145,13 +145,13 @@ export const listChannelMessages = createRoute({
 })
 
 export const updateChannel = createRoute({
-  path: "/guilds/{guildSlug}/channels/{channelId}",
+  path: "/workspaces/{workspaceSlug}/channels/{channelId}",
   method: "patch",
   summary: "Update a channel",
   description:
     "Updates a channel's name, topic, or other properties. Requires channel:update permission.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
     params: channelParamsSchema,
     body: jsonContent({
@@ -172,13 +172,13 @@ export const updateChannel = createRoute({
 })
 
 export const deleteChannel = createRoute({
-  path: "/guilds/{guildSlug}/channels/{channelId}",
+  path: "/workspaces/{workspaceSlug}/channels/{channelId}",
   method: "delete",
   summary: "Delete a channel",
   description:
     "Permanently deletes a channel and all its messages. Requires channel:delete permission.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
     params: channelParamsSchema,
   },
@@ -195,13 +195,13 @@ export const deleteChannel = createRoute({
 })
 
 export const toggleMessagePin = createRoute({
-  path: "/guilds/{guildSlug}/channels/{channelId}/messages/{messageId}/pin",
+  path: "/workspaces/{workspaceSlug}/channels/{channelId}/messages/{messageId}/pin",
   method: "patch",
   summary: "Toggle message pin",
   description:
     "Pins or unpins a message in the channel. Requires message:pin permission.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
     params: messageIdParamsSchema,
   },
@@ -218,12 +218,12 @@ export const toggleMessagePin = createRoute({
 })
 
 export const listPinnedMessages = createRoute({
-  path: "/guilds/{guildSlug}/channels/{channelId}/pins",
+  path: "/workspaces/{workspaceSlug}/channels/{channelId}/pins",
   method: "get",
   summary: "List pinned messages",
   description: "Returns all pinned messages in a channel.",
   tags: ["Channels"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
     params: channelParamsSchema,
   },

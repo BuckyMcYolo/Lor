@@ -40,7 +40,7 @@ function InvitePage() {
       })
       if (!res.ok) {
         const body = await res.text()
-        let message = "Failed to join guild"
+        let message = "Failed to join workspace"
         try {
           const parsed = JSON.parse(body) as { message?: string }
           if (typeof parsed.message === "string") message = parsed.message
@@ -53,15 +53,20 @@ function InvitePage() {
     },
     onSuccess: (data) => {
       if (socket?.connected) {
-        socket.emit("guild:member:joined", { guildId: data.guild.id })
+        socket.emit("workspace:member:joined", {
+          workspaceId: data.workspace.id,
+        })
       }
-      queryClient.invalidateQueries({ queryKey: ["guilds"] })
-      toast.success(`Joined ${data.guild.name}!`)
-      navigate({ to: "/$guildSlug", params: { guildSlug: data.guild.slug } })
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] })
+      toast.success(`Joined ${data.workspace.name}!`)
+      navigate({
+        to: "/$workspaceSlug",
+        params: { workspaceSlug: data.workspace.slug },
+      })
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error ? error.message : "Failed to join guild"
+        error instanceof Error ? error.message : "Failed to join workspace"
       )
     },
   })
@@ -137,24 +142,24 @@ function InvitePage() {
           </div>
         ) : invite ? (
           <div className="flex flex-col items-center gap-4 text-center">
-            {invite.guild.logo ? (
+            {invite.workspace.logo ? (
               <img
-                src={invite.guild.logo}
-                alt={invite.guild.name}
+                src={invite.workspace.logo}
+                alt={invite.workspace.name}
                 className="size-16 rounded-full object-cover"
               />
             ) : (
               <div className="flex size-16 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">
-                {invite.guild.name.charAt(0).toUpperCase()}
+                {invite.workspace.name.charAt(0).toUpperCase()}
               </div>
             )}
 
             <div>
-              <h2 className="text-lg font-semibold">{invite.guild.name}</h2>
+              <h2 className="text-lg font-semibold">{invite.workspace.name}</h2>
               <p className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
                 <Users className="size-3.5" />
-                {invite.guild.memberCount}{" "}
-                {invite.guild.memberCount === 1 ? "member" : "members"}
+                {invite.workspace.memberCount}{" "}
+                {invite.workspace.memberCount === 1 ? "member" : "members"}
               </p>
             </div>
 
@@ -170,12 +175,12 @@ function InvitePage() {
                 className="w-full"
                 onClick={() =>
                   navigate({
-                    to: "/$guildSlug",
-                    params: { guildSlug: invite.guild.slug },
+                    to: "/$workspaceSlug",
+                    params: { workspaceSlug: invite.workspace.slug },
                   })
                 }
               >
-                Already a Member — Go to Guild
+                Already a Member — Go to Workspace
               </Button>
             ) : (
               <Button

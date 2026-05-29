@@ -13,14 +13,14 @@ interface UseMessagePinningOptions {
   socket: AppSocket | null
   queryClient: QueryClient
   channelId: string
-  guildSlug: string
+  workspaceSlug: string
 }
 
 export function useMessagePinning({
   socket,
   queryClient,
   channelId,
-  guildSlug,
+  workspaceSlug,
 }: UseMessagePinningOptions) {
   const updatePinInCache = useCallback(
     (messageId: string, pinned: boolean) => {
@@ -59,10 +59,10 @@ export function useMessagePinning({
       updatePinInCache(messageId, !currentlyPinned)
 
       try {
-        const res = await apiClient.v1.guilds[":guildSlug"].channels[
+        const res = await apiClient.v1.workspaces[":workspaceSlug"].channels[
           ":channelId"
         ].messages[":messageId"].pin.$patch({
-          param: { guildSlug, channelId, messageId },
+          param: { workspaceSlug, channelId, messageId },
         })
 
         if (!res.ok) {
@@ -72,7 +72,7 @@ export function useMessagePinning({
         updatePinInCache(messageId, currentlyPinned)
       }
     },
-    [guildSlug, channelId, updatePinInCache]
+    [workspaceSlug, channelId, updatePinInCache]
   )
 
   return { handleTogglePin }

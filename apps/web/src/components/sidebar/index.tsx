@@ -13,21 +13,21 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { ChannelPanel } from "./channel-panel/channel-panel"
 import { DMPanel } from "./dm-panel/dm-panel"
-import { GuildBar } from "./guild-bar/guild-bar"
 import {
   RightSidebarProvider,
   useRightSidebar,
 } from "./right-panel/right-sidebar-context"
 import { RightSidebarPanel } from "./right-panel/right-sidebar-panel"
+import { WorkspaceBar } from "./workspace-bar/workspace-bar"
 
 function LeftSidebarContent() {
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
 
   return (
     <div className="flex h-full w-full">
-      <GuildBar />
+      <WorkspaceBar />
       <div className="min-w-0 flex-1">
-        {guildSlug ? <ChannelPanel /> : <DMPanel />}
+        {workspaceSlug ? <ChannelPanel /> : <DMPanel />}
       </div>
     </div>
   )
@@ -50,7 +50,7 @@ function MobileSidebar() {
 }
 
 function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
   const { view, isCollapsed, panelWidth, setPanelWidth, isHydrated } =
     useRightSidebar()
   const [isResizing, setIsResizing] = useState(false)
@@ -92,11 +92,11 @@ function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
     [panelWidth, setPanelWidth]
   )
 
-  const showRightPanel = !!view && !!guildSlug
+  const showRightPanel = !!view && !!workspaceSlug
 
   return (
     <div className="flex h-full w-full">
-      <GuildBar />
+      <WorkspaceBar />
       <ResizablePanelGroup
         orientation="horizontal"
         defaultLayout={defaultLayout}
@@ -108,7 +108,7 @@ function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
           maxSize="420px"
           className="overflow-hidden"
         >
-          {guildSlug ? <ChannelPanel /> : <DMPanel />}
+          {workspaceSlug ? <ChannelPanel /> : <DMPanel />}
         </ResizablePanel>
         <ResizableHandle className="bg-border hover:!bg-primary data-[resize-handle-active]:!bg-primary" />
         <ResizablePanel>
@@ -154,12 +154,12 @@ function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
 
 function MobileRightPanel() {
   const { view, clearView } = useRightSidebar()
-  const { guildSlug } = useParams({ strict: false })
-  const open = !!view && !!guildSlug
+  const { workspaceSlug } = useParams({ strict: false })
+  const open = !!view && !!workspaceSlug
 
   useEffect(() => {
-    if (!guildSlug && view) clearView()
-  }, [guildSlug, view, clearView])
+    if (!workspaceSlug && view) clearView()
+  }, [workspaceSlug, view, clearView])
 
   return (
     <Sheet

@@ -1,30 +1,30 @@
-export type GuildMembersSidebarView = {
-  type: "guild-members"
-  guildSlug: string
+export type WorkspaceMembersSidebarView = {
+  type: "workspace-members"
+  workspaceSlug: string
   channelId: string
 }
 
 export type ThreadSidebarView = {
   type: "thread"
-  guildSlug: string
+  workspaceSlug: string
   channelId: string
   threadId: string
 }
 
 export type AttachmentsSidebarView = {
   type: "attachments"
-  guildSlug: string
+  workspaceSlug: string
   channelId: string
 }
 
 export type PinnedMessagesSidebarView = {
   type: "pinned-messages"
-  guildSlug: string
+  workspaceSlug: string
   channelId: string
 }
 
 export type RightSidebarView =
-  | GuildMembersSidebarView
+  | WorkspaceMembersSidebarView
   | ThreadSidebarView
   | AttachmentsSidebarView
   | PinnedMessagesSidebarView

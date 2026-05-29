@@ -12,14 +12,14 @@ import {
   channelRoomPayloadSchema,
   deleteMessagePayloadSchema,
   editMessagePayloadSchema,
-  guildMemberJoinedPayloadSchema,
-  guildRoom,
   markChannelReadPayloadSchema,
   presenceSubscribePayloadSchema,
   sendMessagePayloadSchema,
   toggleMessageReactionPayloadSchema,
   typingStartPayloadSchema,
   userRoom,
+  workspaceMemberJoinedPayloadSchema,
+  workspaceRoom,
 } from "@repo/realtime-types"
 import type { LinkUnfurlJobData } from "@repo/realtime-types/queues"
 import { LINK_UNFURL_QUEUE } from "@repo/realtime-types/queues"
@@ -46,14 +46,14 @@ import {
 } from "@/services/presence"
 import {
   enforceDmMessageRateLimit,
-  enforceGuildMessageRateLimit,
+  enforceWorkspaceMessageRateLimit,
 } from "@/services/rate-limit"
 import { getUnreadStatesForUser, markChannelRead } from "@/services/read-states"
 
 type SocketData = {
   user: Session["user"]
   session: Session["session"]
-  guildIds?: string[]
+  workspaceIds?: string[]
   initialized?: boolean
   initPromise?: Promise<boolean>
   isAlive?: boolean
@@ -198,19 +198,21 @@ async function initializeConnection(socket: RealtimeSocket) {
     const initSocketId = socket.id
     const userPresenceRoom = userRoom(socket.data.user.id)
 
-    const guildMembershipRows = await db
+    const workspaceMembershipRows = await db
       .select({
-        guildId: schema.guildMember.guildId,
+        workspaceId: schema.workspaceMember.workspaceId,
       })
-      .from(schema.guildMember)
-      .where(eq(schema.guildMember.userId, socket.data.user.id))
+      .from(schema.workspaceMember)
+      .where(eq(schema.workspaceMember.userId, socket.data.user.id))
 
-    const guildIds = guildMembershipRows.map((row) => row.guildId)
-    socket.data.guildIds = guildIds
+    const workspaceIds = workspaceMembershipRows.map((row) => row.workspaceId)
+    socket.data.workspaceIds = workspaceIds
 
-    const guildPresenceRooms = guildIds.map((guildId) => guildRoom(guildId))
-    if (guildPresenceRooms.length > 0) {
-      await socket.join(guildPresenceRooms)
+    const workspacePresenceRooms = workspaceIds.map((workspaceId) =>
+      workspaceRoom(workspaceId)
+    )
+    if (workspacePresenceRooms.length > 0) {
+      await socket.join(workspacePresenceRooms)
     }
 
     const { becameOnline } = await markUserConnected(
@@ -236,9 +238,9 @@ async function initializeConnection(socket: RealtimeSocket) {
     }
 
     if (becameOnline && isCurrentSocketAlive) {
-      for (const guildId of guildIds) {
-        io.to(guildRoom(guildId)).emit("presence:user:update", {
-          guildId,
+      for (const workspaceId of workspaceIds) {
+        io.to(workspaceRoom(workspaceId)).emit("presence:user:update", {
+          workspaceId,
           userId: socket.data.user.id,
           status: "online",
         })
@@ -264,7 +266,7 @@ async function initializeConnection(socket: RealtimeSocket) {
       userId: socket.data.user.id,
       rooms: {
         user: userPresenceRoom,
-        guilds: guildPresenceRooms,
+        workspaces: workspacePresenceRooms,
       },
     })
 
@@ -313,21 +315,21 @@ io.on("connection", (socket) => {
       }
 
       const parsed = presenceSubscribePayloadSchema.parse(payload)
-      const guildIds = socket.data.guildIds ?? []
+      const workspaceIds = socket.data.workspaceIds ?? []
 
-      if (!guildIds.includes(parsed.guildId)) {
+      if (!workspaceIds.includes(parsed.workspaceId)) {
         ack?.({ ok: false, error: "Forbidden" })
         return
       }
 
-      const guildMemberRows = await db
+      const workspaceMemberRows = await db
         .select({
-          userId: schema.guildMember.userId,
+          userId: schema.workspaceMember.userId,
         })
-        .from(schema.guildMember)
-        .where(eq(schema.guildMember.guildId, parsed.guildId))
+        .from(schema.workspaceMember)
+        .where(eq(schema.workspaceMember.workspaceId, parsed.workspaceId))
 
-      const userIds = [...new Set(guildMemberRows.map((row) => row.userId))]
+      const userIds = [...new Set(workspaceMemberRows.map((row) => row.userId))]
       const onlineUserIds = await listOnlineUserIds(
         redisPresenceClient,
         userIds
@@ -336,7 +338,7 @@ io.on("connection", (socket) => {
       ack?.({
         ok: true,
         snapshot: {
-          guildId: parsed.guildId,
+          workspaceId: parsed.workspaceId,
           onlineUserIds,
         },
       })
@@ -374,9 +376,9 @@ io.on("connection", (socket) => {
         parsed.channelId
       )
 
-      if (accessibleChannel.guildId && accessibleChannel.memberRole) {
-        await enforceGuildMessageRateLimit(redisPresenceClient, {
-          guildId: accessibleChannel.guildId,
+      if (accessibleChannel.workspaceId && accessibleChannel.memberRole) {
+        await enforceWorkspaceMessageRateLimit(redisPresenceClient, {
+          workspaceId: accessibleChannel.workspaceId,
           userId: socket.data.user.id,
           role: accessibleChannel.memberRole,
         })
@@ -546,18 +548,18 @@ io.on("connection", (socket) => {
     }
   })
 
-  socket.on("guild:member:joined", async (payload, ack) => {
+  socket.on("workspace:member:joined", async (payload, ack) => {
     try {
-      const parsed = guildMemberJoinedPayloadSchema.parse(payload)
+      const parsed = workspaceMemberJoinedPayloadSchema.parse(payload)
 
-      // Verify the user is actually a member of this guild
+      // Verify the user is actually a member of this workspace
       const membership = await db
-        .select({ guildId: schema.guildMember.guildId })
-        .from(schema.guildMember)
+        .select({ workspaceId: schema.workspaceMember.workspaceId })
+        .from(schema.workspaceMember)
         .where(
           and(
-            eq(schema.guildMember.guildId, parsed.guildId),
-            eq(schema.guildMember.userId, socket.data.user.id)
+            eq(schema.workspaceMember.workspaceId, parsed.workspaceId),
+            eq(schema.workspaceMember.userId, socket.data.user.id)
           )
         )
         .limit(1)
@@ -568,23 +570,25 @@ io.on("connection", (socket) => {
         return
       }
 
-      // Join the guild room so the new member receives future events
-      await socket.join(guildRoom(parsed.guildId))
+      // Join the workspace room so the new member receives future events
+      await socket.join(workspaceRoom(parsed.workspaceId))
 
-      // Deduplicate guildIds
-      const currentGuildIds = socket.data.guildIds ?? []
-      if (!currentGuildIds.includes(parsed.guildId)) {
-        socket.data.guildIds = [...currentGuildIds, parsed.guildId]
+      // Deduplicate workspaceIds
+      const currentWorkspaceIds = socket.data.workspaceIds ?? []
+      if (!currentWorkspaceIds.includes(parsed.workspaceId)) {
+        socket.data.workspaceIds = [...currentWorkspaceIds, parsed.workspaceId]
       }
 
-      // Broadcast to other guild members
-      socket.to(guildRoom(parsed.guildId)).emit("guild:member:joined", {
-        guildId: parsed.guildId,
-        userId: socket.data.user.id,
-        name: socket.data.user.name,
-        username: socket.data.user.username ?? null,
-        image: socket.data.user.image ?? null,
-      })
+      // Broadcast to other workspace members
+      socket
+        .to(workspaceRoom(parsed.workspaceId))
+        .emit("workspace:member:joined", {
+          workspaceId: parsed.workspaceId,
+          userId: socket.data.user.id,
+          name: socket.data.user.name,
+          username: socket.data.user.username ?? null,
+          image: socket.data.user.image ?? null,
+        })
 
       ack?.({ ok: true })
     } catch (error) {
@@ -605,9 +609,9 @@ io.on("connection", (socket) => {
 
         if (!becameOffline) return
 
-        for (const guildId of socket.data.guildIds ?? []) {
-          io.to(guildRoom(guildId)).emit("presence:user:update", {
-            guildId,
+        for (const workspaceId of socket.data.workspaceIds ?? []) {
+          io.to(workspaceRoom(workspaceId)).emit("presence:user:update", {
+            workspaceId,
             userId: socket.data.user.id,
             status: "offline",
           })

@@ -1,13 +1,13 @@
 import { authClient } from "@repo/auth/client"
 import {
-  type AssignableGuildRole,
-  assignableGuildRoles,
-  formatGuildRole,
-  isGuildRole,
+  type AssignableWorkspaceRole,
+  assignableWorkspaceRoles,
+  formatWorkspaceRole,
+  isWorkspaceRole,
 } from "@repo/auth/permissions"
 import type {
-  GuildMemberJoinedEvent,
   PresenceUserUpdate,
+  WorkspaceMemberJoinedEvent,
 } from "@repo/realtime-types"
 import {
   AlertDialog,
@@ -44,31 +44,34 @@ import { UserProfilePopover } from "@/components/ui/user-profile-card"
 import { useSocket } from "@/context/socket-context"
 import { apiClient } from "@/lib/api-client"
 import type {
-  GuildMemberPresence,
-  ListGuildMembersResponse,
+  ListWorkspaceMembersResponse,
+  WorkspaceMemberPresence,
 } from "@/lib/api-types"
-import { canKickGuildMembers, canManageGuildMember } from "@/lib/permissions"
+import {
+  canKickWorkspaceMembers,
+  canManageWorkspaceMember,
+} from "@/lib/permissions"
 import { useRightSidebar } from "./right-sidebar-context"
-import type { GuildMembersSidebarView } from "./right-sidebar-types"
+import type { WorkspaceMembersSidebarView } from "./right-sidebar-types"
 
-const statusStyles: Record<GuildMemberPresence["status"], string> = {
+const statusStyles: Record<WorkspaceMemberPresence["status"], string> = {
   online: "bg-emerald-500",
   offline: "bg-muted-foreground/40",
 }
 
-const statusLabel: Record<GuildMemberPresence["status"], string> = {
+const statusLabel: Record<WorkspaceMemberPresence["status"], string> = {
   online: "Online",
   offline: "Offline",
 }
 
-function formatRole(role: GuildMemberPresence["role"]) {
-  if (!role || !isGuildRole(role)) return "Member"
-  return formatGuildRole(role)
+function formatRole(role: WorkspaceMemberPresence["role"]) {
+  if (!role || !isWorkspaceRole(role)) return "Member"
+  return formatWorkspaceRole(role)
 }
 
 type ModerationDialogState = {
   type: "kick"
-  member: GuildMemberPresence
+  member: WorkspaceMemberPresence
 } | null
 
 function MembersSkeleton() {
@@ -100,30 +103,33 @@ function MemberRow({
   onKick,
   isBusy,
 }: {
-  member: GuildMemberPresence
+  member: WorkspaceMemberPresence
   currentUserId: string | null
   currentMember: { userId: string; role: string } | null
   ownerId: string | null
-  onRoleChange: (member: GuildMemberPresence, role: AssignableGuildRole) => void
-  onKick: (member: GuildMemberPresence) => void
+  onRoleChange: (
+    member: WorkspaceMemberPresence,
+    role: AssignableWorkspaceRole
+  ) => void
+  onKick: (member: WorkspaceMemberPresence) => void
   isBusy: boolean
 }) {
-  const targetRole = isGuildRole(member.role) ? member.role : null
-  const guildCtx = ownerId ? { ownerId } : null
+  const targetRole = isWorkspaceRole(member.role) ? member.role : null
+  const workspaceCtx = ownerId ? { ownerId } : null
 
   const canManageTarget =
-    currentMember && guildCtx && currentUserId !== member.userId
-      ? canManageGuildMember(
+    currentMember && workspaceCtx && currentUserId !== member.userId
+      ? canManageWorkspaceMember(
           currentMember,
           { userId: member.userId, role: member.role },
-          guildCtx
+          workspaceCtx
         )
       : false
 
   const canUpdateRole = canManageTarget && !!targetRole
   const canKick =
-    currentMember && guildCtx
-      ? canKickGuildMembers(currentMember, guildCtx) && canManageTarget
+    currentMember && workspaceCtx
+      ? canKickWorkspaceMembers(currentMember, workspaceCtx) && canManageTarget
       : false
 
   const showActions = canUpdateRole || canKick
@@ -178,27 +184,27 @@ function MemberRow({
                   <DropdownMenuSubContent>
                     <DropdownMenuRadioGroup
                       value={
-                        assignableGuildRoles.includes(
-                          targetRole as AssignableGuildRole
+                        assignableWorkspaceRoles.includes(
+                          targetRole as AssignableWorkspaceRole
                         )
                           ? targetRole
                           : "member"
                       }
                       onValueChange={(value) => {
                         if (
-                          !assignableGuildRoles.includes(
-                            value as AssignableGuildRole
+                          !assignableWorkspaceRoles.includes(
+                            value as AssignableWorkspaceRole
                           )
                         ) {
                           return
                         }
 
-                        onRoleChange(member, value as AssignableGuildRole)
+                        onRoleChange(member, value as AssignableWorkspaceRole)
                       }}
                     >
-                      {assignableGuildRoles.map((role) => (
+                      {assignableWorkspaceRoles.map((role) => (
                         <DropdownMenuRadioItem key={role} value={role}>
-                          {formatGuildRole(role)}
+                          {formatWorkspaceRole(role)}
                         </DropdownMenuRadioItem>
                       ))}
                     </DropdownMenuRadioGroup>
@@ -218,7 +224,11 @@ function MemberRow({
   )
 }
 
-export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
+export function WorkspaceMembersPanel({
+  view,
+}: {
+  view: WorkspaceMembersSidebarView
+}) {
   const socket = useSocket()
   const queryClient = useQueryClient()
   const { data: session } = authClient.useSession()
@@ -227,17 +237,17 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const [moderationDialog, setModerationDialog] =
     useState<ModerationDialogState>(null)
   const queryKey = useMemo(
-    () => ["guild-members", view.guildSlug] as const,
-    [view.guildSlug]
+    () => ["workspace-members", view.workspaceSlug] as const,
+    [view.workspaceSlug]
   )
 
   const { data, isPending, isError } = useQuery({
     queryKey,
     queryFn: async () => {
-      const res = await apiClient.v1.guilds[":guildSlug"].members.$get({
-        param: { guildSlug: view.guildSlug },
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].members.$get({
+        param: { workspaceSlug: view.workspaceSlug },
       })
-      if (!res.ok) throw new Error("Failed to fetch guild members")
+      if (!res.ok) throw new Error("Failed to fetch workspace members")
       return res.json()
     },
   })
@@ -246,7 +256,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
     error: activeMemberError,
     isError: hasActiveMemberError,
   } = useQuery({
-    queryKey: ["active-guild-member", view.guildSlug],
+    queryKey: ["active-workspace-member", view.workspaceSlug],
     queryFn: async () => {
       const res = await authClient.organization.getActiveMember()
       if (res.error) {
@@ -261,9 +271,9 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
 
       return res.data
     },
-    enabled: !!view.guildSlug,
+    enabled: !!view.workspaceSlug,
   })
-  const guildId = data?.guildId
+  const workspaceId = data?.workspaceId
   const currentUserId = session?.user?.id ?? null
   const activeMemberRole =
     typeof activeMember?.role === "string" ? activeMember.role : null
@@ -281,7 +291,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
         ? activeMemberError.message
         : "Failed to verify moderation permissions"
     )
-  }, [hasActiveMemberError, activeMemberError, view.guildSlug])
+  }, [hasActiveMemberError, activeMemberError, view.workspaceSlug])
 
   const invalidateMembers = async () => {
     await queryClient.invalidateQueries({ queryKey })
@@ -290,17 +300,17 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const updateRoleMutation = useMutation({
     mutationFn: async (input: {
       userId: string
-      role: AssignableGuildRole
+      role: AssignableWorkspaceRole
     }) => {
-      const res = await apiClient.v1.guilds[":guildSlug"].members[
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].members[
         ":userId"
       ].role.$patch({
-        param: { guildSlug: view.guildSlug, userId: input.userId },
+        param: { workspaceSlug: view.workspaceSlug, userId: input.userId },
         json: { role: input.role },
       })
 
       if (!res.ok) {
-        throw new Error("Failed to update guild member role")
+        throw new Error("Failed to update workspace member role")
       }
 
       return res.json()
@@ -316,10 +326,10 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
 
   const kickMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const res = await apiClient.v1.guilds[":guildSlug"].members[
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].members[
         ":userId"
       ].kick.$post({
-        param: { guildSlug: view.guildSlug, userId },
+        param: { workspaceSlug: view.workspaceSlug, userId },
       })
 
       if (!res.ok) {
@@ -339,14 +349,14 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const isMutating = updateRoleMutation.isPending || kickMutation.isPending
 
   const handleRoleChange = (
-    member: GuildMemberPresence,
-    role: AssignableGuildRole
+    member: WorkspaceMemberPresence,
+    role: AssignableWorkspaceRole
   ) => {
     if (member.role === role) return
     updateRoleMutation.mutate({ userId: member.userId, role })
   }
 
-  const handleKick = (member: GuildMemberPresence) => {
+  const handleKick = (member: WorkspaceMemberPresence) => {
     setModerationDialog({ type: "kick", member })
   }
 
@@ -359,11 +369,11 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   }
 
   useEffect(() => {
-    if (!socket || !guildId) return
+    if (!socket || !workspaceId) return
 
     const applySnapshot = (onlineUserIds: string[]) => {
       const onlineSet = new Set(onlineUserIds)
-      queryClient.setQueryData<ListGuildMembersResponse>(
+      queryClient.setQueryData<ListWorkspaceMembersResponse>(
         queryKey,
         (current) => {
           if (!current) return current
@@ -379,9 +389,9 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
     }
 
     const requestSnapshot = () => {
-      if (!guildId) return
+      if (!workspaceId) return
 
-      socket.emit("presence:subscribe", { guildId }, (result) => {
+      socket.emit("presence:subscribe", { workspaceId }, (result) => {
         if (!result.ok) return
         applySnapshot(result.snapshot.onlineUserIds)
       })
@@ -396,11 +406,11 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
     }
 
     const onPresenceUpdate = (payload: PresenceUserUpdate) => {
-      if (!guildId || payload.guildId !== guildId) return
-      const nextStatus: GuildMemberPresence["status"] =
+      if (!workspaceId || payload.workspaceId !== workspaceId) return
+      const nextStatus: WorkspaceMemberPresence["status"] =
         payload.status === "offline" ? "offline" : "online"
 
-      queryClient.setQueryData<ListGuildMembersResponse>(
+      queryClient.setQueryData<ListWorkspaceMembersResponse>(
         queryKey,
         (current) => {
           if (!current) return current
@@ -416,8 +426,8 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       )
     }
 
-    const onMemberJoined = (payload: GuildMemberJoinedEvent) => {
-      if (!guildId || payload.guildId !== guildId) return
+    const onMemberJoined = (payload: WorkspaceMemberJoinedEvent) => {
+      if (!workspaceId || payload.workspaceId !== workspaceId) return
       // Refetch the full member list to get the new member with all fields
       queryClient.invalidateQueries({ queryKey })
     }
@@ -425,7 +435,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
     socket.on("presence:ready", onPresenceReady)
     socket.on("connect", onConnect)
     socket.on("presence:user:update", onPresenceUpdate)
-    socket.on("guild:member:joined", onMemberJoined)
+    socket.on("workspace:member:joined", onMemberJoined)
 
     if (socket.connected) {
       requestSnapshot()
@@ -435,9 +445,9 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
       socket.off("presence:ready", onPresenceReady)
       socket.off("connect", onConnect)
       socket.off("presence:user:update", onPresenceUpdate)
-      socket.off("guild:member:joined", onMemberJoined)
+      socket.off("workspace:member:joined", onMemberJoined)
     }
-  }, [socket, guildId, queryClient, queryKey])
+  }, [socket, workspaceId, queryClient, queryKey])
 
   const members = data?.members ?? []
   const onlineMembers = members.filter((member) => member.status !== "offline")
@@ -445,7 +455,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
   const isModerationDialogOpen = moderationDialog !== null
   const moderationDialogTitle = "Kick member"
   const moderationDialogDescription = moderationDialog
-    ? `Are you sure you want to kick ${moderationDialog.member.name} from this guild? They can rejoin if invited again.`
+    ? `Are you sure you want to kick ${moderationDialog.member.name} from this workspace? They can rejoin if invited again.`
     : ""
   const isModerationSubmitting =
     moderationDialog?.type === "kick" && kickMutation.isPending
@@ -484,7 +494,7 @@ export function GuildMembersPanel({ view }: { view: GuildMembersSidebarView }) {
           <ScrollArea className="min-w-0 flex-1 overflow-x-hidden px-2 py-2">
             {members.length === 0 ? (
               <div className="px-2 py-4 text-sm text-muted-foreground">
-                No members found for this guild.
+                No members found for this workspace.
               </div>
             ) : (
               <div className="min-w-0 space-y-4 px-1 pb-3">

@@ -26,7 +26,7 @@ export function EditChannelDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
   const queryClient = useQueryClient()
 
   const [name, setName] = useState(channel.name ?? "")
@@ -41,15 +41,15 @@ export function EditChannelDialog({
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      if (!guildSlug) {
-        throw new Error("Missing guild slug")
+      if (!workspaceSlug) {
+        throw new Error("Missing workspace slug")
       }
 
-      const validatedGuildSlug = guildSlug
-      const res = await apiClient.v1.guilds[":guildSlug"].channels[
+      const validatedWorkspaceSlug = workspaceSlug
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].channels[
         ":channelId"
       ].$patch({
-        param: { guildSlug: validatedGuildSlug, channelId: channel.id },
+        param: { workspaceSlug: validatedWorkspaceSlug, channelId: channel.id },
         json: {
           name,
           ...(channel.type !== "category" ? { topic: topic || undefined } : {}),
@@ -73,16 +73,16 @@ export function EditChannelDialog({
         throw new Error(message)
       }
       return {
-        guildSlug: validatedGuildSlug,
+        workspaceSlug: validatedWorkspaceSlug,
         channel: await res.json(),
       }
     },
-    onSuccess: ({ guildSlug: validatedGuildSlug }) => {
+    onSuccess: ({ workspaceSlug: validatedWorkspaceSlug }) => {
       queryClient.invalidateQueries({
-        queryKey: ["channels", validatedGuildSlug],
+        queryKey: ["channels", validatedWorkspaceSlug],
       })
       queryClient.invalidateQueries({
-        queryKey: ["channel", validatedGuildSlug, channel.id],
+        queryKey: ["channel", validatedWorkspaceSlug, channel.id],
       })
       onOpenChange(false)
     },

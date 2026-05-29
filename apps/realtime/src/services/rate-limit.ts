@@ -1,4 +1,7 @@
-import { getGuildMessageRateLimit, isGuildRole } from "@repo/auth/permissions"
+import {
+  getWorkspaceMessageRateLimit,
+  isWorkspaceRole,
+} from "@repo/auth/permissions"
 import type { createClient } from "redis"
 
 type RedisClient = ReturnType<typeof createClient>
@@ -9,17 +12,17 @@ const KEY_TTL_SECONDS = 90
 // The DB role column is plain text — unknown values fall back to the
 // `member` tier (the safest/strictest rate limit).
 function getRoleRateLimit(role: string): number {
-  if (isGuildRole(role)) return getGuildMessageRateLimit(role)
-  return getGuildMessageRateLimit("member")
+  if (isWorkspaceRole(role)) return getWorkspaceMessageRateLimit(role)
+  return getWorkspaceMessageRateLimit("member")
 }
 
 function getMessageRateLimitKey(
-  guildId: string,
+  workspaceId: string,
   userId: string,
   timestamp: number
 ) {
   const currentWindow = Math.floor(timestamp / (WINDOW_SECONDS * 1000))
-  return `ratelimit:guild:${guildId}:user:${userId}:message:${currentWindow}`
+  return `ratelimit:workspace:${workspaceId}:user:${userId}:message:${currentWindow}`
 }
 
 function getRetryAfterSeconds(timestamp: number) {
@@ -27,16 +30,16 @@ function getRetryAfterSeconds(timestamp: number) {
   return Math.max(1, WINDOW_SECONDS - elapsedSeconds)
 }
 
-export async function enforceGuildMessageRateLimit(
+export async function enforceWorkspaceMessageRateLimit(
   redis: RedisClient,
   input: {
-    guildId: string
+    workspaceId: string
     userId: string
     role: string
   }
 ) {
   const now = Date.now()
-  const key = getMessageRateLimitKey(input.guildId, input.userId, now)
+  const key = getMessageRateLimitKey(input.workspaceId, input.userId, now)
   const nextCount = await redis.incr(key)
 
   if (nextCount === 1) {

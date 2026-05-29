@@ -43,7 +43,7 @@ export const session = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    activeGuildId: text("active_guild_id"),
+    activeWorkspaceId: text("active_workspace_id"),
     impersonatedBy: text("impersonated_by"),
   },
   (table) => [index("session_userId_idx").on(table.userId)]
@@ -89,8 +89,8 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)]
 )
 
-export const guild = pgTable(
-  "guild",
+export const workspace = pgTable(
+  "workspace",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
@@ -102,16 +102,16 @@ export const guild = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
   },
-  (table) => [uniqueIndex("guild_slug_uidx").on(table.slug)]
+  (table) => [uniqueIndex("workspace_slug_uidx").on(table.slug)]
 )
 
-export const guildRole = pgTable(
-  "guild_role",
+export const workspaceRole = pgTable(
+  "workspace_role",
   {
     id: text("id").primaryKey(),
-    guildId: text("guild_id")
+    workspaceId: text("workspace_id")
       .notNull()
-      .references(() => guild.id, { onDelete: "cascade" }),
+      .references(() => workspace.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
     permission: text("permission").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -120,18 +120,18 @@ export const guildRole = pgTable(
     ),
   },
   (table) => [
-    index("guildRole_guildId_idx").on(table.guildId),
-    index("guildRole_role_idx").on(table.role),
+    index("workspaceRole_workspaceId_idx").on(table.workspaceId),
+    index("workspaceRole_role_idx").on(table.role),
   ]
 )
 
-export const guildMember = pgTable(
-  "guild_member",
+export const workspaceMember = pgTable(
+  "workspace_member",
   {
     id: text("id").primaryKey(),
-    guildId: text("guild_id")
+    workspaceId: text("workspace_id")
       .notNull()
-      .references(() => guild.id, { onDelete: "cascade" }),
+      .references(() => workspace.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -139,8 +139,8 @@ export const guildMember = pgTable(
     createdAt: timestamp("created_at").notNull(),
   },
   (table) => [
-    index("guildMember_guildId_idx").on(table.guildId),
-    index("guildMember_userId_idx").on(table.userId),
+    index("workspaceMember_workspaceId_idx").on(table.workspaceId),
+    index("workspaceMember_userId_idx").on(table.userId),
   ]
 )
 
@@ -148,9 +148,9 @@ export const invitation = pgTable(
   "invitation",
   {
     id: text("id").primaryKey(),
-    guildId: text("guild_id")
+    workspaceId: text("workspace_id")
       .notNull()
-      .references(() => guild.id, { onDelete: "cascade" }),
+      .references(() => workspace.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     role: text("role"),
     status: text("status").default("pending").notNull(),
@@ -161,7 +161,7 @@ export const invitation = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
-    index("invitation_guildId_idx").on(table.guildId),
+    index("invitation_workspaceId_idx").on(table.workspaceId),
     index("invitation_email_idx").on(table.email),
   ]
 )
@@ -185,8 +185,8 @@ export const twoFactor = pgTable(
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
-  guilds: many(guild),
-  guildMembers: many(guildMember),
+  workspaces: many(workspace),
+  workspaceMembers: many(workspaceMember),
   invitations: many(invitation),
   twoFactors: many(twoFactor),
 }))
@@ -205,38 +205,41 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }))
 
-export const guildRelations = relations(guild, ({ one, many }) => ({
+export const workspaceRelations = relations(workspace, ({ one, many }) => ({
   user: one(user, {
-    fields: [guild.ownerId],
+    fields: [workspace.ownerId],
     references: [user.id],
   }),
-  guildRoles: many(guildRole),
-  guildMembers: many(guildMember),
+  workspaceRoles: many(workspaceRole),
+  workspaceMembers: many(workspaceMember),
   invitations: many(invitation),
 }))
 
-export const guildRoleRelations = relations(guildRole, ({ one }) => ({
-  guild: one(guild, {
-    fields: [guildRole.guildId],
-    references: [guild.id],
+export const workspaceRoleRelations = relations(workspaceRole, ({ one }) => ({
+  workspace: one(workspace, {
+    fields: [workspaceRole.workspaceId],
+    references: [workspace.id],
   }),
 }))
 
-export const guildMemberRelations = relations(guildMember, ({ one }) => ({
-  guild: one(guild, {
-    fields: [guildMember.guildId],
-    references: [guild.id],
-  }),
-  user: one(user, {
-    fields: [guildMember.userId],
-    references: [user.id],
-  }),
-}))
+export const workspaceMemberRelations = relations(
+  workspaceMember,
+  ({ one }) => ({
+    workspace: one(workspace, {
+      fields: [workspaceMember.workspaceId],
+      references: [workspace.id],
+    }),
+    user: one(user, {
+      fields: [workspaceMember.userId],
+      references: [user.id],
+    }),
+  })
+)
 
 export const invitationRelations = relations(invitation, ({ one }) => ({
-  guild: one(guild, {
-    fields: [invitation.guildId],
-    references: [guild.id],
+  workspace: one(workspace, {
+    fields: [invitation.workspaceId],
+    references: [workspace.id],
   }),
   user: one(user, {
     fields: [invitation.inviterId],

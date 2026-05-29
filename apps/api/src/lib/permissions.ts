@@ -1,15 +1,15 @@
 import { auth } from "@repo/auth"
 import {
-  canManageGuildAuthority,
-  type GuildAuthority,
-  guildAuthorityHasPermissions,
-  isGuildRole,
+  canManageWorkspaceAuthority,
+  isWorkspaceRole,
   type PermissionRequest,
   type StatementKey,
+  type WorkspaceAuthority,
+  workspaceAuthorityHasPermissions,
 } from "@repo/auth/permissions"
 import { HTTPException } from "hono/http-exception"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
-import type { Guild, GuildMember } from "@/lib/types/app-types"
+import type { Workspace, WorkspaceMember } from "@/lib/types/app-types"
 
 // ── Type-Safe Permission Types ──────────────────────────────────────
 
@@ -19,26 +19,26 @@ export type PermissionForStatement<T extends StatementKey> = NonNullable<
   PermissionRequest[T]
 >[number]
 
-function toGuildAuthority(
-  member: Pick<GuildMember, "role" | "userId">,
-  guild: Pick<Guild, "ownerId">
-): GuildAuthority {
-  if (!isGuildRole(member.role)) {
+function toWorkspaceAuthority(
+  member: Pick<WorkspaceMember, "role" | "userId">,
+  workspace: Pick<Workspace, "ownerId">
+): WorkspaceAuthority {
+  if (!isWorkspaceRole(member.role)) {
     throw new HTTPException(HttpStatusCodes.FORBIDDEN, {
-      message: `Unknown guild role: ${member.role}`,
+      message: `Unknown workspace role: ${member.role}`,
     })
   }
 
   return {
     role: member.role,
-    isOwner: guild.ownerId === member.userId,
+    isOwner: workspace.ownerId === member.userId,
   }
 }
 
 // ── Permission Check ──────────────────────────────────────
 
 /**
- * Checks if the current user has the specified permissions in their active guild.
+ * Checks if the current user has the specified permissions in their active workspace.
  * Uses better-auth's hasPermission API and throws HTTPException(403) when the
  * requested permission is missing.
  *
@@ -70,14 +70,14 @@ export async function checkPermission<
   return true
 }
 
-export function assertGuildPermission(
-  member: Pick<GuildMember, "role" | "userId">,
-  guild: Pick<Guild, "ownerId">,
+export function assertWorkspacePermission(
+  member: Pick<WorkspaceMember, "role" | "userId">,
+  workspace: Pick<Workspace, "ownerId">,
   requestedPermissions: PermissionRequest
 ) {
-  const authority = toGuildAuthority(member, guild)
+  const authority = toWorkspaceAuthority(member, workspace)
 
-  if (!guildAuthorityHasPermissions(authority, requestedPermissions)) {
+  if (!workspaceAuthorityHasPermissions(authority, requestedPermissions)) {
     throw new HTTPException(HttpStatusCodes.FORBIDDEN, {
       message: "You do not have permission to perform this action",
     })
@@ -86,10 +86,10 @@ export function assertGuildPermission(
   return authority
 }
 
-export function assertCanManageGuildMember(
-  actor: Pick<GuildMember, "role" | "userId">,
-  target: Pick<GuildMember, "role" | "userId">,
-  guild: Pick<Guild, "ownerId">
+export function assertCanManageWorkspaceMember(
+  actor: Pick<WorkspaceMember, "role" | "userId">,
+  target: Pick<WorkspaceMember, "role" | "userId">,
+  workspace: Pick<Workspace, "ownerId">
 ) {
   if (actor.userId === target.userId) {
     throw new HTTPException(HttpStatusCodes.FORBIDDEN, {
@@ -97,10 +97,10 @@ export function assertCanManageGuildMember(
     })
   }
 
-  const actorAuthority = toGuildAuthority(actor, guild)
-  const targetAuthority = toGuildAuthority(target, guild)
+  const actorAuthority = toWorkspaceAuthority(actor, workspace)
+  const targetAuthority = toWorkspaceAuthority(target, workspace)
 
-  if (!canManageGuildAuthority(actorAuthority, targetAuthority)) {
+  if (!canManageWorkspaceAuthority(actorAuthority, targetAuthority)) {
     throw new HTTPException(HttpStatusCodes.FORBIDDEN, {
       message: "You cannot moderate this member",
     })

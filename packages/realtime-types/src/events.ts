@@ -4,7 +4,7 @@ export type PresenceStatus = "online" | "offline" | "idle" | "dnd"
 export const PRESENCE_ONLINE_USERS_SET_KEY = "presence:online-users"
 
 export const presenceSubscribePayloadSchema = z.object({
-  guildId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
 })
 
 export const channelRoomPayloadSchema = z.object({
@@ -190,7 +190,7 @@ export type MarkChannelReadAck = (
 ) => void
 
 export type PresenceSnapshot = {
-  guildId: string
+  workspaceId: string
   onlineUserIds: string[]
 }
 
@@ -199,14 +199,14 @@ export type PresenceSubscribeAck = (
 ) => void
 
 export type PresenceUserUpdate = {
-  guildId: string
+  workspaceId: string
   userId: string
   status: PresenceStatus
 }
 
 export type UnreadNotification = {
   channelId: string
-  guildId: string | null
+  workspaceId: string | null
   messageId: string
   unreadCountDelta: number
   authorName: string
@@ -219,7 +219,7 @@ export type MentionNotification = {
   type: "direct_mention" | "everyone_mention"
   messageId: string
   channelId: string
-  guildId: string | null
+  workspaceId: string | null
   createdAt: string
 }
 
@@ -232,23 +232,23 @@ export type NotificationBootstrap = {
   }>
 }
 
-export const guildMemberJoinedPayloadSchema = z.object({
-  guildId: z.string().uuid(),
+export const workspaceMemberJoinedPayloadSchema = z.object({
+  workspaceId: z.string().uuid(),
 })
 
-export type GuildMemberJoinedPayload = z.infer<
-  typeof guildMemberJoinedPayloadSchema
+export type WorkspaceMemberJoinedPayload = z.infer<
+  typeof workspaceMemberJoinedPayloadSchema
 >
 
-export type GuildMemberJoinedEvent = {
-  guildId: string
+export type WorkspaceMemberJoinedEvent = {
+  workspaceId: string
   userId: string
   name: string
   username: string | null
   image: string | null
 }
 
-export type GuildMemberJoinedAck = (result: OkResult | ErrorResult) => void
+export type WorkspaceMemberJoinedAck = (result: OkResult | ErrorResult) => void
 
 export const typingStartPayloadSchema = z.object({
   channelId: z.string().uuid(),
@@ -283,9 +283,9 @@ export interface ClientToServerEvents {
     payload: MarkChannelReadPayload,
     ack?: MarkChannelReadAck
   ) => void
-  "guild:member:joined": (
-    payload: GuildMemberJoinedPayload,
-    ack?: GuildMemberJoinedAck
+  "workspace:member:joined": (
+    payload: WorkspaceMemberJoinedPayload,
+    ack?: WorkspaceMemberJoinedAck
   ) => void
   "typing:start": (payload: TypingStartPayload) => void
 }
@@ -295,7 +295,7 @@ export interface ServerToClientEvents {
     userId: string
     rooms: {
       user: string
-      guilds: string[]
+      workspaces: string[]
     }
   }) => void
   "presence:user:update": (payload: PresenceUserUpdate) => void
@@ -314,7 +314,7 @@ export interface ServerToClientEvents {
   "notification:unread": (payload: UnreadNotification) => void
   "notification:mention": (payload: MentionNotification) => void
   "channel:read-state": (payload: ChannelReadState) => void
-  "guild:member:joined": (payload: GuildMemberJoinedEvent) => void
+  "workspace:member:joined": (payload: WorkspaceMemberJoinedEvent) => void
   "typing:update": (payload: TypingIndicatorEvent) => void
 }
 

@@ -15,9 +15,9 @@ import {
   createSelectSchema,
   createUpdateSchema,
 } from "drizzle-zod"
-import { guild } from "./guilds"
 import { message } from "./messages"
 import { user } from "./users"
+import { workspace } from "./workspaces"
 
 export const channelTypeEnum = pgEnum("channel_type", [
   "text",
@@ -41,7 +41,7 @@ export const channel = pgTable(
     type: channelTypeEnum("type").notNull().default("text"),
 
     // null for DMs/group DMs
-    guildId: uuid("guild_id").references(() => guild.id, {
+    workspaceId: uuid("workspace_id").references(() => workspace.id, {
       onDelete: "cascade",
     }),
 
@@ -50,10 +50,10 @@ export const channel = pgTable(
       onDelete: "set null",
     }),
 
-    // ordering within a category or guild
+    // ordering within a category or workspace
     position: integer("position").default(0).notNull(),
 
-    // group DM owner — null for guild channels (use roles/permissions instead)
+    // group DM owner — null for workspace channels (use roles/permissions instead)
     ownerId: uuid("owner_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -62,15 +62,15 @@ export const channel = pgTable(
     rateLimitPerUser: integer("rate_limit_per_user"),
   },
   (table) => [
-    index("channel_guildId_idx").on(table.guildId),
+    index("channel_workspaceId_idx").on(table.workspaceId),
     index("channel_parentId_idx").on(table.parentId),
   ]
 )
 
 export const channelRelations = relations(channel, ({ one, many }) => ({
-  guild: one(guild, {
-    fields: [channel.guildId],
-    references: [guild.id],
+  workspace: one(workspace, {
+    fields: [channel.workspaceId],
+    references: [workspace.id],
   }),
   parent: one(channel, {
     fields: [channel.parentId],
@@ -88,8 +88,8 @@ export const channelRelations = relations(channel, ({ one, many }) => ({
   members: many(channelMember),
 }))
 
-// For DMs and group DMs — tracks which users are in non-guild channels
-// Also useful later for per-channel permission overwrites on guild channels
+// For DMs and group DMs — tracks which users are in non-workspace channels
+// Also useful later for per-channel permission overwrites on workspace channels
 export const channelMember = pgTable(
   "channel_member",
   {
@@ -132,7 +132,7 @@ export const insertChannelSchema = createInsertSchema(channel, {
   id: true,
   createdAt: true,
   updatedAt: true,
-  guildId: true,
+  workspaceId: true,
   ownerId: true,
   position: true,
   rateLimitPerUser: true,
@@ -145,6 +145,6 @@ export const updateChannelSchema = createUpdateSchema(channel, {
   id: true,
   createdAt: true,
   updatedAt: true,
-  guildId: true,
+  workspaceId: true,
   ownerId: true,
 })

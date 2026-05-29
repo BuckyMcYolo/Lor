@@ -141,7 +141,7 @@ async function seed() {
       .insert(channel)
       .values({
         type: "dm",
-        guildId: null,
+        workspaceId: null,
         position: 0,
       })
       .returning()
@@ -198,7 +198,7 @@ async function seed() {
       .values({
         type: "group_dm",
         name: group.name,
-        guildId: null,
+        workspaceId: null,
         ownerId: userId,
         position: 0,
       })

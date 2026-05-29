@@ -71,8 +71,8 @@ function AuthenticatedLayout() {
     }
   }, [location.pathname])
 
-  const { data: guilds } = useQuery({
-    queryKey: ["guilds"],
+  const { data: workspaces } = useQuery({
+    queryKey: ["workspaces"],
     queryFn: async () => {
       const res = await authClient.organization.list()
       return res.data
@@ -92,14 +92,14 @@ function AuthenticatedLayout() {
     return null
   }
 
-  // Only show onboarding if explicitly not completed AND no existing guilds
+  // Only show onboarding if explicitly not completed AND no existing workspaces
   // (guards against existing users whose flag defaulted to false)
   const isInviteRoute = location.pathname.startsWith("/invite/")
   const showOnboarding =
     !isInviteRoute &&
     session.user.onboardingCompleted === false &&
-    guilds !== undefined &&
-    guilds?.length === 0
+    workspaces !== undefined &&
+    workspaces?.length === 0
 
   return (
     <SocketProvider enabled={!!session}>

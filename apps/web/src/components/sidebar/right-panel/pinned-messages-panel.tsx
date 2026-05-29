@@ -23,8 +23,8 @@ export function PinnedMessagesPanel({
 
   const goBack = () => {
     setView({
-      type: "guild-members",
-      guildSlug: view.guildSlug,
+      type: "workspace-members",
+      workspaceSlug: view.workspaceSlug,
       channelId: view.channelId,
     })
   }
@@ -32,10 +32,10 @@ export function PinnedMessagesPanel({
   const { data, isPending } = useQuery({
     queryKey: ["pinned-messages", view.channelId],
     queryFn: async () => {
-      const res = await apiClient.v1.guilds[":guildSlug"].channels[
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].channels[
         ":channelId"
       ].pins.$get({
-        param: { guildSlug: view.guildSlug, channelId: view.channelId },
+        param: { workspaceSlug: view.workspaceSlug, channelId: view.channelId },
       })
       if (!res.ok) throw new Error("Failed to fetch pinned messages")
       return res.json()

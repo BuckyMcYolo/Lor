@@ -47,7 +47,7 @@ export function CreateChannelDialog({
   parentId?: string | null
   forceType?: "category"
 }) {
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
@@ -58,7 +58,7 @@ export function CreateChannelDialog({
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = name.trim()
-    if (!trimmed || !guildSlug) return
+    if (!trimmed || !workspaceSlug) return
     if (forceType !== "category" && !normalizedName) return
     setError(null)
     setLoading(true)
@@ -66,8 +66,10 @@ export function CreateChannelDialog({
     const isCategory = forceType === "category"
 
     try {
-      const res = await apiClient.v1.guilds[":guildSlug"].channels.$post({
-        param: { guildSlug },
+      const res = await apiClient.v1.workspaces[
+        ":workspaceSlug"
+      ].channels.$post({
+        param: { workspaceSlug },
         json: {
           name: isCategory ? trimmed : normalizedName,
           type: isCategory ? "category" : type,
@@ -86,7 +88,7 @@ export function CreateChannelDialog({
 
       const channel = await res.json()
       await queryClient.invalidateQueries({
-        queryKey: ["channels", guildSlug],
+        queryKey: ["channels", workspaceSlug],
       })
       onOpenChange(false)
       setName("")
@@ -95,8 +97,8 @@ export function CreateChannelDialog({
 
       if (!isCategory) {
         navigate({
-          to: "/$guildSlug/$channelId",
-          params: { guildSlug, channelId: channel.id },
+          to: "/$workspaceSlug/$channelId",
+          params: { workspaceSlug, channelId: channel.id },
         })
       }
     } catch {
@@ -133,7 +135,7 @@ export function CreateChannelDialog({
           <DialogDescription>
             {isCategory
               ? "Add a new category to organize your channels."
-              : "Add a new channel to your guild."}
+              : "Add a new channel to your workspace."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreate} className="space-y-4">

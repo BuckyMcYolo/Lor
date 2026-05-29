@@ -110,33 +110,37 @@ function buildReorderPayload(data: ChannelData) {
 }
 
 export function ChannelList() {
-  const { guildSlug, channelId: activeChannelId } = useParams({ strict: false })
+  const { workspaceSlug, channelId: activeChannelId } = useParams({
+    strict: false,
+  })
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { setOpen: closeMobileSidebar } = useMobileSidebar()
 
   const { data, isPending } = useQuery({
-    queryKey: ["channels", guildSlug],
+    queryKey: ["channels", workspaceSlug],
     queryFn: async () => {
-      const res = await apiClient.v1.guilds[":guildSlug"].channels.$get({
-        param: { guildSlug: guildSlug as string },
-      })
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].channels.$get(
+        {
+          param: { workspaceSlug: workspaceSlug as string },
+        }
+      )
       if (!res.ok) {
         throw new Error("Failed to fetch channels")
       }
       return res.json()
     },
-    enabled: !!guildSlug,
+    enabled: !!workspaceSlug,
   })
 
   const reorderMutation = useMutation({
     mutationFn: async (
       channels: { id: string; position: number; parentId: string | null }[]
     ) => {
-      const res = await apiClient.v1.guilds[
-        ":guildSlug"
+      const res = await apiClient.v1.workspaces[
+        ":workspaceSlug"
       ].channels.reorder.$patch({
-        param: { guildSlug: guildSlug as string },
+        param: { workspaceSlug: workspaceSlug as string },
         json: { channels },
       })
       if (!res.ok) {
@@ -144,12 +148,12 @@ export function ChannelList() {
       }
     },
     onError: () => {
-      queryClient.invalidateQueries({ queryKey: ["channels", guildSlug] })
+      queryClient.invalidateQueries({ queryKey: ["channels", workspaceSlug] })
     },
   })
 
   const { data: activeMember } = useQuery({
-    queryKey: ["active-guild-member", guildSlug],
+    queryKey: ["active-workspace-member", workspaceSlug],
     queryFn: async (): Promise<{ userId: string; role: string } | null> => {
       const res = await authClient.organization.getActiveMember()
       return res.data
@@ -159,37 +163,37 @@ export function ChannelList() {
           }
         : null
     },
-    enabled: !!guildSlug,
+    enabled: !!workspaceSlug,
   })
 
-  const { data: guildMembersData } = useQuery({
-    queryKey: ["guild-members", guildSlug],
+  const { data: workspaceMembersData } = useQuery({
+    queryKey: ["workspace-members", workspaceSlug],
     queryFn: async () => {
-      const res = await apiClient.v1.guilds[":guildSlug"].members.$get({
-        param: { guildSlug: guildSlug as string },
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].members.$get({
+        param: { workspaceSlug: workspaceSlug as string },
       })
-      if (!res.ok) throw new Error("Failed to fetch guild members")
+      if (!res.ok) throw new Error("Failed to fetch workspace members")
       return res.json()
     },
-    enabled: !!guildSlug,
+    enabled: !!workspaceSlug,
   })
 
   const permissionCtx =
-    activeMember && guildMembersData?.ownerId
+    activeMember && workspaceMembersData?.ownerId
       ? {
           actor: activeMember,
-          guild: { ownerId: guildMembersData.ownerId },
+          workspace: { ownerId: workspaceMembersData.ownerId },
         }
       : null
 
   const canCreate = permissionCtx
-    ? canCreateChannels(permissionCtx.actor, permissionCtx.guild)
+    ? canCreateChannels(permissionCtx.actor, permissionCtx.workspace)
     : false
   const canManage = permissionCtx
-    ? canManageChannels(permissionCtx.actor, permissionCtx.guild)
+    ? canManageChannels(permissionCtx.actor, permissionCtx.workspace)
     : false
   const canDelete = permissionCtx
-    ? canDeleteChannels(permissionCtx.actor, permissionCtx.guild)
+    ? canDeleteChannels(permissionCtx.actor, permissionCtx.workspace)
     : false
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -247,7 +251,7 @@ export function ChannelList() {
       // Category-to-category: reorder optimistically
       if (activeItem.isCategory && overItem.isCategory) {
         queryClient.setQueryData(
-          ["channels", guildSlug],
+          ["channels", workspaceSlug],
           (old: ChannelData | undefined) => {
             if (!old) return old
             const newData = structuredClone(old)
@@ -278,7 +282,7 @@ export function ChannelList() {
       // If moving between containers, update optimistically
       if (activeContainer !== overContainer) {
         queryClient.setQueryData(
-          ["channels", guildSlug],
+          ["channels", workspaceSlug],
           (old: ChannelData | undefined) => {
             if (!old) return old
             const newData = structuredClone(old)
@@ -334,7 +338,7 @@ export function ChannelList() {
         )
       }
     },
-    [data, findChannel, guildSlug, queryClient]
+    [data, findChannel, workspaceSlug, queryClient]
   )
 
   const handleDragEnd = useCallback(
@@ -349,7 +353,7 @@ export function ChannelList() {
 
       let newData: ChannelData | undefined
       queryClient.setQueryData(
-        ["channels", guildSlug],
+        ["channels", workspaceSlug],
         (old: ChannelData | undefined) => {
           if (!old) return old
           const updated = structuredClone(old)
@@ -390,7 +394,7 @@ export function ChannelList() {
         reorderMutation.mutate(buildReorderPayload(newData))
       }
     },
-    [data, findChannel, guildSlug, queryClient, reorderMutation]
+    [data, findChannel, workspaceSlug, queryClient, reorderMutation]
   )
 
   if (isPending) {
@@ -473,9 +477,9 @@ export function ChannelList() {
                     canDelete={canDelete}
                     onClick={() => {
                       navigate({
-                        to: "/$guildSlug/$channelId",
+                        to: "/$workspaceSlug/$channelId",
                         params: {
-                          guildSlug: guildSlug as string,
+                          workspaceSlug: workspaceSlug as string,
                           channelId: ch.id,
                         },
                       })
@@ -506,8 +510,11 @@ export function ChannelList() {
                 canDelete={canDelete}
                 onChannelClick={(channelId) => {
                   navigate({
-                    to: "/$guildSlug/$channelId",
-                    params: { guildSlug: guildSlug as string, channelId },
+                    to: "/$workspaceSlug/$channelId",
+                    params: {
+                      workspaceSlug: workspaceSlug as string,
+                      channelId,
+                    },
                   })
                   closeMobileSidebar(false)
                 }}

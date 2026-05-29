@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api-client"
 
-const MAX_GUILD_ICON_BYTES = 2 * 1024 * 1024
+const MAX_WORKSPACE_ICON_BYTES = 2 * 1024 * 1024
 const ACCEPTED_IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
@@ -27,30 +27,30 @@ function validateIconFile(file: File): string | null {
   if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
     return "Only JPEG, PNG, WebP, and SVG images are allowed"
   }
-  if (file.size > MAX_GUILD_ICON_BYTES) {
+  if (file.size > MAX_WORKSPACE_ICON_BYTES) {
     return "Icon must be under 2 MB"
   }
   return null
 }
 
-type Guild = {
+type Workspace = {
   id: string
   name: string
   slug: string
   logo?: string | null
 }
 
-export function GuildSettingsDialog({
+export function WorkspaceSettingsDialog({
   open,
   onOpenChange,
-  guild,
+  workspace,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  guild: Guild
+  workspace: Workspace
 }) {
   const queryClient = useQueryClient()
-  const [name, setName] = useState(guild.name)
+  const [name, setName] = useState(workspace.name)
   const [iconPreview, setIconPreview] = useState<string | null>(null)
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -60,14 +60,14 @@ export function GuildSettingsDialog({
   const dragCountRef = useRef(0)
 
   useEffect(() => {
-    setName(guild.name)
+    setName(workspace.name)
     setIconFile(null)
     if (iconPreviewRef.current) {
       URL.revokeObjectURL(iconPreviewRef.current)
       iconPreviewRef.current = null
     }
     setIconPreview(null)
-  }, [guild, open])
+  }, [workspace, open])
 
   useEffect(() => {
     return () => {
@@ -129,9 +129,9 @@ export function GuildSettingsDialog({
 
   const uploadIcon = useCallback(
     async (file: File): Promise<string> => {
-      const res = await apiClient.v1.uploads["guild-icon"].presign.$post({
+      const res = await apiClient.v1.uploads["workspace-icon"].presign.$post({
         json: {
-          guildId: guild.id,
+          workspaceId: workspace.id,
           filename: file.name,
           contentType: file.type,
           size: file.size,
@@ -152,7 +152,7 @@ export function GuildSettingsDialog({
 
       return fileUrl
     },
-    [guild.id]
+    [workspace.id]
   )
 
   const handleSave = useCallback(async () => {
@@ -163,15 +163,15 @@ export function GuildSettingsDialog({
         logoUrl = await uploadIcon(iconFile)
       }
 
-      const res = await apiClient.v1.guilds[":guildSlug"].$patch({
-        param: { guildSlug: guild.slug },
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].$patch({
+        param: { workspaceSlug: workspace.slug },
         json: {
-          ...(name.trim() !== guild.name ? { name: name.trim() } : {}),
+          ...(name.trim() !== workspace.name ? { name: name.trim() } : {}),
           ...(logoUrl !== undefined ? { logo: logoUrl } : {}),
         },
       })
 
-      if (!res.ok) throw new Error("Failed to update guild")
+      if (!res.ok) throw new Error("Failed to update workspace")
 
       setIconFile(null)
       if (iconPreview) {
@@ -181,19 +181,19 @@ export function GuildSettingsDialog({
       }
 
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["guilds"] }),
-        queryClient.invalidateQueries({ queryKey: ["active-guild"] }),
+        queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
+        queryClient.invalidateQueries({ queryKey: ["active-workspace"] }),
       ])
 
-      toast.success("Guild updated")
+      toast.success("Workspace updated")
       onOpenChange(false)
     } catch {
-      toast.error("Failed to update guild")
+      toast.error("Failed to update workspace")
     } finally {
       setIsSaving(false)
     }
   }, [
-    guild,
+    workspace,
     name,
     iconFile,
     iconPreview,
@@ -202,11 +202,11 @@ export function GuildSettingsDialog({
     onOpenChange,
   ])
 
-  const hasChanges = name.trim() !== guild.name || iconFile !== null
+  const hasChanges = name.trim() !== workspace.name || iconFile !== null
   const isValid = name.trim().length > 0
 
-  const displayIcon = iconPreview ?? guild.logo
-  const initials = guild.name
+  const displayIcon = iconPreview ?? workspace.logo
+  const initials = workspace.name
     .split(" ")
     .map((w) => w[0])
     .join("")
@@ -216,7 +216,7 @@ export function GuildSettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Guild Settings</DialogTitle>
+          <DialogTitle>Workspace Settings</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 pt-2">
@@ -238,7 +238,7 @@ export function GuildSettingsDialog({
             >
               <Avatar className="size-20">
                 {displayIcon && (
-                  <AvatarImage src={displayIcon} alt={guild.name} />
+                  <AvatarImage src={displayIcon} alt={workspace.name} />
                 )}
                 <AvatarFallback className="text-lg font-semibold">
                   {initials}
@@ -272,13 +272,13 @@ export function GuildSettingsDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="guild-name">Guild Name</Label>
+            <Label htmlFor="workspace-name">Workspace Name</Label>
             <Input
-              id="guild-name"
+              id="workspace-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={100}
-              placeholder="My Awesome Guild"
+              placeholder="My Awesome Workspace"
             />
           </div>
 

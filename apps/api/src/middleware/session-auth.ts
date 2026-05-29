@@ -5,9 +5,9 @@ import type { AppBindings } from "@/lib/types/app-types"
 
 /**
  * Lightweight auth middleware that only validates the session.
- * Does NOT require or resolve an active guild.
+ * Does NOT require or resolve an active workspace.
  *
- * Use this for guild-independent routes like DMs.
+ * Use this for workspace-independent routes like DMs.
  *
  * Sets in context:
  * - user: The authenticated user
