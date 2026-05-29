@@ -28,6 +28,11 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-merlin: var(--merlin);
+  --color-merlin-foreground: var(--merlin-foreground);
+  --color-gold: var(--gold);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -47,94 +52,137 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ===========================================================================
+   LOR — neutral base + purple brand
+   Surfaces : warm-neutral (very low chroma, hue ~80) — calm, not blue, lets
+              user content / avatars / images / semantic colors lead.
+   Brand    : --primary is the purple (~293) for buttons, active states, links.
+   Merlin   : --merlin is a slightly more luminous shade of the SAME purple.
+              Merlin's distinctiveness is carried mostly by treatment (filled
+              avatar, wand, glowing left-border), not by a second hue.
+              --gold kept (no longer Merlin) for backward-compat / warm accent.
+   =========================================================================== */
+
 :root {
   --radius: 0.625rem;
 
-  --background: oklch(0.985 0.012 48);
-  --foreground: oklch(0.22 0.016 40);
+  /* Surfaces — warm neutral */
+  --background: oklch(0.99 0.003 80);
+  --foreground: oklch(0.2 0.005 80);
 
-  --card: oklch(0.965 0.018 48);
-  --card-foreground: oklch(0.22 0.016 40);
+  --card: oklch(0.995 0.002 80);
+  --card-foreground: oklch(0.2 0.005 80);
 
-  --popover: oklch(0.965 0.018 48);
-  --popover-foreground: oklch(0.22 0.016 40);
+  --popover: oklch(0.995 0.002 80);
+  --popover-foreground: oklch(0.2 0.005 80);
 
-  --primary: oklch(0.5 0.12 45);
-  --primary-foreground: oklch(0.97 0.008 48);
+  /* Brand — purple */
+  --primary: oklch(0.48 0.19 293);
+  --primary-foreground: oklch(0.99 0.003 293);
 
-  --secondary: oklch(0.94 0.022 48);
-  --secondary-foreground: oklch(0.22 0.016 40);
+  /* Utility surfaces — near-neutral */
+  --secondary: oklch(0.96 0.004 80);
+  --secondary-foreground: oklch(0.27 0.006 80);
 
-  --muted: oklch(0.945 0.025 48);
-  --muted-foreground: oklch(0.5 0.032 45);
+  --muted: oklch(0.965 0.003 80);
+  --muted-foreground: oklch(0.52 0.006 80);
 
-  --accent: oklch(0.925 0.025 48);
-  --accent-foreground: oklch(0.22 0.016 40);
+  --accent: oklch(0.95 0.005 80);
+  --accent-foreground: oklch(0.27 0.006 80);
 
-  --destructive: oklch(0.637 0.208 25.32);
+  /* Merlin — same purple family, a touch more luminous/saturated */
+  --merlin: oklch(0.52 0.22 296);
+  --merlin-foreground: oklch(0.99 0.004 296);
 
-  --border: oklch(0.88 0.028 48);
-  --input: oklch(0.88 0.028 48);
-  --ring: oklch(0.5 0.12 45);
+  /* Warm accent — kept for backward-compat (charts, optional highlights) */
+  --gold: oklch(0.7 0.13 75);
 
-  --chart-1: oklch(0.4 0.09 42);
-  --chart-2: oklch(0.65 0.12 50);
-  --chart-3: oklch(0.55 0.1 45);
-  --chart-4: oklch(0.723 0.192 149.6);
-  --chart-5: oklch(0.623 0.188 259.82);
+  /* Semantic */
+  --success: oklch(0.58 0.13 150);
+  --success-foreground: oklch(0.98 0.01 150);
 
-  --sidebar: oklch(0.965 0.018 48);
-  --sidebar-foreground: oklch(0.22 0.016 40);
-  --sidebar-primary: oklch(0.5 0.12 45);
-  --sidebar-primary-foreground: oklch(0.97 0.008 48);
-  --sidebar-accent: oklch(0.925 0.025 48);
-  --sidebar-accent-foreground: oklch(0.22 0.016 40);
-  --sidebar-border: oklch(0.88 0.028 48);
-  --sidebar-ring: oklch(0.5 0.12 45);
+  --destructive: oklch(0.55 0.2 25);
+
+  --border: oklch(0.92 0.004 80);
+  --input: oklch(0.92 0.004 80);
+  --ring: oklch(0.48 0.19 293);
+
+  /* Charts — purple-anchored analogous set */
+  --chart-1: oklch(0.48 0.19 293);
+  --chart-2: oklch(0.65 0.15 250);
+  --chart-3: oklch(0.62 0.14 200);
+  --chart-4: oklch(0.65 0.16 350);
+  --chart-5: oklch(0.62 0.13 150);
+
+  /* Sidebar / chrome — a hair off the main surface */
+  --sidebar: oklch(0.975 0.003 80);
+  --sidebar-foreground: oklch(0.2 0.005 80);
+  --sidebar-primary: oklch(0.48 0.19 293);
+  --sidebar-primary-foreground: oklch(0.99 0.003 293);
+  --sidebar-accent: oklch(0.95 0.005 80);
+  --sidebar-accent-foreground: oklch(0.27 0.006 80);
+  --sidebar-border: oklch(0.92 0.004 80);
+  --sidebar-ring: oklch(0.48 0.19 293);
 }
 
 .dark {
-  --background: oklch(0.155 0.012 42);
-  --foreground: oklch(0.93 0.014 48);
+  /* Surfaces — warm-neutral dark (not blue) */
+  --background: oklch(0.16 0.004 80);
+  --foreground: oklch(0.94 0.004 80);
 
-  --card: oklch(0.2 0.016 42);
-  --card-foreground: oklch(0.93 0.014 48);
+  --card: oklch(0.19 0.005 80);
+  --card-foreground: oklch(0.94 0.004 80);
 
-  --popover: oklch(0.2 0.016 42);
-  --popover-foreground: oklch(0.93 0.014 48);
+  --popover: oklch(0.19 0.005 80);
+  --popover-foreground: oklch(0.94 0.004 80);
 
-  --primary: oklch(0.74 0.12 55);
-  --primary-foreground: oklch(0.155 0.012 42);
+  /* Brand — purple (a touch brighter for the dark field) */
+  --primary: oklch(0.58 0.19 293);
+  --primary-foreground: oklch(0.98 0.005 293);
 
-  --secondary: oklch(0.25 0.018 42);
-  --secondary-foreground: oklch(0.93 0.014 48);
+  /* Utility surfaces */
+  --secondary: oklch(0.25 0.006 80);
+  --secondary-foreground: oklch(0.94 0.004 80);
 
-  --muted: oklch(0.27 0.02 42);
-  --muted-foreground: oklch(0.65 0.03 48);
+  --muted: oklch(0.24 0.005 80);
+  --muted-foreground: oklch(0.67 0.006 80);
 
-  --accent: oklch(0.26 0.018 45);
-  --accent-foreground: oklch(0.93 0.014 48);
+  --accent: oklch(0.27 0.007 80);
+  --accent-foreground: oklch(0.94 0.004 80);
 
-  --destructive: oklch(0.637 0.208 25.32);
+  /* Merlin — luminous purple; dark text sits on the fill */
+  --merlin: oklch(0.7 0.2 296);
+  --merlin-foreground: oklch(0.17 0.02 296);
 
-  --border: oklch(0.33 0.024 42);
-  --input: oklch(0.27 0.02 42);
-  --ring: oklch(0.74 0.12 55);
+  /* Warm accent — backward-compat */
+  --gold: oklch(0.78 0.12 78);
 
-  --chart-1: oklch(0.74 0.12 55);
-  --chart-2: oklch(0.8 0.1 52);
-  --chart-3: oklch(0.55 0.1 45);
-  --chart-4: oklch(0.723 0.192 149.6);
-  --chart-5: oklch(0.623 0.188 259.82);
+  /* Semantic */
+  --success: oklch(0.7 0.13 150);
+  --success-foreground: oklch(0.18 0.03 150);
 
-  --sidebar: oklch(0.2 0.016 42);
-  --sidebar-foreground: oklch(0.93 0.014 48);
-  --sidebar-primary: oklch(0.74 0.12 55);
-  --sidebar-primary-foreground: oklch(0.155 0.012 42);
-  --sidebar-accent: oklch(0.26 0.018 45);
-  --sidebar-accent-foreground: oklch(0.93 0.014 48);
-  --sidebar-border: oklch(0.33 0.024 42);
-  --sidebar-ring: oklch(0.74 0.12 55);
+  --destructive: oklch(0.62 0.19 25);
+
+  --border: oklch(0.28 0.006 80);
+  --input: oklch(0.25 0.006 80);
+  --ring: oklch(0.58 0.19 293);
+
+  /* Charts */
+  --chart-1: oklch(0.66 0.19 293);
+  --chart-2: oklch(0.7 0.15 250);
+  --chart-3: oklch(0.7 0.13 200);
+  --chart-4: oklch(0.72 0.16 350);
+  --chart-5: oklch(0.72 0.12 150);
+
+  /* Sidebar / chrome — deepest layer, below the main surface */
+  --sidebar: oklch(0.13 0.004 80);
+  --sidebar-foreground: oklch(0.94 0.004 80);
+  --sidebar-primary: oklch(0.58 0.19 293);
+  --sidebar-primary-foreground: oklch(0.98 0.005 293);
+  --sidebar-accent: oklch(0.25 0.006 80);
+  --sidebar-accent-foreground: oklch(0.94 0.004 80);
+  --sidebar-border: oklch(0.26 0.006 80);
+  --sidebar-ring: oklch(0.58 0.19 293);
 }
 
 @layer base {

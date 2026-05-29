@@ -32,14 +32,12 @@ import {
   Paintbrush,
   Search,
   Settings,
-  Shield,
   User,
 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useSettings } from "@/context/settings-context"
 import { MyAccountSettings } from "./my-account-settings"
 import { NotificationSettings } from "./notification-settings"
-import { PrivacySafetySettings } from "./privacy-safety-settings"
 
 interface SettingsNav {
   name: string
@@ -53,7 +51,6 @@ const settingsNav: SettingsNav[] = [
   { name: "Messages & Media", icon: MessageCircle },
   { name: "Language & Region", icon: Globe },
   { name: "Accessibility", icon: Keyboard },
-  { name: "Privacy & Safety", icon: Shield },
   { name: "Advanced", icon: Settings },
 ]
 
@@ -129,8 +126,6 @@ export function SettingsDialog() {
                 <MyAccountSettings />
               ) : activeItem === "Notifications" ? (
                 <NotificationSettings />
-              ) : activeItem === "Privacy & Safety" ? (
-                <PrivacySafetySettings />
               ) : (
                 <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
                   {activeItem} settings coming soon.

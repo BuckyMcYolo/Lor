@@ -13,8 +13,7 @@ export const getUserProfile = createRoute({
   path: "/users/{userId}",
   method: "get",
   summary: "Get user profile",
-  description:
-    "Returns a user's public profile including ally status with the current user.",
+  description: "Returns a user's public profile.",
   tags: ["Users"],
   middleware: [sessionAuthMiddleware] as const,
   request: {

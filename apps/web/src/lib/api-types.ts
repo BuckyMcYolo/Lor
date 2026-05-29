@@ -64,31 +64,6 @@ export type InvitePreviewResponse = InferResponseType<
   200
 >
 
-// ── Allies ──────────────────────────────────────────
-
-type AlliesClient = Client["v1"]["allies"]
-
-export type ListAlliesResponse = InferResponseType<AlliesClient["$get"], 200>
-export type Ally = ListAlliesResponse["allies"][number]
-
-type AllyRequestsClient = Client["v1"]["allies"]["requests"]
-
-export type ListAllyRequestsResponse = InferResponseType<
-  AllyRequestsClient["$get"],
-  200
->
-export type AllyRequest = ListAllyRequestsResponse["incoming"][number]
-
-// ── Blocks ──────────────────────────────────────────
-
-type BlocksClient = Client["v1"]["blocks"]
-
-export type ListBlockedUsersResponse = InferResponseType<
-  BlocksClient["$get"],
-  200
->
-export type BlockedUser = ListBlockedUsersResponse["blockedUsers"][number]
-
 // ── Users ──────────────────────────────────────────
 
 type UserProfileClient = Client["v1"]["users"][":userId"]

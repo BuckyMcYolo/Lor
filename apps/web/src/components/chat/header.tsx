@@ -6,7 +6,7 @@ import {
 } from "@repo/ui/components/tooltip"
 import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { useParams } from "@tanstack/react-router"
-import { Hash, Menu, PanelRight, Pin } from "lucide-react"
+import { Menu, PanelRight, Pin, Scroll } from "lucide-react"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { HeaderSearch } from "./header-search"
@@ -48,7 +48,7 @@ export function ChatHeader({
         </button>
       )}
       {context.type === "channel" && (
-        <Hash className="size-5 shrink-0 text-muted-foreground" />
+        <Scroll className="size-5 shrink-0 text-muted-foreground" />
       )}
       {context.type === "dm" && (
         <Avatar size="sm">

@@ -1,4 +1,5 @@
 import { Button } from "@repo/ui/components/button"
+import { CustomSelectItem } from "@repo/ui/components/custom-select-item"
 import {
   Dialog,
   DialogContent,
@@ -11,19 +12,29 @@ import { Label } from "@repo/ui/components/label"
 import {
   Select,
   SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/select"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { Hash, Loader2, Megaphone } from "lucide-react"
+import { Loader2, Megaphone, Scroll } from "lucide-react"
 import { useState } from "react"
 import { apiClient } from "@/lib/api-client"
 
 const channelTypes = [
-  { value: "text", label: "Text Channel", icon: Hash },
-  { value: "announcement", label: "Decree", icon: Megaphone },
+  {
+    value: "text",
+    label: "Scroll",
+    icon: Scroll,
+    description: "A text channel for general conversation and discussion",
+  },
+  {
+    value: "announcement",
+    label: "Decree",
+    icon: Megaphone,
+    description:
+      "A read-only channel for important announcements. Only admins and wardens can post",
+  },
 ] as const
 
 export function CreateChannelDialog({
@@ -139,12 +150,17 @@ export function CreateChannelDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {channelTypes.map((ct) => (
-                    <SelectItem key={ct.value} value={ct.value}>
+                    <CustomSelectItem
+                      key={ct.value}
+                      value={ct.value}
+                      tooltip={ct.description}
+                      side="right"
+                    >
                       <div className="flex items-center gap-2">
                         <ct.icon className="size-4 text-muted-foreground" />
                         {ct.label}
                       </div>
-                    </SelectItem>
+                    </CustomSelectItem>
                   ))}
                 </SelectContent>
               </Select>

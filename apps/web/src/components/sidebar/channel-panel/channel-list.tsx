@@ -32,11 +32,11 @@ import { useNavigate, useParams } from "@tanstack/react-router"
 import {
   ChevronDown,
   FolderPlus,
-  Hash,
   Megaphone,
   MessageSquare,
   MoreHorizontal,
   Plus,
+  Scroll,
   Volume2,
 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
@@ -55,7 +55,7 @@ import { DeleteChannelDialog } from "./delete-channel-dialog"
 import { EditChannelDialog } from "./edit-channel-dialog"
 
 const channelIcons = {
-  text: Hash,
+  text: Scroll,
   voice: Volume2,
   announcement: Megaphone,
   forum: MessageSquare,
@@ -64,7 +64,7 @@ const channelIcons = {
 type ChannelData = ListChannelsResponse
 
 function ChannelIcon({ type }: { type: string }) {
-  const Icon = channelIcons[type as keyof typeof channelIcons] ?? Hash
+  const Icon = channelIcons[type as keyof typeof channelIcons] ?? Scroll
   return <Icon className="size-4 shrink-0 opacity-50" />
 }
 

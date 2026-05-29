@@ -5,6 +5,7 @@ import {
   PopoverTrigger,
 } from "@repo/ui/components/popover"
 import { cn } from "@repo/ui/lib/utils"
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight"
 import Link from "@tiptap/extension-link"
 import Mention, { type MentionOptions } from "@tiptap/extension-mention"
 import { Markdown } from "@tiptap/markdown"
@@ -12,6 +13,7 @@ import { PluginKey } from "@tiptap/pm/state"
 import {
   EditorContent,
   Extension,
+  ReactNodeViewRenderer,
   ReactRenderer,
   useEditor,
   useEditorState,
@@ -23,6 +25,7 @@ import Suggestion, {
   type SuggestionOptions,
   type SuggestionProps,
 } from "@tiptap/suggestion"
+import { common, createLowlight } from "lowlight"
 import {
   Bold,
   Code,
@@ -46,6 +49,7 @@ import type { Message } from "@/lib/api-types"
 import { extractMentionIds, toStoredMarkdown } from "@/lib/editor-utils"
 import type { ChatContext } from "../header"
 import { AttachmentPreview } from "./attachment-preview"
+import { CodeBlockView } from "./code-block-view"
 import {
   MentionSuggestionList,
   type MentionSuggestionListProps,
@@ -68,6 +72,7 @@ const POPUP_GAP = 6
 export const SUGGESTION_MENU_SELECTOR =
   "[data-suggestion-open='true'], [data-mention-suggestion-open='true'], [data-slash-suggestion-open='true'], [data-slash-command-open='true']"
 const SLASH_COMMAND_PLUGIN_KEY = new PluginKey("slash-command")
+const lowlight = createLowlight(common)
 const DEFAULT_CODE_BLOCK_LANGUAGE = "plaintext"
 const CODE_BLOCK_LANGUAGE_OPTIONS = [
   { value: "plaintext", label: "Plain Text" },
@@ -254,7 +259,7 @@ export function createMentionSuggestion(
   }
 }
 
-function _createSlashCommandSuggestion(): Omit<
+function createSlashCommandSuggestion(): Omit<
   SuggestionOptions<SlashCommandItem, SlashCommandItem>,
   "editor"
 > {
@@ -307,7 +312,7 @@ function _createSlashCommandSuggestion(): Omit<
   }
 }
 
-function _createSlashCommandExtension(
+function createSlashCommandExtension(
   suggestion: Omit<
     SuggestionOptions<SlashCommandItem, SlashCommandItem>,
     "editor"
@@ -461,15 +466,14 @@ export function MessageInput({
     () => createMentionSuggestion(() => mentionCandidatesRef.current),
     []
   )
-  // Slash commands temporarily disabled.
-  // const slashCommandSuggestion = useMemo(
-  //   () => createSlashCommandSuggestion(),
-  //   []
-  // )
-  // const slashCommandExtension = useMemo(
-  //   () => createSlashCommandExtension(slashCommandSuggestion),
-  //   [slashCommandSuggestion]
-  // )
+  const slashCommandSuggestion = useMemo(
+    () => createSlashCommandSuggestion(),
+    []
+  )
+  const slashCommandExtension = useMemo(
+    () => createSlashCommandExtension(slashCommandSuggestion),
+    [slashCommandSuggestion]
+  )
 
   const editor = useEditor(
     {
@@ -478,6 +482,15 @@ export function MessageInput({
           heading: false,
           blockquote: false,
           horizontalRule: false,
+          codeBlock: false,
+        }),
+        CodeBlockLowlight.extend({
+          addNodeView() {
+            return ReactNodeViewRenderer(CodeBlockView)
+          },
+        }).configure({
+          lowlight,
+          defaultLanguage: "plaintext",
         }),
         Markdown,
         Link.configure({
@@ -499,7 +512,7 @@ export function MessageInput({
             `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`,
           suggestion: mentionSuggestion,
         }),
-        // slashCommandExtension,
+        slashCommandExtension,
       ],
       editorProps: {
         attributes: {
@@ -811,63 +824,6 @@ export function MessageInput({
               <span className="pointer-events-none absolute left-0 top-0 text-sm text-muted-foreground">
                 {placeholder}
               </span>
-            )}
-            {editor && (
-              <BubbleMenu
-                editor={editor}
-                appendTo={() => document.body}
-                shouldShow={({ editor: tiptapEditor, element }) => {
-                  const activeElement =
-                    typeof document !== "undefined"
-                      ? document.activeElement
-                      : null
-
-                  return (
-                    tiptapEditor.isEditable &&
-                    (tiptapEditor.isActive("codeBlock") ||
-                      (activeElement ? element.contains(activeElement) : false))
-                  )
-                }}
-                getReferencedVirtualElement={() => {
-                  const rect = getActiveCodeBlockRect(editor)
-                  if (!rect) return null
-
-                  return {
-                    getBoundingClientRect: () => rect,
-                  }
-                }}
-                options={{
-                  strategy: "fixed",
-                  placement: "bottom-start",
-                  offset: 0,
-                  flip: true,
-                  shift: true,
-                }}
-                className="z-50 rounded-md border border-border/70 bg-background/95 p-1 shadow-sm backdrop-blur"
-              >
-                <div className="flex items-center gap-1">
-                  <span className="px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Lang
-                  </span>
-                  <select
-                    value={codeBlockLanguage}
-                    onMouseDown={(event) => {
-                      event.stopPropagation()
-                    }}
-                    onChange={(event) => {
-                      handleCodeBlockLanguageChange(event.target.value)
-                    }}
-                    className="h-7 rounded border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring"
-                    aria-label="Code block language"
-                  >
-                    {CODE_BLOCK_LANGUAGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </BubbleMenu>
             )}
             {editor && (
               <BubbleMenu
