@@ -2,9 +2,9 @@ import { db } from "@repo/db"
 import {
   channel,
   channelMember,
-  guildMember,
   message,
   user,
+  workspaceMember,
 } from "@repo/db/schema"
 import { and, count, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
@@ -37,7 +37,7 @@ async function fetchDMMembershipChannel(dmId: string, userId: string) {
       name: channel.name,
       topic: channel.topic,
       type: channel.type,
-      guildId: channel.guildId,
+      workspaceId: channel.workspaceId,
       parentId: channel.parentId,
       position: channel.position,
       ownerId: channel.ownerId,
@@ -73,16 +73,16 @@ export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
   }
 
   // Workspace-scope check: every target must share at least one workspace
-  // (guild) with the requester. DMs are scoped to workspace membership in
+  // with the requester. DMs are scoped to workspace membership in
   // Lor — you can't DM someone you don't share a workspace with.
-  const myGuildRows = await db
-    .select({ guildId: guildMember.guildId })
-    .from(guildMember)
-    .where(eq(guildMember.userId, currentUser.id))
+  const myWorkspaceRows = await db
+    .select({ workspaceId: workspaceMember.workspaceId })
+    .from(workspaceMember)
+    .where(eq(workspaceMember.userId, currentUser.id))
 
-  const myGuildIds = myGuildRows.map((row) => row.guildId)
+  const myWorkspaceIds = myWorkspaceRows.map((row) => row.workspaceId)
 
-  if (myGuildIds.length === 0) {
+  if (myWorkspaceIds.length === 0) {
     return c.json(
       {
         success: false,
@@ -93,12 +93,12 @@ export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
   }
 
   const sharedRows = await db
-    .selectDistinct({ userId: guildMember.userId })
-    .from(guildMember)
+    .selectDistinct({ userId: workspaceMember.userId })
+    .from(workspaceMember)
     .where(
       and(
-        inArray(guildMember.guildId, myGuildIds),
-        inArray(guildMember.userId, targetUserIds)
+        inArray(workspaceMember.workspaceId, myWorkspaceIds),
+        inArray(workspaceMember.userId, targetUserIds)
       )
     )
 
@@ -181,7 +181,7 @@ export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
       .insert(channel)
       .values({
         type: isDirect ? "dm" : "group_dm",
-        guildId: null,
+        workspaceId: null,
         ownerId: isDirect ? null : currentUser.id,
         position: 0,
         createdAt: now,
@@ -279,7 +279,7 @@ export const listDMs: AppRouteHandler<ListDMsRoute> = async (c) => {
         name: channel.name,
         topic: channel.topic,
         type: channel.type,
-        guildId: channel.guildId,
+        workspaceId: channel.workspaceId,
         parentId: channel.parentId,
         position: channel.position,
         ownerId: channel.ownerId,

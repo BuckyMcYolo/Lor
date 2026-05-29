@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi"
-import { guildSlugParamsSchema } from "@/routes/v1/channels/schema"
+import { workspaceSlugParamsSchema } from "@/routes/v1/channels/schema"
 
-export { guildSlugParamsSchema }
+export { workspaceSlugParamsSchema }
 
 // ── Path Params ──────────────────────────────────────────
 
@@ -20,20 +20,22 @@ export const inviteCodeParamsSchema = z.object({
     }),
 })
 
-export const guildInviteCodeParamsSchema = guildSlugParamsSchema.extend({
-  code: z
-    .string()
-    .min(1)
-    .max(12)
-    .openapi({
-      param: {
-        name: "code",
-        in: "path",
-        required: true,
-      },
-      example: "aBc4xZ7q",
-    }),
-})
+export const workspaceInviteCodeParamsSchema = workspaceSlugParamsSchema.extend(
+  {
+    code: z
+      .string()
+      .min(1)
+      .max(12)
+      .openapi({
+        param: {
+          name: "code",
+          in: "path",
+          required: true,
+        },
+        example: "aBc4xZ7q",
+      }),
+  }
+)
 
 // ── Request Schemas ──────────────────────────────────────
 
@@ -51,10 +53,10 @@ export const createInviteRequestSchema = z.object({
 
 // ── Response Schemas ──────────────────────────────────────
 
-export const guildInviteSchema = z.object({
+export const workspaceInviteSchema = z.object({
   id: z.string().uuid(),
   code: z.string(),
-  guildId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
   inviterId: z.string().uuid(),
   channelId: z.string().uuid().nullable(),
   maxUses: z.number().nullable(),
@@ -70,12 +72,12 @@ export const guildInviteSchema = z.object({
 
 export const createInviteResponseSchema = z.object({
   success: z.literal(true),
-  invite: guildInviteSchema,
+  invite: workspaceInviteSchema,
 })
 
 export const listInvitesResponseSchema = z.object({
   success: z.literal(true),
-  invites: z.array(guildInviteSchema),
+  invites: z.array(workspaceInviteSchema),
 })
 
 export const deleteInviteResponseSchema = z.object({
@@ -84,7 +86,7 @@ export const deleteInviteResponseSchema = z.object({
 
 export const invitePreviewSchema = z.object({
   code: z.string(),
-  guild: z.object({
+  workspace: z.object({
     name: z.string(),
     slug: z.string(),
     logo: z.string().nullable(),
@@ -112,7 +114,7 @@ export const invitePreviewResponseSchema = z.object({
 
 export const acceptInviteResponseSchema = z.object({
   success: z.literal(true),
-  guild: z.object({
+  workspace: z.object({
     id: z.string().uuid(),
     name: z.string(),
     slug: z.string(),

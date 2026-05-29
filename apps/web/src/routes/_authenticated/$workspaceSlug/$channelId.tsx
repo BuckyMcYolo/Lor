@@ -26,13 +26,15 @@ import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
 import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
-import { canPinMessages, canSendInAnnouncement } from "@/lib/permissions"
+import { canPinMessages } from "@/lib/permissions"
 
 type ChannelSearchParams = {
   msgId?: string
 }
 
-export const Route = createFileRoute("/_authenticated/$guildSlug/$channelId")({
+export const Route = createFileRoute(
+  "/_authenticated/$workspaceSlug/$channelId"
+)({
   component: ChannelView,
   validateSearch: (search: Record<string, unknown>): ChannelSearchParams => ({
     msgId: typeof search.msgId === "string" ? search.msgId : undefined,
@@ -40,7 +42,7 @@ export const Route = createFileRoute("/_authenticated/$guildSlug/$channelId")({
 })
 
 function ChannelView() {
-  const { guildSlug, channelId } = Route.useParams()
+  const { workspaceSlug, channelId } = Route.useParams()
   const { msgId } = Route.useSearch()
   const navigate = Route.useNavigate()
   const socket = useSocket()
@@ -53,36 +55,36 @@ function ChannelView() {
   const currentUserId = session?.user.id
 
   useEffect(() => {
-    if (!guildSlug || !channelId) return
+    if (!workspaceSlug || !channelId) return
     try {
       if (typeof window !== "undefined") {
-        localStorage.setItem(`last-channel:${guildSlug}`, channelId)
+        localStorage.setItem(`last-channel:${workspaceSlug}`, channelId)
       }
     } catch {
       // localStorage may be unavailable in restricted environments
     }
-  }, [guildSlug, channelId])
+  }, [workspaceSlug, channelId])
 
   useEffect(() => {
     if (isMobile === false) {
       setView({
-        type: "guild-members",
-        guildSlug,
+        type: "workspace-members",
+        workspaceSlug,
         channelId,
       })
     }
     return () => {
       clearView()
     }
-  }, [setView, clearView, guildSlug, channelId, isMobile])
+  }, [setView, clearView, workspaceSlug, channelId, isMobile])
 
   const { data, isPending, isError, error } = useQuery({
-    queryKey: ["channel", guildSlug, channelId],
+    queryKey: ["channel", workspaceSlug, channelId],
     queryFn: async () => {
-      const res = await apiClient.v1.guilds[":guildSlug"].channels[
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].channels[
         ":channelId"
       ].$get({
-        param: { guildSlug, channelId },
+        param: { workspaceSlug, channelId },
       })
       if (!res.ok) throw new Error("Failed to fetch channel")
       return res.json()
@@ -98,10 +100,10 @@ function ChannelView() {
   } = useInfiniteQuery({
     queryKey: ["messages", channelId],
     queryFn: async ({ pageParam }) => {
-      const res = await apiClient.v1.guilds[":guildSlug"].channels[
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].channels[
         ":channelId"
       ].messages.$get({
-        param: { guildSlug, channelId },
+        param: { workspaceSlug, channelId },
         query: { page: String(pageParam), perPage: "50" },
       })
       if (!res.ok) throw new Error("Failed to fetch messages")
@@ -129,13 +131,13 @@ function ChannelView() {
     return () => clearTimeout(timer)
   }, [msgId, messagesLoading, messages, navigate])
 
-  const { data: guildMembersData } = useQuery({
-    queryKey: ["guild-members", guildSlug],
+  const { data: workspaceMembersData } = useQuery({
+    queryKey: ["workspace-members", workspaceSlug],
     queryFn: async () => {
-      const res = await apiClient.v1.guilds[":guildSlug"].members.$get({
-        param: { guildSlug },
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].members.$get({
+        param: { workspaceSlug },
       })
-      if (!res.ok) throw new Error("Failed to fetch guild members")
+      if (!res.ok) throw new Error("Failed to fetch workspace members")
       return res.json()
     },
   })
@@ -179,7 +181,7 @@ function ChannelView() {
   })
 
   const { data: activeMember } = useQuery({
-    queryKey: ["active-guild-member", guildSlug],
+    queryKey: ["active-workspace-member", workspaceSlug],
     queryFn: async () => {
       const res = await authClient.organization.getActiveMember()
       if (res.error) return null
@@ -190,40 +192,34 @@ function ChannelView() {
   const activeMemberCtx =
     typeof activeMember?.role === "string" &&
     typeof activeMember.userId === "string" &&
-    guildMembersData?.ownerId
+    workspaceMembersData?.ownerId
       ? {
           actor: { userId: activeMember.userId, role: activeMember.role },
-          guild: { ownerId: guildMembersData.ownerId },
+          workspace: { ownerId: workspaceMembersData.ownerId },
         }
       : null
 
   const canPin = activeMemberCtx
-    ? canPinMessages(activeMemberCtx.actor, activeMemberCtx.guild)
+    ? canPinMessages(activeMemberCtx.actor, activeMemberCtx.workspace)
     : false
-
-  const canSendMessages =
-    data?.type !== "announcement" ||
-    (activeMemberCtx
-      ? canSendInAnnouncement(activeMemberCtx.actor, activeMemberCtx.guild)
-      : false)
 
   const { handleTogglePin } = useMessagePinning({
     socket,
     queryClient,
     channelId,
-    guildSlug,
+    workspaceSlug,
   })
 
   const togglePinnedMessages = useCallback(() => {
     if (view?.type === "pinned-messages" && !isCollapsed) {
-      setView({ type: "guild-members", guildSlug, channelId })
+      setView({ type: "workspace-members", workspaceSlug, channelId })
     } else {
-      setView({ type: "pinned-messages", guildSlug, channelId })
+      setView({ type: "pinned-messages", workspaceSlug, channelId })
       if (isCollapsed) {
         toggleCollapsed()
       }
     }
-  }, [view, setView, guildSlug, channelId, isCollapsed, toggleCollapsed])
+  }, [view, setView, workspaceSlug, channelId, isCollapsed, toggleCollapsed])
 
   const { replyingTo, setReplyingTo, clearReply } = useReplyState()
 
@@ -253,7 +249,6 @@ function ChannelView() {
     onDrop,
     noClick: true,
     noKeyboard: true,
-    disabled: !canSendMessages,
   })
 
   const mentionCandidates = useMemo(
@@ -264,7 +259,7 @@ function ChannelView() {
         name: "everyone",
         search: "everyone all members",
       },
-      ...(guildMembersData?.members.map((member) => ({
+      ...(workspaceMembersData?.members.map((member) => ({
         id: member.userId,
         label: member.displayUsername ?? member.username ?? member.name,
         name: member.name,
@@ -273,7 +268,7 @@ function ChannelView() {
         image: member.image,
       })) ?? []),
     ],
-    [guildMembersData?.members]
+    [workspaceMembersData?.members]
   )
 
   if (isPending) {
@@ -334,8 +329,6 @@ function ChannelView() {
       <TypingIndicator users={typingUsers} />
       <MessageInput
         context={context}
-        disabled={!canSendMessages}
-        disabledReason="Only owners, admins, and wardens can post in decree channels"
         onSend={handleSend}
         currentUserId={currentUserId}
         mentionCandidates={mentionCandidates}

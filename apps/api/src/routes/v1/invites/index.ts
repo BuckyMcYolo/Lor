@@ -3,7 +3,7 @@ import * as handlers from "@/routes/v1/invites/handlers"
 import * as routes from "@/routes/v1/invites/routes"
 
 const invitesRouter = createRouter()
-  // Guild-scoped routes
+  // Workspace-scoped routes
   .openapi(routes.createInvite, handlers.createInvite)
   .openapi(routes.listInvites, handlers.listInvites)
   .openapi(routes.deleteInvite, handlers.deleteInvite)

@@ -17,23 +17,22 @@ import {
 } from "@repo/ui/components/select"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { Loader2, Megaphone, Scroll } from "lucide-react"
+import { Loader2, Scroll, Volume2 } from "lucide-react"
 import { useState } from "react"
 import { apiClient } from "@/lib/api-client"
 
 const channelTypes = [
   {
     value: "text",
-    label: "Scroll",
+    label: "Text",
     icon: Scroll,
     description: "A text channel for general conversation and discussion",
   },
   {
-    value: "announcement",
-    label: "Decree",
-    icon: Megaphone,
-    description:
-      "A read-only channel for important announcements. Only admins and wardens can post",
+    value: "voice",
+    label: "Voice",
+    icon: Volume2,
+    description: "A voice channel for huddles and meetings",
   },
 ] as const
 
@@ -48,18 +47,18 @@ export function CreateChannelDialog({
   parentId?: string | null
   forceType?: "category"
 }) {
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
-  const [type, setType] = useState<"text" | "announcement">("text")
+  const [type, setType] = useState<"text" | "voice">("text")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = name.trim()
-    if (!trimmed || !guildSlug) return
+    if (!trimmed || !workspaceSlug) return
     if (forceType !== "category" && !normalizedName) return
     setError(null)
     setLoading(true)
@@ -67,8 +66,10 @@ export function CreateChannelDialog({
     const isCategory = forceType === "category"
 
     try {
-      const res = await apiClient.v1.guilds[":guildSlug"].channels.$post({
-        param: { guildSlug },
+      const res = await apiClient.v1.workspaces[
+        ":workspaceSlug"
+      ].channels.$post({
+        param: { workspaceSlug },
         json: {
           name: isCategory ? trimmed : normalizedName,
           type: isCategory ? "category" : type,
@@ -87,7 +88,7 @@ export function CreateChannelDialog({
 
       const channel = await res.json()
       await queryClient.invalidateQueries({
-        queryKey: ["channels", guildSlug],
+        queryKey: ["channels", workspaceSlug],
       })
       onOpenChange(false)
       setName("")
@@ -96,8 +97,8 @@ export function CreateChannelDialog({
 
       if (!isCategory) {
         navigate({
-          to: "/$guildSlug/$channelId",
-          params: { guildSlug, channelId: channel.id },
+          to: "/$workspaceSlug/$channelId",
+          params: { workspaceSlug, channelId: channel.id },
         })
       }
     } catch {
@@ -134,7 +135,7 @@ export function CreateChannelDialog({
           <DialogDescription>
             {isCategory
               ? "Add a new category to organize your channels."
-              : "Add a new channel to your guild."}
+              : "Add a new channel to your workspace."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleCreate} className="space-y-4">
@@ -143,7 +144,7 @@ export function CreateChannelDialog({
               <Label htmlFor="channel-type">Type</Label>
               <Select
                 value={type}
-                onValueChange={(v) => setType(v as "text" | "announcement")}
+                onValueChange={(v) => setType(v as "text" | "voice")}
               >
                 <SelectTrigger>
                   <SelectValue />

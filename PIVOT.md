@@ -274,8 +274,9 @@ Three buckets. Execute in order: deletes first on a branch, get to a minimal cha
 **Channel types we don't need:**
 - `announcement` (Decrees) — B2B teams don't broadcast like communities
 - `forum` — threads live inside text channels
-- `category` — categories are sidebar UI grouping, not a channel-type row
 - Remove these values from the channel-type enum in `packages/db/src/schemas/channels.ts` and any UI branches that render them
+
+**`category` channel-type stays.** Earlier draft said "categories are sidebar UI grouping, not a channel-type row." Revisited 2026-05-28: that was an aesthetic preference, not a load-bearing requirement. Discord uses the same channel-as-category-row pattern at scale. Migrating to a separate `channel_category` table would touch ~25-30 files + a real DB migration for marginal cleanup. Skipped. Revisit only if it causes concrete pain.
 
 **Private channels:**
 - Do not implement a private channel primitive. Channels are public to the workspace, full stop. If a `private`/`visibility` field gets added later, it must come with a maintainer decision — not as a quiet build.
@@ -317,7 +318,7 @@ Recommended v1 scope: **one connector, done exceptionally well** (GitHub is the 
 **Foundation first — rework the existing chat app before any Merlin work begins.** Per maintainer call (2026-05-28): the order below front-loads the delete pass + workspace rename so we have a clean base, then layers Merlin on top.
 
 1. **Branch the delete pass.** Strip the old surfaces listed in [Delete aggressively](#delete-aggressively-do-not-rename-do-not-migrate-just-rm) — social/friendship layer, per-guild roles/bans/timeouts, `announcement`/`forum`/`category` channel types, Townhall lexicon, Ravn references. Voice channels stay.
-2. **Resolve the workspace primitive name** (see Open decisions) and execute the `guilds → workspaces|organizations|keeps` rename across schema, API routes, web routes, and components.
+2. ~~**Resolve the workspace primitive name** (see Open decisions) and execute the `guilds → workspaces|organizations|keeps` rename across schema, API routes, web routes, and components.~~ **Done.** `guild*` → `workspace*` rename executed across schemas (`packages/db/src/schemas/workspace*.ts`), API (`apps/api/src/routes/v1/workspaces/`), web routes (`apps/web/src/routes/_authenticated/$workspaceSlug/`), components, realtime room/event names, and permission helpers. Better-auth's `organization` plugin surface is unchanged at the API boundary.
 3. **Collapse private-Hall scaffolding** if any landed — channels are public-to-workspace by design.
 4. **Rebuild the sidebar IA** — tabbed sidebar (Channels / DMs / Merlin) + minimal top bar per [Navigation & sidebar IA](#navigation--sidebar-ia). Includes Discord-style collapsible categories. **The workspace switcher itself is deferred** — top-left can stay as a static workspace badge for now (the multi-workspace switcher dropdown is post-foundation work).
 5. Rebuild marketing site copy on `apps/www` against the new Lor / institutional-memory positioning.

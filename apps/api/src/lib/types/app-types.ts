@@ -1,19 +1,19 @@
 import type { OpenAPIHono, RouteConfig, RouteHandler } from "@hono/zod-openapi"
 import type { Session } from "@repo/auth"
-import type { guild, guildMember } from "@repo/db/schema"
+import type { workspace, workspaceMember } from "@repo/db/schema"
 import type { Schema } from "hono"
 import type { PinoLogger } from "hono-pino"
 
-export type Guild = typeof guild.$inferSelect
-export type GuildMember = typeof guildMember.$inferSelect
+export type Workspace = typeof workspace.$inferSelect
+export type WorkspaceMember = typeof workspaceMember.$inferSelect
 
 export interface AppBindings {
   Variables: {
     logger: PinoLogger
     user: Session["user"]
     session: Session["session"]
-    guild: Guild
-    member: GuildMember
+    workspace: Workspace
+    member: WorkspaceMember
   }
 }
 

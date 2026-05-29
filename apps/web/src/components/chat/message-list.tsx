@@ -39,7 +39,7 @@ function EmptyState({ context }: { context: ChatContext }) {
           <p className="mt-1 text-sm text-muted-foreground">
             {context.type === "channel"
               ? "The scroll is blank. Write the first entry."
-              : "Send a raven to begin."}
+              : "Send a message to begin."}
           </p>
         </div>
       </div>

@@ -60,12 +60,8 @@ function SignUpPage() {
           to="/login"
           className="flex items-center gap-2 self-center font-medium"
         >
-          <img
-            src="/townhallicon.png"
-            alt="Townhall"
-            className="size-6 rounded-md"
-          />
-          Townhall
+          <img src="/lor-icon.png" alt="Lor" className="size-6 rounded-md" />
+          Lor
         </Link>
         <div className="flex flex-col gap-6">
           <Card>

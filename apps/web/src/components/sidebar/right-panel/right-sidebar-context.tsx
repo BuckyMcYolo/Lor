@@ -20,8 +20,8 @@ interface RightSidebarContextValue {
   isHydrated: boolean
 }
 
-const PANEL_COLLAPSED_KEY = "townhall-right-panel-collapsed"
-const PANEL_WIDTH_KEY = "townhall-right-panel-width"
+const PANEL_COLLAPSED_KEY = "lor-right-panel-collapsed"
+const PANEL_WIDTH_KEY = "lor-right-panel-width"
 const DEFAULT_WIDTH = 280
 
 function getStoredCollapsed(): boolean {

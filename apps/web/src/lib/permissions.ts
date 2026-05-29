@@ -1,28 +1,28 @@
 import {
-  canManageGuildAuthority,
-  formatGuildRole as formatGuildRoleHelper,
-  type GuildAuthority,
-  guildAuthorityHasPermissions,
-  isGuildRole,
+  canManageWorkspaceAuthority,
+  formatWorkspaceRole as formatWorkspaceRoleHelper,
+  isWorkspaceRole,
   type PermissionRequest,
+  type WorkspaceAuthority,
+  workspaceAuthorityHasPermissions,
 } from "@repo/auth/permissions"
 
 function toAuthority(
   member: { userId: string; role: string },
-  guild: { ownerId: string }
-): GuildAuthority | null {
-  if (!isGuildRole(member.role)) return null
+  workspace: { ownerId: string }
+): WorkspaceAuthority | null {
+  if (!isWorkspaceRole(member.role)) return null
   return {
     role: member.role,
-    isOwner: guild.ownerId === member.userId,
+    isOwner: workspace.ownerId === member.userId,
   }
 }
 
 export function isOwner(
   member: { userId: string },
-  guild: { ownerId: string }
+  workspace: { ownerId: string }
 ): boolean {
-  return member.userId === guild.ownerId
+  return member.userId === workspace.ownerId
 }
 
 export function isAdmin(member: { role: string }): boolean {
@@ -31,79 +31,69 @@ export function isAdmin(member: { role: string }): boolean {
 
 export function isAdminOrOwner(
   member: { userId: string; role: string },
-  guild: { ownerId: string }
+  workspace: { ownerId: string }
 ): boolean {
-  return isOwner(member, guild) || isAdmin(member)
+  return isOwner(member, workspace) || isAdmin(member)
 }
 
-export function formatGuildRole(role: string): string {
-  if (isGuildRole(role)) return formatGuildRoleHelper(role)
+export function formatWorkspaceRole(role: string): string {
+  if (isWorkspaceRole(role)) return formatWorkspaceRoleHelper(role)
   return "Member"
 }
 
 function hasPermissions(
   member: { userId: string; role: string },
-  guild: { ownerId: string },
+  workspace: { ownerId: string },
   requestedPermissions: PermissionRequest
 ): boolean {
-  const authority = toAuthority(member, guild)
+  const authority = toAuthority(member, workspace)
   if (!authority) return false
-  return guildAuthorityHasPermissions(authority, requestedPermissions)
+  return workspaceAuthorityHasPermissions(authority, requestedPermissions)
 }
 
 export function canManageChannels(
   member: { userId: string; role: string },
-  guild: { ownerId: string }
+  workspace: { ownerId: string }
 ): boolean {
-  return hasPermissions(member, guild, { channel: ["update"] })
+  return hasPermissions(member, workspace, { channel: ["update"] })
 }
 
 export function canCreateChannels(
   member: { userId: string; role: string },
-  guild: { ownerId: string }
+  workspace: { ownerId: string }
 ): boolean {
-  return hasPermissions(member, guild, { channel: ["create"] })
+  return hasPermissions(member, workspace, { channel: ["create"] })
 }
 
 export function canDeleteChannels(
   member: { userId: string; role: string },
-  guild: { ownerId: string }
+  workspace: { ownerId: string }
 ): boolean {
-  return hasPermissions(member, guild, { channel: ["delete"] })
+  return hasPermissions(member, workspace, { channel: ["delete"] })
 }
 
 export function canPinMessages(
   member: { userId: string; role: string },
-  guild: { ownerId: string }
+  workspace: { ownerId: string }
 ): boolean {
-  return hasPermissions(member, guild, { message: ["pin"] })
+  return hasPermissions(member, workspace, { message: ["pin"] })
 }
 
-export function canSendInAnnouncement(
+export function canKickWorkspaceMembers(
   member: { userId: string; role: string },
-  guild: { ownerId: string }
+  workspace: { ownerId: string }
 ): boolean {
-  // The `announcement` statement was removed in the Lor pivot. Posting in
-  // announcement channels is gated by the same tier as channel creation
-  // (admin/owner).
-  return hasPermissions(member, guild, { channel: ["create"] })
+  return hasPermissions(member, workspace, { workspaceMember: ["kick"] })
 }
 
-export function canKickGuildMembers(
-  member: { userId: string; role: string },
-  guild: { ownerId: string }
-): boolean {
-  return hasPermissions(member, guild, { guildMember: ["kick"] })
-}
-
-export function canManageGuildMember(
+export function canManageWorkspaceMember(
   actor: { userId: string; role: string },
   target: { userId: string; role: string },
-  guild: { ownerId: string }
+  workspace: { ownerId: string }
 ): boolean {
   if (actor.userId === target.userId) return false
-  const actorAuthority = toAuthority(actor, guild)
-  const targetAuthority = toAuthority(target, guild)
+  const actorAuthority = toAuthority(actor, workspace)
+  const targetAuthority = toAuthority(target, workspace)
   if (!actorAuthority || !targetAuthority) return false
-  return canManageGuildAuthority(actorAuthority, targetAuthority)
+  return canManageWorkspaceAuthority(actorAuthority, targetAuthority)
 }

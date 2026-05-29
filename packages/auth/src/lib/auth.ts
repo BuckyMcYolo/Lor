@@ -17,19 +17,13 @@ import {
 const redis = new Redis(env.REDIS_URL)
 const resend = new Resend(env.RESEND_API_KEY)
 
-const defaultGuildChannels = {
+const defaultWorkspaceChannels = {
   uncategorized: [
     { name: "general", type: "text" as const },
     { name: "introductions", type: "text" as const },
+    { name: "rules", type: "text" as const },
   ],
   categories: [
-    {
-      name: "Information",
-      channels: [
-        { name: "decrees", type: "announcement" as const },
-        { name: "rules", type: "text" as const },
-      ],
-    },
     {
       name: "Community",
       channels: [
@@ -40,15 +34,15 @@ const defaultGuildChannels = {
   ],
 }
 
-async function seedDefaultGuildChannels(guildId: string) {
+async function seedDefaultWorkspaceChannels(workspaceId: string) {
   await db.transaction(async (tx) => {
     let topLevelPosition = 0
 
-    const uncategorizedRows = defaultGuildChannels.uncategorized.map(
+    const uncategorizedRows = defaultWorkspaceChannels.uncategorized.map(
       (ch, index) => ({
         name: ch.name,
         type: ch.type,
-        guildId,
+        workspaceId,
         position: topLevelPosition + index,
       })
     )
@@ -58,13 +52,13 @@ async function seedDefaultGuildChannels(guildId: string) {
     }
     topLevelPosition += uncategorizedRows.length
 
-    for (const categoryConfig of defaultGuildChannels.categories) {
+    for (const categoryConfig of defaultWorkspaceChannels.categories) {
       const createdCategory = await tx
         .insert(schema.channel)
         .values({
           name: categoryConfig.name,
           type: "category",
-          guildId,
+          workspaceId,
           position: topLevelPosition++,
         })
         .returning({ id: schema.channel.id })
@@ -75,7 +69,7 @@ async function seedDefaultGuildChannels(guildId: string) {
       const childRows = categoryConfig.channels.map((ch, channelIndex) => ({
         name: ch.name,
         type: ch.type,
-        guildId,
+        workspaceId,
         parentId: createdCategory.id,
         position: channelIndex,
       }))
@@ -91,7 +85,7 @@ export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_API_URL,
   database: drizzleAdapter(db, { provider: "pg", schema }),
   secret: env.BETTER_AUTH_SECRET,
-  secondaryStorage: redisStorage({ client: redis, keyPrefix: "townhall:" }),
+  secondaryStorage: redisStorage({ client: redis, keyPrefix: "lor:" }),
   rateLimit: {
     enabled: true,
     window: 60,
@@ -144,7 +138,7 @@ export const auth = betterAuth({
         .send({
           from: env.EMAIL_FROM,
           to: user.email,
-          subject: "Reset your Townhall password",
+          subject: "Reset your Lor password",
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
               <h2 style="margin: 0 0 8px; font-size: 24px; color: #1a1a1a;">Reset Your Password</h2>
@@ -172,13 +166,13 @@ export const auth = betterAuth({
         .send({
           from: env.EMAIL_FROM,
           to: user.email,
-          subject: "Verify your Townhall email",
+          subject: "Verify your Lor email",
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
-              <h2 style="margin: 0 0 8px; font-size: 24px; color: #1a1a1a;">Welcome to Townhall</h2>
+              <h2 style="margin: 0 0 8px; font-size: 24px; color: #1a1a1a;">Welcome to Lor</h2>
               <p style="margin: 0 0 24px; color: #555; font-size: 16px; line-height: 1.5;">Click the button below to verify your email address and get started.</p>
               <a href="${url}" style="display: inline-block; background: #994920; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">Verify Email</a>
-              <p style="color: #999; font-size: 13px; margin-top: 24px; line-height: 1.4;">If you didn't create a Townhall account, you can safely ignore this email.</p>
+              <p style="color: #999; font-size: 13px; margin-top: 24px; line-height: 1.4;">If you didn't create a Lor account, you can safely ignore this email.</p>
             </div>
           `,
         })
@@ -190,7 +184,7 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    cookiePrefix: "townhall",
+    cookiePrefix: "lor",
     database: {
       generateId: false,
     },
@@ -216,7 +210,7 @@ export const auth = betterAuth({
       },
       schema: {
         organization: {
-          modelName: "guild",
+          modelName: "workspace",
           additionalFields: {
             ownerId: {
               type: "string",
@@ -233,25 +227,25 @@ export const auth = betterAuth({
           },
         },
         member: {
-          modelName: "guildMember",
+          modelName: "workspaceMember",
           fields: {
-            organizationId: "guildId",
+            organizationId: "workspaceId",
           },
         },
         invitation: {
           fields: {
-            organizationId: "guildId",
+            organizationId: "workspaceId",
           },
         },
         session: {
           fields: {
-            activeOrganizationId: "activeGuildId",
+            activeOrganizationId: "activeWorkspaceId",
           },
         },
         organizationRole: {
-          modelName: "guildRole",
+          modelName: "workspaceRole",
           fields: {
-            organizationId: "guildId",
+            organizationId: "workspaceId",
           },
         },
       },
@@ -261,11 +255,11 @@ export const auth = betterAuth({
         },
         afterCreateOrganization: async ({ organization, user }) => {
           try {
-            await seedDefaultGuildChannels(organization.id)
+            await seedDefaultWorkspaceChannels(organization.id)
           } catch (error) {
             logger.error(
-              { err: error, guildId: organization.id },
-              "Failed to seed default channels for guild"
+              { err: error, workspaceId: organization.id },
+              "Failed to seed default channels for workspace"
             )
             return
           }
@@ -294,5 +288,5 @@ export const auth = betterAuth({
 })
 
 export type Session = typeof auth.$Infer.Session
-export type ActiveGuild = typeof auth.$Infer.ActiveOrganization
-export type ActiveGuildMember = ActiveGuild["members"][number]
+export type ActiveWorkspace = typeof auth.$Infer.ActiveOrganization
+export type ActiveWorkspaceMember = ActiveWorkspace["members"][number]

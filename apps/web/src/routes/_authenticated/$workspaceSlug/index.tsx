@@ -1,31 +1,31 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 
-export const Route = createFileRoute("/_authenticated/$guildSlug/")({
-  component: GuildHome,
+export const Route = createFileRoute("/_authenticated/$workspaceSlug/")({
+  component: WorkspaceHome,
 })
 
-function GuildHome() {
-  const { guildSlug } = Route.useParams()
+function WorkspaceHome() {
+  const { workspaceSlug } = Route.useParams()
   const navigate = useNavigate()
 
   useEffect(() => {
     let lastChannelId: string | null = null
     try {
       if (typeof window !== "undefined") {
-        lastChannelId = localStorage.getItem(`last-channel:${guildSlug}`)
+        lastChannelId = localStorage.getItem(`last-channel:${workspaceSlug}`)
       }
     } catch {
       // localStorage may be unavailable in restricted environments
     }
     if (lastChannelId) {
       void navigate({
-        to: "/$guildSlug/$channelId",
-        params: { guildSlug, channelId: lastChannelId },
+        to: "/$workspaceSlug/$channelId",
+        params: { workspaceSlug, channelId: lastChannelId },
         replace: true,
       })
     }
-  }, [guildSlug, navigate])
+  }, [workspaceSlug, navigate])
 
   return (
     <div className="flex flex-1 items-center justify-center">

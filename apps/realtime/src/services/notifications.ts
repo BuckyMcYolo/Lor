@@ -53,13 +53,13 @@ function extractDirectMentionUserIds(content: string) {
 }
 
 async function listRecipientUserIds(channel: AccessibleChannel) {
-  if (channel.guildId) {
+  if (channel.workspaceId) {
     return db
       .select({
-        userId: schema.guildMember.userId,
+        userId: schema.workspaceMember.userId,
       })
-      .from(schema.guildMember)
-      .where(eq(schema.guildMember.guildId, channel.guildId))
+      .from(schema.workspaceMember)
+      .where(eq(schema.workspaceMember.workspaceId, channel.workspaceId))
       .then((rows) => rows.map((row) => row.userId))
   }
 
@@ -81,7 +81,7 @@ function buildMentionTargets(args: {
     args.messageContent
   )
   const includeEveryoneMention =
-    Boolean(args.channel.guildId) &&
+    Boolean(args.channel.workspaceId) &&
     EVERYONE_MENTION_REGEX.test(args.messageContent)
 
   const mentionTypeByUserId = new Map<string, MentionInsertType>()
@@ -135,7 +135,7 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
       userId,
       payload: {
         channelId: input.channel.id,
-        guildId: input.channel.guildId,
+        workspaceId: input.channel.workspaceId,
         messageId: input.message.id,
         unreadCountDelta: 1,
         authorName: input.message.author.name,
@@ -212,7 +212,7 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
   const notificationRows = Array.from(mentionTypeByUserId.entries()).map(
     ([userId, mentionType]) => ({
       userId,
-      guildId: input.channel.guildId,
+      workspaceId: input.channel.workspaceId,
       channelId: input.channel.id,
       messageId: input.message.id,
       type: toNotificationType(mentionType),
@@ -229,7 +229,7 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
       type: schema.notificationEvent.type,
       messageId: schema.notificationEvent.messageId,
       channelId: schema.notificationEvent.channelId,
-      guildId: schema.notificationEvent.guildId,
+      workspaceId: schema.notificationEvent.workspaceId,
       createdAt: schema.notificationEvent.createdAt,
     })
 
@@ -253,7 +253,7 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
         type: schema.notificationEvent.type,
         messageId: schema.notificationEvent.messageId,
         channelId: schema.notificationEvent.channelId,
-        guildId: schema.notificationEvent.guildId,
+        workspaceId: schema.notificationEvent.workspaceId,
         createdAt: schema.notificationEvent.createdAt,
       })
       .from(schema.notificationEvent)
@@ -303,7 +303,7 @@ export async function buildMessageFanout(input: MessageFanoutInput) {
             type: notification.type,
             messageId: notification.messageId ?? input.message.id,
             channelId: notification.channelId ?? input.channel.id,
-            guildId: notification.guildId ?? input.channel.guildId,
+            workspaceId: notification.workspaceId ?? input.channel.workspaceId,
             createdAt: notification.createdAt.toISOString(),
           },
         },

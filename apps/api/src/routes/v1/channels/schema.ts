@@ -12,18 +12,18 @@ import {
 
 // ── Path Params ──────────────────────────────────────────
 
-export const guildSlugParamsSchema = z.object({
-  guildSlug: z.string().openapi({
+export const workspaceSlugParamsSchema = z.object({
+  workspaceSlug: z.string().openapi({
     param: {
-      name: "guildSlug",
+      name: "workspaceSlug",
       in: "path",
       required: true,
     },
-    example: "my-guild",
+    example: "my-workspace",
   }),
 })
 
-export const channelParamsSchema = guildSlugParamsSchema.extend({
+export const channelParamsSchema = workspaceSlugParamsSchema.extend({
   channelId: z
     .string()
     .uuid()
@@ -44,7 +44,11 @@ export const listChannelsResponseSchema = z.object({
   categories: z.array(categoryWithChannelsSchema),
 })
 
-export const createChannelRequestSchema = insertChannelSchema
+// Narrow the create endpoint to workspace-creatable types only.
+// DMs / group DMs are created via the /dms route, not generic create-channel.
+export const createChannelRequestSchema = insertChannelSchema.extend({
+  type: z.enum(["text", "voice", "category"]).default("text"),
+})
 
 export const createChannelResponseSchema = selectChannelSchema
 

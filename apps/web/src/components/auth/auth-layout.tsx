@@ -6,13 +6,9 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       <div className="flex w-full max-w-[420px] flex-col items-center">
         {/* Branding */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <img
-            src="/townhallicon.png"
-            alt="Townhall"
-            className="size-14 rounded-2xl"
-          />
+          <img src="/lor-icon.png" alt="Lor" className="size-14 rounded-2xl" />
           <span className="text-2xl font-bold tracking-tight text-foreground">
-            Townhall
+            Lor
           </span>
         </div>
 

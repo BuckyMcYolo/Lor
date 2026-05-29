@@ -7,32 +7,32 @@ import {
   notFoundSchema,
   unauthorizedSchema,
 } from "@/lib/helpers/openapi/schemas"
-import { guildAuthMiddleware } from "@/middleware/guild-auth"
 import { sessionAuthMiddleware } from "@/middleware/session-auth"
+import { workspaceAuthMiddleware } from "@/middleware/workspace-auth"
 import {
   acceptInviteResponseSchema,
   createInviteRequestSchema,
   createInviteResponseSchema,
   deleteInviteResponseSchema,
-  guildInviteCodeParamsSchema,
-  guildSlugParamsSchema,
   inviteCodeParamsSchema,
   invitePreviewResponseSchema,
   listInvitesResponseSchema,
+  workspaceInviteCodeParamsSchema,
+  workspaceSlugParamsSchema,
 } from "./schema"
 
-// ── Guild-scoped routes (require guild membership) ──────
+// ── Workspace-scoped routes (require workspace membership) ──────
 
 export const createInvite = createRoute({
-  path: "/guilds/{guildSlug}/invites",
+  path: "/workspaces/{workspaceSlug}/invites",
   method: "post",
-  summary: "Create a guild invite link",
+  summary: "Create a workspace invite link",
   description:
-    "Generates a shareable invite code for the guild. Any guild member can create invite links.",
+    "Generates a shareable invite code for the workspace. Any workspace member can create invite links.",
   tags: ["Invites"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
-    params: guildSlugParamsSchema,
+    params: workspaceSlugParamsSchema,
     body: jsonContent({
       schema: createInviteRequestSchema,
       description: "Invite options",
@@ -52,20 +52,20 @@ export const createInvite = createRoute({
 export type CreateInviteRoute = typeof createInvite
 
 export const listInvites = createRoute({
-  path: "/guilds/{guildSlug}/invites",
+  path: "/workspaces/{workspaceSlug}/invites",
   method: "get",
-  summary: "List guild invite links",
+  summary: "List workspace invite links",
   description:
-    "Returns all active invite links for the guild. Requires admin or higher role.",
+    "Returns all active invite links for the workspace. Requires admin or higher role.",
   tags: ["Invites"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
-    params: guildSlugParamsSchema,
+    params: workspaceSlugParamsSchema,
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent({
       schema: listInvitesResponseSchema,
-      description: "Active guild invites",
+      description: "Active workspace invites",
     }),
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
     [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
@@ -76,15 +76,15 @@ export const listInvites = createRoute({
 export type ListInvitesRoute = typeof listInvites
 
 export const deleteInvite = createRoute({
-  path: "/guilds/{guildSlug}/invites/{code}",
+  path: "/workspaces/{workspaceSlug}/invites/{code}",
   method: "delete",
-  summary: "Revoke a guild invite link",
+  summary: "Revoke a workspace invite link",
   description:
     "Deletes an invite link. Admins+ can delete any invite; members can only delete their own.",
   tags: ["Invites"],
-  middleware: [guildAuthMiddleware] as const,
+  middleware: [workspaceAuthMiddleware] as const,
   request: {
-    params: guildInviteCodeParamsSchema,
+    params: workspaceInviteCodeParamsSchema,
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent({
@@ -107,7 +107,7 @@ export const previewInvite = createRoute({
   method: "get",
   summary: "Preview an invite link",
   description:
-    "Returns guild info for an invite code. Used to show a preview before joining.",
+    "Returns workspace info for an invite code. Used to show a preview before joining.",
   tags: ["Invites"],
   middleware: [sessionAuthMiddleware] as const,
   request: {
@@ -131,7 +131,7 @@ export const acceptInvite = createRoute({
   method: "post",
   summary: "Accept an invite link",
   description:
-    "Joins the guild associated with the invite code. Checks for bans, expiry, and max uses.",
+    "Joins the workspace associated with the invite code. Checks for bans, expiry, and max uses.",
   tags: ["Invites"],
   middleware: [sessionAuthMiddleware] as const,
   request: {
@@ -140,7 +140,7 @@ export const acceptInvite = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent({
       schema: acceptInviteResponseSchema,
-      description: "Successfully joined guild",
+      description: "Successfully joined workspace",
     }),
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
     [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,

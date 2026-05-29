@@ -2,7 +2,7 @@ import type { Client, InferResponseType } from "@repo/api-client"
 
 // ── Channels ──────────────────────────────────────────
 
-type ChannelsClient = Client["v1"]["guilds"][":guildSlug"]["channels"]
+type ChannelsClient = Client["v1"]["workspaces"][":workspaceSlug"]["channels"]
 
 export type ListChannelsResponse = InferResponseType<
   ChannelsClient["$get"],
@@ -12,14 +12,14 @@ export type Channel = ListChannelsResponse["uncategorized"][number]
 export type CategoryWithChannels = ListChannelsResponse["categories"][number]
 
 type ChannelClient =
-  Client["v1"]["guilds"][":guildSlug"]["channels"][":channelId"]
+  Client["v1"]["workspaces"][":workspaceSlug"]["channels"][":channelId"]
 
 export type GetChannelResponse = InferResponseType<ChannelClient["$get"], 200>
 
 // ── Messages ──────────────────────────────────────────
 
 type MessagesClient =
-  Client["v1"]["guilds"][":guildSlug"]["channels"][":channelId"]["messages"]
+  Client["v1"]["workspaces"][":workspaceSlug"]["channels"][":channelId"]["messages"]
 
 export type ListMessagesResponse = InferResponseType<
   MessagesClient["$get"],
@@ -47,15 +47,16 @@ export type ListDMMessagesResponse = InferResponseType<
   200
 >
 
-// ── Guild Invites ──────────────────────────────────────────
+// ── Workspace Invites ──────────────────────────────────────────
 
-type GuildInvitesClient = Client["v1"]["guilds"][":guildSlug"]["invites"]
+type WorkspaceInvitesClient =
+  Client["v1"]["workspaces"][":workspaceSlug"]["invites"]
 
-export type ListGuildInvitesResponse = InferResponseType<
-  GuildInvitesClient["$get"],
+export type ListWorkspaceInvitesResponse = InferResponseType<
+  WorkspaceInvitesClient["$get"],
   200
 >
-export type GuildInvite = ListGuildInvitesResponse["invites"][number]
+export type WorkspaceInvite = ListWorkspaceInvitesResponse["invites"][number]
 
 type InvitePreviewClient = Client["v1"]["invites"][":code"]
 
@@ -74,12 +75,14 @@ export type GetUserProfileResponse = InferResponseType<
 >
 export type UserProfile = GetUserProfileResponse["user"]
 
-// ── Guild Members ──────────────────────────────────────────
+// ── Workspace Members ──────────────────────────────────────────
 
-type GuildMembersClient = Client["v1"]["guilds"][":guildSlug"]["members"]
+type WorkspaceMembersClient =
+  Client["v1"]["workspaces"][":workspaceSlug"]["members"]
 
-export type ListGuildMembersResponse = InferResponseType<
-  GuildMembersClient["$get"],
+export type ListWorkspaceMembersResponse = InferResponseType<
+  WorkspaceMembersClient["$get"],
   200
 >
-export type GuildMemberPresence = ListGuildMembersResponse["members"][number]
+export type WorkspaceMemberPresence =
+  ListWorkspaceMembersResponse["members"][number]

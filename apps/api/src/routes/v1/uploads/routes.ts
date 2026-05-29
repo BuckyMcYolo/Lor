@@ -11,10 +11,10 @@ import { sessionAuthMiddleware } from "@/middleware/session-auth"
 import {
   avatarPresignRequestSchema,
   avatarPresignResponseSchema,
-  guildIconPresignRequestSchema,
-  guildIconPresignResponseSchema,
   presignRequestSchema,
   presignResponseSchema,
+  workspaceIconPresignRequestSchema,
+  workspaceIconPresignResponseSchema,
 } from "./schema"
 
 export const presign = createRoute({
@@ -72,24 +72,24 @@ export const avatarPresign = createRoute({
 
 export type AvatarPresignRoute = typeof avatarPresign
 
-export const guildIconPresign = createRoute({
-  path: "/uploads/guild-icon/presign",
+export const workspaceIconPresign = createRoute({
+  path: "/uploads/workspace-icon/presign",
   method: "post",
-  summary: "Request a presigned URL for guild icon upload",
+  summary: "Request a presigned URL for workspace icon upload",
   description:
-    "Returns a presigned URL for uploading a guild icon to S3-compatible storage.",
+    "Returns a presigned URL for uploading a workspace icon to S3-compatible storage.",
   tags: ["Uploads"],
   middleware: [sessionAuthMiddleware] as const,
   request: {
     body: jsonContent({
-      schema: guildIconPresignRequestSchema,
-      description: "Guild icon file metadata",
+      schema: workspaceIconPresignRequestSchema,
+      description: "Workspace icon file metadata",
     }),
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent({
-      schema: guildIconPresignResponseSchema,
-      description: "Presigned URL for guild icon upload",
+      schema: workspaceIconPresignResponseSchema,
+      description: "Presigned URL for workspace icon upload",
     }),
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
     [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
@@ -98,4 +98,4 @@ export const guildIconPresign = createRoute({
   },
 })
 
-export type GuildIconPresignRoute = typeof guildIconPresign
+export type WorkspaceIconPresignRoute = typeof workspaceIconPresign

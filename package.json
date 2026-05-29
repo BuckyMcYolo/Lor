@@ -1,5 +1,5 @@
 {
-  "name": "townhall",
+  "name": "lor",
   "private": true,
   "scripts": {
     "build": "turbo run build",

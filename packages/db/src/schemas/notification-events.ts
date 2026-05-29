@@ -8,14 +8,13 @@ import {
   uuid,
 } from "drizzle-orm/pg-core"
 import { channel } from "./channels"
-import { guild } from "./guilds"
 import { message } from "./messages"
 import { user } from "./users"
+import { workspace } from "./workspaces"
 
 export const notificationEventTypeEnum = pgEnum("notification_event_type", [
   "direct_mention",
   "everyone_mention",
-  "guild_announcement",
   "system",
 ])
 
@@ -25,12 +24,12 @@ export const notificationEvent = pgTable(
   "notification_event",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    // Use userId (not guild_member.id) so notifications survive guild-context changes
-    // and also work for DM notifications where guild membership doesn't exist.
+    // Use userId (not workspace_member.id) so notifications survive workspace-context changes
+    // and also work for DM notifications where workspace membership doesn't exist.
     userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    guildId: uuid("guild_id").references(() => guild.id, {
+    workspaceId: uuid("workspace_id").references(() => workspace.id, {
       onDelete: "cascade",
     }),
     channelId: uuid("channel_id").references(() => channel.id, {
@@ -55,7 +54,7 @@ export const notificationEvent = pgTable(
       table.createdAt
     ),
     index("notificationEvent_user_readAt_idx").on(table.userId, table.readAt),
-    index("notificationEvent_guildId_idx").on(table.guildId),
+    index("notificationEvent_workspaceId_idx").on(table.workspaceId),
     index("notificationEvent_channelId_idx").on(table.channelId),
   ]
 )
@@ -67,9 +66,9 @@ export const notificationEventRelations = relations(
       fields: [notificationEvent.userId],
       references: [user.id],
     }),
-    guild: one(guild, {
-      fields: [notificationEvent.guildId],
-      references: [guild.id],
+    workspace: one(workspace, {
+      fields: [notificationEvent.workspaceId],
+      references: [workspace.id],
     }),
     channel: one(channel, {
       fields: [notificationEvent.channelId],

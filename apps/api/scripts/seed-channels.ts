@@ -1,18 +1,18 @@
 /**
- * Seed a guild with sample channels.
+ * Seed a workspace with sample channels.
  *
  * Usage:
- *   pnpm --filter @repo/api exec tsx scripts/seed-channels.ts <guild-id>
+ *   pnpm --filter @repo/api exec tsx scripts/seed-channels.ts <workspace-id>
  */
 
 import { db } from "@repo/db"
 import { channel } from "@repo/db/schema"
 import { eq } from "drizzle-orm"
 
-const guildId = process.argv[2]
-if (!guildId) {
+const workspaceId = process.argv[2]
+if (!workspaceId) {
   console.error(
-    "Usage: pnpm --filter @repo/api exec tsx scripts/seed-channels.ts <guild-id>"
+    "Usage: pnpm --filter @repo/api exec tsx scripts/seed-channels.ts <workspace-id>"
   )
   process.exit(1)
 }
@@ -38,7 +38,6 @@ const categories = [
   {
     name: "Community",
     channels: [
-      { name: "announcements", type: "announcement" as const },
       { name: "feedback", type: "text" as const },
       { name: "showcase", type: "text" as const },
     ],
@@ -54,9 +53,9 @@ const categories = [
 ]
 
 async function seed() {
-  // Clear existing channels for this guild
-  await db.delete(channel).where(eq(channel.guildId, guildId))
-  console.log(`Cleared existing channels for guild ${guildId}`)
+  // Clear existing channels for this workspace
+  await db.delete(channel).where(eq(channel.workspaceId, workspaceId))
+  console.log(`Cleared existing channels for workspace ${workspaceId}`)
 
   // Uncategorized channels at the top
   const uncategorized = [
@@ -68,7 +67,7 @@ async function seed() {
     await db.insert(channel).values({
       name: uncategorized[i].name,
       type: uncategorized[i].type,
-      guildId,
+      workspaceId,
       position: i,
     })
     console.log(`  # ${uncategorized[i].name}`)
@@ -82,7 +81,7 @@ async function seed() {
       .values({
         name: cat.name,
         type: "category",
-        guildId,
+        workspaceId,
         position: catIdx,
       })
       .returning()
@@ -94,7 +93,7 @@ async function seed() {
       await db.insert(channel).values({
         name: ch.name,
         type: ch.type,
-        guildId,
+        workspaceId,
         parentId: categoryRow.id,
         position: chIdx,
       })

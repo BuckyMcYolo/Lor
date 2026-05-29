@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { MessageCircle, Plus } from "lucide-react"
 import { useState } from "react"
-import { CreateGuildDialog } from "./create-guild-dialog"
+import { CreateWorkspaceDialog } from "./create-workspace-dialog"
 
-function GuildIcon({
+function WorkspaceIcon({
   name,
   logo,
   active,
@@ -59,14 +59,14 @@ function GuildIcon({
   )
 }
 
-export function GuildBar() {
+export function WorkspaceBar() {
   const navigate = useNavigate()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
 
-  const { data: guilds } = useQuery({
-    queryKey: ["guilds"],
+  const { data: workspaces } = useQuery({
+    queryKey: ["workspaces"],
     queryFn: async () => {
       const res = await authClient.organization.list()
       return res.data
@@ -83,13 +83,13 @@ export function GuildBar() {
         <div
           className={cn(
             "absolute left-0 w-1 rounded-r-full bg-foreground transition-all",
-            !guildSlug ? "h-10" : "h-0 group-hover:h-5"
+            !workspaceSlug ? "h-10" : "h-0 group-hover:h-5"
           )}
         />
         <div
           className={cn(
             "flex size-12 items-center justify-center overflow-hidden transition-all",
-            !guildSlug
+            !workspaceSlug
               ? "rounded-2xl bg-primary text-primary-foreground"
               : "rounded-[24px] bg-muted text-muted-foreground hover:rounded-2xl hover:bg-primary hover:text-primary-foreground"
           )}
@@ -101,19 +101,19 @@ export function GuildBar() {
       {/* Separator */}
       <div className="mx-auto my-1 h-px w-8 shrink-0 rounded-full bg-border" />
 
-      {/* Guild icons */}
+      {/* Workspace icons */}
       <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {guilds && guilds.length > 0 ? (
-          guilds.map((guild) => (
-            <GuildIcon
-              key={guild.id}
-              name={guild.name}
-              logo={guild.logo}
-              active={guildSlug === guild.slug}
+        {workspaces && workspaces.length > 0 ? (
+          workspaces.map((workspace) => (
+            <WorkspaceIcon
+              key={workspace.id}
+              name={workspace.name}
+              logo={workspace.logo}
+              active={workspaceSlug === workspace.slug}
               onClick={() =>
                 navigate({
-                  to: "/$guildSlug",
-                  params: { guildSlug: guild.slug },
+                  to: "/$workspaceSlug",
+                  params: { workspaceSlug: workspace.slug },
                 })
               }
             />
@@ -128,7 +128,7 @@ export function GuildBar() {
       {/* Separator */}
       <div className="mx-auto my-1 h-px w-8 shrink-0 rounded-full bg-border" />
 
-      {/* Add guild button */}
+      {/* Add workspace button */}
       <button
         type="button"
         onClick={() => setCreateDialogOpen(true)}
@@ -139,7 +139,7 @@ export function GuildBar() {
         </div>
       </button>
 
-      <CreateGuildDialog
+      <CreateWorkspaceDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
       />

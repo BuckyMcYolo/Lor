@@ -9,16 +9,16 @@ import {
   varchar,
 } from "drizzle-orm/pg-core"
 import { channel } from "./channels"
-import { guild } from "./guilds"
 import { user } from "./users"
+import { workspace } from "./workspaces"
 
-export const guildInvite = pgTable(
-  "guild_invite",
+export const workspaceInvite = pgTable(
+  "workspace_invite",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    guildId: uuid("guild_id")
+    workspaceId: uuid("workspace_id")
       .notNull()
-      .references(() => guild.id, { onDelete: "cascade" }),
+      .references(() => workspace.id, { onDelete: "cascade" }),
     code: varchar("code", { length: 12 }).notNull(),
     inviterId: uuid("inviter_id")
       .notNull()
@@ -32,22 +32,25 @@ export const guildInvite = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("guildInvite_code_uidx").on(table.code),
-    index("guildInvite_guildId_idx").on(table.guildId),
+    uniqueIndex("workspaceInvite_code_uidx").on(table.code),
+    index("workspaceInvite_workspaceId_idx").on(table.workspaceId),
   ]
 )
 
-export const guildInviteRelations = relations(guildInvite, ({ one }) => ({
-  guild: one(guild, {
-    fields: [guildInvite.guildId],
-    references: [guild.id],
-  }),
-  inviter: one(user, {
-    fields: [guildInvite.inviterId],
-    references: [user.id],
-  }),
-  channel: one(channel, {
-    fields: [guildInvite.channelId],
-    references: [channel.id],
-  }),
-}))
+export const workspaceInviteRelations = relations(
+  workspaceInvite,
+  ({ one }) => ({
+    workspace: one(workspace, {
+      fields: [workspaceInvite.workspaceId],
+      references: [workspace.id],
+    }),
+    inviter: one(user, {
+      fields: [workspaceInvite.inviterId],
+      references: [user.id],
+    }),
+    channel: one(channel, {
+      fields: [workspaceInvite.channelId],
+      references: [channel.id],
+    }),
+  })
+)

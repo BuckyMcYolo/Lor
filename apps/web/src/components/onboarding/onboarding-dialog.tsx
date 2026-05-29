@@ -26,9 +26,9 @@ type Step = "username" | "welcome" | "create" | "join"
 const MIN_USERNAME_LENGTH = 3
 const MAX_USERNAME_LENGTH = 30
 const USERNAME_REGEX = /^[a-zA-Z0-9_.]+$/
-// TODO: Remove hardcoded invite code once we have a proper discovery/featured guilds system
-const TOWNHALL_INVITE_CODE = "k9yDieWZ"
-const showTownhallJoin = !env.NEXT_PUBLIC_SELF_HOSTED
+// TODO: Remove hardcoded invite code once we have a proper discovery/featured workspaces system
+const LOR_INVITE_CODE = "k9yDieWZ"
+const showLorJoin = !env.NEXT_PUBLIC_SELF_HOSTED
 
 function normalizeSlugInput(value: string) {
   return value
@@ -69,19 +69,19 @@ export function OnboardingDialog({ open }: { open: boolean }) {
   const [slug, setSlug] = useState("")
   const [slugEdited, setSlugEdited] = useState(false)
   const [inviteLink, setInviteLink] = useState("")
-  const [joinTownhall, setJoinTownhall] = useState(showTownhallJoin)
+  const [joinLor, setJoinLor] = useState(showLorJoin)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const acceptTownhallInvite = useCallback(() => {
-    if (!joinTownhall) return
+  const acceptLorInvite = useCallback(() => {
+    if (!joinLor) return
     apiClient.v1.invites[":code"].accept
-      .$post({ param: { code: TOWNHALL_INVITE_CODE } })
-      .then(() => queryClient.invalidateQueries({ queryKey: ["guilds"] }))
-      .catch((err) => console.error("Failed to join Townhall guild:", err))
-  }, [joinTownhall, queryClient])
+      .$post({ param: { code: LOR_INVITE_CODE } })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["workspaces"] }))
+      .catch((err) => console.error("Failed to join workspace:", err))
+  }, [joinLor, queryClient])
 
   // Username step state
   const [username, setUsername] = useState("")
@@ -158,9 +158,11 @@ export function OnboardingDialog({ open }: { open: boolean }) {
     }
   }, [name, slugEdited])
 
-  const getFirstChannelId = async (guildSlug: string) => {
-    const channelsRes = await apiClient.v1.guilds[":guildSlug"].channels.$get({
-      param: { guildSlug },
+  const getFirstChannelId = async (workspaceSlug: string) => {
+    const channelsRes = await apiClient.v1.workspaces[
+      ":workspaceSlug"
+    ].channels.$get({
+      param: { workspaceSlug },
     })
 
     if (!channelsRes.ok) return null
@@ -187,38 +189,43 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       })
 
       if (res.error) {
-        const message = (res.error.message ?? "Failed to create guild").replace(
-          /organization/gi,
-          "Guild"
-        )
+        const message = (
+          res.error.message ?? "Failed to create workspace"
+        ).replace(/organization/gi, "Workspace")
         setError(message)
         return
       }
 
-      const createdGuildSlug = res.data?.slug ?? normalizedSlug
-      await queryClient.invalidateQueries({ queryKey: ["guilds"] })
+      const createdWorkspaceSlug = res.data?.slug ?? normalizedSlug
+      await queryClient.invalidateQueries({ queryKey: ["workspaces"] })
 
-      acceptTownhallInvite()
+      acceptLorInvite()
 
       let firstChannelId: string | null = null
       try {
-        firstChannelId = await getFirstChannelId(createdGuildSlug)
+        firstChannelId = await getFirstChannelId(createdWorkspaceSlug)
       } catch (error) {
         console.error(
-          `Failed to fetch first channel for guild ${createdGuildSlug}:`,
+          `Failed to fetch first channel for workspace ${createdWorkspaceSlug}:`,
           error
         )
       }
 
       if (firstChannelId) {
         navigate({
-          to: "/$guildSlug/$channelId",
-          params: { guildSlug: createdGuildSlug, channelId: firstChannelId },
+          to: "/$workspaceSlug/$channelId",
+          params: {
+            workspaceSlug: createdWorkspaceSlug,
+            channelId: firstChannelId,
+          },
         })
         return
       }
 
-      navigate({ to: "/$guildSlug", params: { guildSlug: createdGuildSlug } })
+      navigate({
+        to: "/$workspaceSlug",
+        params: { workspaceSlug: createdWorkspaceSlug },
+      })
     } catch {
       setError("Something went wrong. Please try again.")
     } finally {
@@ -240,8 +247,8 @@ export function OnboardingDialog({ open }: { open: boolean }) {
       return
     }
 
-    if (inviteCode !== TOWNHALL_INVITE_CODE) {
-      acceptTownhallInvite()
+    if (inviteCode !== LOR_INVITE_CODE) {
+      acceptLorInvite()
     }
 
     await navigate({
@@ -262,7 +269,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
           {/* Left decorative panel */}
           <div className="relative hidden w-[220px] shrink-0 overflow-hidden sm:block">
             <img
-              src="/townhall-onboarding2.png"
+              src="/lor-onboarding2.png"
               alt="A medieval campsite at night"
               className="absolute inset-0 h-full w-full object-cover"
             />
@@ -277,7 +284,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     Choose a username
                   </DialogTitle>
                   <DialogDescription className="text-sm">
-                    Pick a unique username for your Townhall identity.
+                    Pick a unique username for your Lor identity.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -353,12 +360,10 @@ export function OnboardingDialog({ open }: { open: boolean }) {
             {step === "welcome" && (
               <>
                 <DialogHeader className="mb-8 text-left">
-                  <DialogTitle className="text-2xl">
-                    Welcome to Townhall
-                  </DialogTitle>
+                  <DialogTitle className="text-2xl">Welcome to Lor</DialogTitle>
                   <DialogDescription className="text-sm">
-                    Get started by creating a new guild or joining one you've
-                    been invited to.
+                    Get started by creating a new workspace or joining one
+                    you've been invited to.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -372,7 +377,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                       <Plus className="size-5" />
                     </div>
                     <div>
-                      <p className="font-medium">Create a Guild</p>
+                      <p className="font-medium">Create a Workspace</p>
                       <p className="text-sm text-muted-foreground">
                         Start your own community from scratch
                       </p>
@@ -388,34 +393,34 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                       <Users className="size-5" />
                     </div>
                     <div>
-                      <p className="font-medium">Join an Existing Guild</p>
+                      <p className="font-medium">Join an Existing Workspace</p>
                       <p className="text-sm text-muted-foreground">
-                        Enter an invite link to join a guild
+                        Enter an invite link to join a workspace
                       </p>
                     </div>
                   </button>
                 </div>
 
-                {showTownhallJoin && (
+                {showLorJoin && (
                   // biome-ignore lint/a11y/useKeyWithClickEvents: Label + Checkbox handle keyboard a11y
                   <div
-                    onClick={() => setJoinTownhall((prev) => !prev)}
+                    onClick={() => setJoinLor((prev) => !prev)}
                     className="mt-4 flex w-full cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
                   >
                     <Checkbox
-                      id="join-townhall"
-                      checked={joinTownhall}
+                      id="join-lor"
+                      checked={joinLor}
                       onCheckedChange={(checked) =>
-                        setJoinTownhall(checked === true)
+                        setJoinLor(checked === true)
                       }
                       onClick={(e) => e.stopPropagation()}
                       className="mt-0.5"
                     />
                     <Label
-                      htmlFor="join-townhall"
+                      htmlFor="join-lor"
                       className="cursor-pointer font-normal"
                     >
-                      <p className="font-medium">Join Townhall's Townhall</p>
+                      <p className="font-medium">Join Lor's workspace</p>
                       <p className="text-sm text-muted-foreground">
                         Join our open-source community and help shape the
                         product roadmap
@@ -441,7 +446,9 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                 </button>
 
                 <DialogHeader className="mb-6 text-left">
-                  <DialogTitle className="text-2xl">Create a Guild</DialogTitle>
+                  <DialogTitle className="text-2xl">
+                    Create a Workspace
+                  </DialogTitle>
                   <DialogDescription className="text-sm">
                     Give your community a name and a unique URL.
                   </DialogDescription>
@@ -449,10 +456,10 @@ export function OnboardingDialog({ open }: { open: boolean }) {
 
                 <form onSubmit={handleCreate} className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="guild-name">Guild Name</Label>
+                    <Label htmlFor="workspace-name">Workspace Name</Label>
                     <Input
-                      id="guild-name"
-                      placeholder="My Awesome Guild"
+                      id="workspace-name"
+                      placeholder="My Awesome Workspace"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       disabled={loading}
@@ -461,15 +468,15 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="guild-slug">Slug</Label>
+                    <Label htmlFor="workspace-slug">Slug</Label>
                     <div className="flex items-center rounded-md border border-input bg-muted px-3 text-sm focus-within:ring-1 focus-within:ring-ring">
                       <span className="shrink-0 text-muted-foreground">
-                        townhall.chat/
+                        lor.chat/
                       </span>
                       <Input
-                        id="guild-slug"
+                        id="workspace-slug"
                         className="min-w-0 flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 px-1"
-                        placeholder="my-awesome-guild"
+                        placeholder="my-awesome-workspace"
                         value={slug}
                         onChange={(e) => {
                           setSlugEdited(true)
@@ -493,7 +500,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     {loading && (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     )}
-                    Create Guild
+                    Create Workspace
                   </Button>
                 </form>
               </>
@@ -514,9 +521,11 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                 </button>
 
                 <DialogHeader className="mb-6 text-left">
-                  <DialogTitle className="text-2xl">Join a Guild</DialogTitle>
+                  <DialogTitle className="text-2xl">
+                    Join a Workspace
+                  </DialogTitle>
                   <DialogDescription className="text-sm">
-                    Paste an invite link or code to join an existing guild.
+                    Paste an invite link or code to join an existing workspace.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -525,7 +534,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     <Label htmlFor="invite-link">Invite Link or Code</Label>
                     <Input
                       id="invite-link"
-                      placeholder="https://app.townhall.chat/invite/abc123 or abc123"
+                      placeholder="https://app.lor.chat/invite/abc123 or abc123"
                       value={inviteLink}
                       onChange={(e) => setInviteLink(e.target.value)}
                       disabled={loading}
@@ -543,7 +552,7 @@ export function OnboardingDialog({ open }: { open: boolean }) {
                     {loading && (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     )}
-                    Join Guild
+                    Join Workspace
                   </Button>
                 </form>
               </>

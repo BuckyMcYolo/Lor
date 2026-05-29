@@ -31,10 +31,10 @@ export function HeaderSearch({
   mode,
   channelId,
 }: {
-  mode: "guild" | "dm"
+  mode: "workspace" | "dm"
   channelId: string
 }) {
-  const { guildSlug } = useParams({ strict: false })
+  const { workspaceSlug } = useParams({ strict: false })
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -87,8 +87,8 @@ export function HeaderSearch({
         if (!res.ok) throw new Error("Search failed")
         return res.json()
       }
-      const res = await apiClient.v1.guilds[":guildSlug"].search.$get({
-        param: { guildSlug: guildSlug as string },
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].search.$get({
+        param: { workspaceSlug: workspaceSlug as string },
         query: { query: debouncedQuery, channelId },
       })
       if (!res.ok) throw new Error("Search failed")
@@ -114,8 +114,8 @@ export function HeaderSearch({
       })
     } else {
       void navigate({
-        to: "/$guildSlug/$channelId",
-        params: { guildSlug: guildSlug as string, channelId },
+        to: "/$workspaceSlug/$channelId",
+        params: { workspaceSlug: workspaceSlug as string, channelId },
         search: { msgId },
       })
     }

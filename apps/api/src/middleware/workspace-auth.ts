@@ -1,6 +1,6 @@
 import { auth } from "@repo/auth"
 import { db } from "@repo/db"
-import { guild, guildMember } from "@repo/db/schema"
+import { workspace, workspaceMember } from "@repo/db/schema"
 import { and, eq } from "drizzle-orm"
 import type { Context, Next } from "hono"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
@@ -8,16 +8,16 @@ import type { AppBindings } from "@/lib/types/app-types"
 
 /**
  * Authenticates the request via better-auth session and resolves the
- * guild from the :guildSlug path parameter. Verifies the user is a
- * member of the guild.
+ * workspace from the :workspaceSlug path parameter. Verifies the user is a
+ * member of the workspace.
  *
  * Sets in context:
  * - user: The authenticated user
  * - session: The session object
- * - guild: The resolved guild
- * - member: The user's membership in the guild
+ * - workspace: The resolved workspace
+ * - member: The user's membership in the workspace
  */
-export const guildAuthMiddleware = async (
+export const workspaceAuthMiddleware = async (
   c: Context<AppBindings>,
   next: Next
 ) => {
@@ -30,29 +30,29 @@ export const guildAuthMiddleware = async (
     )
   }
 
-  const guildSlug = c.req.param("guildSlug")
+  const workspaceSlug = c.req.param("workspaceSlug")
 
-  const guildRecord = await db
+  const workspaceRecord = await db
     .select()
-    .from(guild)
-    .where(eq(guild.slug, guildSlug))
+    .from(workspace)
+    .where(eq(workspace.slug, workspaceSlug))
     .limit(1)
     .then((rows) => rows[0])
 
-  if (!guildRecord) {
+  if (!workspaceRecord) {
     return c.json(
-      { success: false, message: "Guild not found" },
+      { success: false, message: "Workspace not found" },
       HttpStatusCodes.NOT_FOUND
     )
   }
 
   const memberRecord = await db
     .select()
-    .from(guildMember)
+    .from(workspaceMember)
     .where(
       and(
-        eq(guildMember.userId, session.user.id),
-        eq(guildMember.guildId, guildRecord.id)
+        eq(workspaceMember.userId, session.user.id),
+        eq(workspaceMember.workspaceId, workspaceRecord.id)
       )
     )
     .limit(1)
@@ -67,7 +67,7 @@ export const guildAuthMiddleware = async (
 
   c.set("user", session.user)
   c.set("session", session.session)
-  c.set("guild", guildRecord)
+  c.set("workspace", workspaceRecord)
   c.set("member", memberRecord)
 
   await next()

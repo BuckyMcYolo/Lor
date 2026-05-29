@@ -22,7 +22,7 @@ export function DeleteChannelDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { guildSlug, channelId: activeChannelId } = useParams({
+  const { workspaceSlug, channelId: activeChannelId } = useParams({
     strict: false,
   })
   const queryClient = useQueryClient()
@@ -30,10 +30,13 @@ export function DeleteChannelDialog({
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiClient.v1.guilds[":guildSlug"].channels[
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].channels[
         ":channelId"
       ].$delete({
-        param: { guildSlug: guildSlug as string, channelId: channel.id },
+        param: {
+          workspaceSlug: workspaceSlug as string,
+          channelId: channel.id,
+        },
       })
       if (!res.ok) {
         throw new Error("Failed to delete channel")
@@ -41,14 +44,14 @@ export function DeleteChannelDialog({
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["channels", guildSlug] })
+      queryClient.invalidateQueries({ queryKey: ["channels", workspaceSlug] })
       onOpenChange(false)
 
-      // If we deleted the active channel, navigate to guild root
+      // If we deleted the active channel, navigate to workspace root
       if (activeChannelId === channel.id) {
         navigate({
-          to: "/$guildSlug",
-          params: { guildSlug: guildSlug as string },
+          to: "/$workspaceSlug",
+          params: { workspaceSlug: workspaceSlug as string },
         })
       }
     },

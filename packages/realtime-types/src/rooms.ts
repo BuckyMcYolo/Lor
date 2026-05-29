@@ -2,8 +2,8 @@ export function userRoom(userId: string) {
   return `user:${userId}`
 }
 
-export function guildRoom(guildId: string) {
-  return `guild:${guildId}`
+export function workspaceRoom(workspaceId: string) {
+  return `workspace:${workspaceId}`
 }
 
 export function channelRoom(channelId: string) {

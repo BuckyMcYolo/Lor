@@ -25,8 +25,8 @@ export const messageMention = pgTable(
     channelId: uuid("channel_id")
       .notNull()
       .references(() => channel.id, { onDelete: "cascade" }),
-    // Use userId (not guild_member.id) so mentions work in both guild channels and DMs.
-    // guild_member is guild-scoped; user is the global identity across all contexts.
+    // Use userId (not workspace_member.id) so mentions work in both workspace channels and DMs.
+    // workspace_member is workspace-scoped; user is the global identity across all contexts.
     mentionedUserId: uuid("mentioned_user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

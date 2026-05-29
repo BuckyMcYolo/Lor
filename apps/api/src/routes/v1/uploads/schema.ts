@@ -48,29 +48,32 @@ export const avatarPresignResponseSchema = z.object({
   fileUrl: z.string().url(),
 })
 
-// ── Guild Icon ─────────────────────────────────────────
+// ── Workspace Icon ─────────────────────────────────────────
 
-const GUILD_ICON_MIME_TYPES = [
+const WORKSPACE_ICON_MIME_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/svg+xml",
 ] as const
 
-export const MAX_GUILD_ICON_SIZE = 2 * 1024 * 1024 // 2 MB
+export const MAX_WORKSPACE_ICON_SIZE = 2 * 1024 * 1024 // 2 MB
 
-export const guildIconPresignRequestSchema = z.object({
-  guildId: z.string().uuid(),
+export const workspaceIconPresignRequestSchema = z.object({
+  workspaceId: z.string().uuid(),
   filename: z.string().min(1).max(256),
   contentType: z
     .string()
-    .refine((ct) => (GUILD_ICON_MIME_TYPES as readonly string[]).includes(ct), {
-      message: "Unsupported image type",
-    }),
-  size: z.number().int().min(1).max(MAX_GUILD_ICON_SIZE),
+    .refine(
+      (ct) => (WORKSPACE_ICON_MIME_TYPES as readonly string[]).includes(ct),
+      {
+        message: "Unsupported image type",
+      }
+    ),
+  size: z.number().int().min(1).max(MAX_WORKSPACE_ICON_SIZE),
 })
 
-export const guildIconPresignResponseSchema = z.object({
+export const workspaceIconPresignResponseSchema = z.object({
   uploadUrl: z.string().url(),
   fileUrl: z.string().url(),
 })

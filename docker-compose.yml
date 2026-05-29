@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: townhall
-      POSTGRES_PASSWORD: townhall
-      POSTGRES_DB: townhall
+      POSTGRES_USER: lor
+      POSTGRES_PASSWORD: lor
+      POSTGRES_DB: lor
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U townhall"]
+      test: ["CMD-SHELL", "pg_isready -U lor"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -39,7 +39,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8080
-      DATABASE_URL: postgresql://townhall:townhall@postgres:5432/townhall
+      DATABASE_URL: postgresql://lor:lor@postgres:5432/lor
       REDIS_URL: redis://redis:6379
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
@@ -50,7 +50,7 @@ services:
       S3_REGION: ${S3_REGION:-auto}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      EMAIL_FROM: ${EMAIL_FROM:-Townhall <noreply@team.townhall.chat>}
+      EMAIL_FROM: ${EMAIL_FROM:-Lor <noreply@team.lor.chat>}
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,7 +67,7 @@ services:
     environment:
       NODE_ENV: production
       REALTIME_PORT: 8000
-      DATABASE_URL: postgresql://townhall:townhall@postgres:5432/townhall
+      DATABASE_URL: postgresql://lor:lor@postgres:5432/lor
       REDIS_URL: redis://redis:6379
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
@@ -79,7 +79,7 @@ services:
       S3_REGION: ${S3_REGION:-auto}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      EMAIL_FROM: ${EMAIL_FROM:-Townhall <noreply@team.townhall.chat>}
+      EMAIL_FROM: ${EMAIL_FROM:-Lor <noreply@team.lor.chat>}
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,7 +93,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://townhall:townhall@postgres:5432/townhall
+      DATABASE_URL: postgresql://lor:lor@postgres:5432/lor
       REDIS_URL: redis://redis:6379
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
       S3_ENDPOINT: ${S3_ENDPOINT}
@@ -104,7 +104,7 @@ services:
       S3_PUBLIC_URL: ${S3_PUBLIC_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      EMAIL_FROM: ${EMAIL_FROM:-Townhall <noreply@team.townhall.chat>}
+      EMAIL_FROM: ${EMAIL_FROM:-Lor <noreply@team.lor.chat>}
     depends_on:
       postgres:
         condition: service_healthy

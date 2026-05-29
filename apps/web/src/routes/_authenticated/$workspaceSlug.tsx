@@ -4,35 +4,35 @@ import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
-export const Route = createFileRoute("/_authenticated/$guildSlug")({
-  component: GuildLayout,
+export const Route = createFileRoute("/_authenticated/$workspaceSlug")({
+  component: WorkspaceLayout,
 })
 
-function GuildLayout() {
-  const { guildSlug } = Route.useParams()
-  const [isSwitchingGuild, setIsSwitchingGuild] = useState(false)
+function WorkspaceLayout() {
+  const { workspaceSlug } = Route.useParams()
+  const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false)
   const [switchError, setSwitchError] = useState<string | null>(null)
-  const latestDesiredGuildRef = useRef<string | null>(null)
+  const latestDesiredWorkspaceRef = useRef<string | null>(null)
   const switchRequestRef = useRef(0)
 
-  const { data: guilds, isPending: guildsLoading } = useQuery({
-    queryKey: ["guilds"],
+  const { data: workspaces, isPending: workspacesLoading } = useQuery({
+    queryKey: ["workspaces"],
     queryFn: async () => {
       const res = await authClient.organization.list()
       return res.data
     },
   })
   const { data: activeOrg } = useQuery({
-    queryKey: ["active-guild"],
+    queryKey: ["active-workspace"],
     queryFn: async () => {
       const res = await authClient.organization.getFullOrganization()
       return res.data
     },
   })
 
-  const guild = useMemo(
-    () => guilds?.find((g) => g.slug === guildSlug),
-    [guilds, guildSlug]
+  const workspace = useMemo(
+    () => workspaces?.find((g) => g.slug === workspaceSlug),
+    [workspaces, workspaceSlug]
   )
 
   const queryClient = useQueryClient()
@@ -40,35 +40,35 @@ function GuildLayout() {
   useEffect(() => {
     let cancelled = false
 
-    if (!guild) {
-      latestDesiredGuildRef.current = null
+    if (!workspace) {
+      latestDesiredWorkspaceRef.current = null
       setSwitchError(null)
-      setIsSwitchingGuild(false)
+      setIsSwitchingWorkspace(false)
       return
     }
 
-    const desiredGuildId = guild.id
-    latestDesiredGuildRef.current = desiredGuildId
+    const desiredWorkspaceId = workspace.id
+    latestDesiredWorkspaceRef.current = desiredWorkspaceId
 
-    if (activeOrg?.id === desiredGuildId) {
+    if (activeOrg?.id === desiredWorkspaceId) {
       setSwitchError(null)
-      setIsSwitchingGuild(false)
+      setIsSwitchingWorkspace(false)
       return
     }
 
     const requestId = ++switchRequestRef.current
     setSwitchError(null)
-    setIsSwitchingGuild(true)
+    setIsSwitchingWorkspace(true)
 
     void (async () => {
       try {
         await authClient.organization.setActive({
-          organizationId: desiredGuildId,
+          organizationId: desiredWorkspaceId,
         })
 
         if (
           cancelled ||
-          latestDesiredGuildRef.current !== desiredGuildId ||
+          latestDesiredWorkspaceRef.current !== desiredWorkspaceId ||
           switchRequestRef.current !== requestId
         ) {
           return
@@ -76,32 +76,35 @@ function GuildLayout() {
 
         await Promise.all([
           queryClient.invalidateQueries({
-            queryKey: ["active-guild"],
+            queryKey: ["active-workspace"],
           }),
           queryClient.invalidateQueries({
-            queryKey: ["active-guild-member", guildSlug],
+            queryKey: ["active-workspace-member", workspaceSlug],
           }),
         ])
       } catch (error) {
         if (
           cancelled ||
-          latestDesiredGuildRef.current !== desiredGuildId ||
+          latestDesiredWorkspaceRef.current !== desiredWorkspaceId ||
           switchRequestRef.current !== requestId
         ) {
           return
         }
 
-        console.error("[guild-layout] Failed to switch active guild", error)
-        const message = "Failed to switch guild. Please try again."
+        console.error(
+          "[workspace-layout] Failed to switch active workspace",
+          error
+        )
+        const message = "Failed to switch workspace. Please try again."
         setSwitchError(message)
         toast.error(message)
       } finally {
         if (
           !cancelled &&
-          latestDesiredGuildRef.current === desiredGuildId &&
+          latestDesiredWorkspaceRef.current === desiredWorkspaceId &&
           switchRequestRef.current === requestId
         ) {
-          setIsSwitchingGuild(false)
+          setIsSwitchingWorkspace(false)
         }
       }
     })()
@@ -109,9 +112,9 @@ function GuildLayout() {
     return () => {
       cancelled = true
     }
-  }, [guild, activeOrg?.id, guildSlug, queryClient])
+  }, [workspace, activeOrg?.id, workspaceSlug, queryClient])
 
-  if (guildsLoading) {
+  if (workspacesLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <span className="text-sm text-muted-foreground">Loading...</span>
@@ -119,15 +122,17 @@ function GuildLayout() {
     )
   }
 
-  if (!guild) {
+  if (!workspace) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <span className="text-sm text-muted-foreground">Guild not found</span>
+        <span className="text-sm text-muted-foreground">
+          Workspace not found
+        </span>
       </div>
     )
   }
 
-  if (isSwitchingGuild) {
+  if (isSwitchingWorkspace) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <span className="text-sm text-muted-foreground">Loading...</span>
@@ -135,7 +140,7 @@ function GuildLayout() {
     )
   }
 
-  if (activeOrg?.id !== guild.id) {
+  if (activeOrg?.id !== workspace.id) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <span className="text-sm text-muted-foreground">

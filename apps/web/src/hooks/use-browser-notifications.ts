@@ -38,7 +38,10 @@ export function useBrowserNotifications() {
       if (settings.desktopNotifications === "nothing") return
 
       // For DM mentions, check dmNotifications setting
-      if (payload.guildId === null && settings.dmNotifications === "nothing") {
+      if (
+        payload.workspaceId === null &&
+        settings.dmNotifications === "nothing"
+      ) {
         return
       }
 
@@ -56,7 +59,10 @@ export function useBrowserNotifications() {
       if (settings.desktopNotifications !== "all_messages") return
 
       // For DMs, check dmNotifications setting
-      if (payload.guildId === null && settings.dmNotifications === "nothing") {
+      if (
+        payload.workspaceId === null &&
+        settings.dmNotifications === "nothing"
+      ) {
         return
       }
 

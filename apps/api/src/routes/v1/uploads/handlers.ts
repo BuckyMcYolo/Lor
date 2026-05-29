@@ -1,21 +1,26 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { db } from "@repo/db"
-import { channel, channelMember, guild, guildMember } from "@repo/db/schema"
+import {
+  channel,
+  channelMember,
+  workspace,
+  workspaceMember,
+} from "@repo/db/schema"
 import { env } from "@repo/env/server"
 import { and, eq } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
-import { assertGuildPermission } from "@/lib/permissions"
+import { assertWorkspacePermission } from "@/lib/permissions"
 import { s3Client } from "@/lib/s3"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
   AvatarPresignRoute,
-  GuildIconPresignRoute,
   PresignRoute,
+  WorkspaceIconPresignRoute,
 } from "./routes"
 import {
   MAX_AVATAR_SIZE,
-  MAX_GUILD_ICON_SIZE,
+  MAX_WORKSPACE_ICON_SIZE,
   PRESIGNED_URL_EXPIRY_SECONDS,
 } from "./schema"
 
@@ -34,7 +39,11 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
 
   // Fetch the channel to determine access check strategy
   const ch = await db
-    .select({ id: channel.id, guildId: channel.guildId, type: channel.type })
+    .select({
+      id: channel.id,
+      workspaceId: channel.workspaceId,
+      type: channel.type,
+    })
     .from(channel)
     .where(eq(channel.id, channelId))
     .limit(1)
@@ -47,19 +56,19 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
     )
   }
 
-  // Guild channel — verify guild membership
-  if (ch.guildId) {
+  // Workspace channel — verify workspace membership
+  if (ch.workspaceId) {
     const member = await db
       .select({
-        id: guildMember.id,
-        role: guildMember.role,
-        userId: guildMember.userId,
+        id: workspaceMember.id,
+        role: workspaceMember.role,
+        userId: workspaceMember.userId,
       })
-      .from(guildMember)
+      .from(workspaceMember)
       .where(
         and(
-          eq(guildMember.guildId, ch.guildId),
-          eq(guildMember.userId, user.id)
+          eq(workspaceMember.workspaceId, ch.workspaceId),
+          eq(workspaceMember.userId, user.id)
         )
       )
       .limit(1)
@@ -70,27 +79,6 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
         { success: false, message: "Forbidden" },
         HttpStatusCodes.FORBIDDEN
       )
-    }
-
-    // Block uploads in announcement channels for non-admins/owners
-    if (ch.type === "announcement") {
-      const guildRecord = await db
-        .select({ ownerId: guild.ownerId })
-        .from(guild)
-        .where(eq(guild.id, ch.guildId))
-        .limit(1)
-        .then((rows) => rows[0])
-
-      if (!guildRecord) {
-        return c.json(
-          { success: false, message: "Forbidden" },
-          HttpStatusCodes.FORBIDDEN
-        )
-      }
-
-      assertGuildPermission(member, guildRecord, {
-        channel: ["update"],
-      })
     }
   } else if (
     DM_CHANNEL_TYPES.includes(ch.type as (typeof DM_CHANNEL_TYPES)[number])
@@ -115,7 +103,7 @@ export const presign: AppRouteHandler<PresignRoute> = async (c) => {
       )
     }
   } else {
-    // Unknown channel type with no guild — reject
+    // Unknown channel type with no workspace — reject
     return c.json(
       { success: false, message: "Forbidden" },
       HttpStatusCodes.FORBIDDEN
@@ -172,28 +160,28 @@ export const avatarPresign: AppRouteHandler<AvatarPresignRoute> = async (c) => {
   return c.json({ uploadUrl, fileUrl }, HttpStatusCodes.OK)
 }
 
-export const guildIconPresign: AppRouteHandler<GuildIconPresignRoute> = async (
-  c
-) => {
+export const workspaceIconPresign: AppRouteHandler<
+  WorkspaceIconPresignRoute
+> = async (c) => {
   const user = c.var.user
-  const { guildId, filename, contentType, size } = c.req.valid("json")
+  const { workspaceId, filename, contentType, size } = c.req.valid("json")
 
-  if (size > MAX_GUILD_ICON_SIZE) {
+  if (size > MAX_WORKSPACE_ICON_SIZE) {
     return c.json(
       { success: false, message: "File too large" },
       HttpStatusCodes.REQUEST_TOO_LONG
     )
   }
 
-  // Verify guild exists and user has update permission
-  const guildRecord = await db
-    .select({ ownerId: guild.ownerId })
-    .from(guild)
-    .where(eq(guild.id, guildId))
+  // Verify workspace exists and user has update permission
+  const workspaceRecord = await db
+    .select({ ownerId: workspace.ownerId })
+    .from(workspace)
+    .where(eq(workspace.id, workspaceId))
     .limit(1)
     .then((rows) => rows[0])
 
-  if (!guildRecord) {
+  if (!workspaceRecord) {
     return c.json(
       { success: false, message: "Forbidden" },
       HttpStatusCodes.FORBIDDEN
@@ -201,10 +189,13 @@ export const guildIconPresign: AppRouteHandler<GuildIconPresignRoute> = async (
   }
 
   const member = await db
-    .select({ role: guildMember.role, userId: guildMember.userId })
-    .from(guildMember)
+    .select({ role: workspaceMember.role, userId: workspaceMember.userId })
+    .from(workspaceMember)
     .where(
-      and(eq(guildMember.guildId, guildId), eq(guildMember.userId, user.id))
+      and(
+        eq(workspaceMember.workspaceId, workspaceId),
+        eq(workspaceMember.userId, user.id)
+      )
     )
     .limit(1)
     .then((rows) => rows[0])
@@ -216,10 +207,12 @@ export const guildIconPresign: AppRouteHandler<GuildIconPresignRoute> = async (
     )
   }
 
-  assertGuildPermission(member, guildRecord, { organization: ["update"] })
+  assertWorkspacePermission(member, workspaceRecord, {
+    organization: ["update"],
+  })
 
   const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_")
-  const key = `guild-icons/${guildId}/${crypto.randomUUID()}/${sanitizedFilename}`
+  const key = `workspace-icons/${workspaceId}/${crypto.randomUUID()}/${sanitizedFilename}`
 
   const command = new PutObjectCommand({
     Bucket: env.S3_BUCKET_NAME,

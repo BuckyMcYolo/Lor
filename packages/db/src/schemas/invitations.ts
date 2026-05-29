@@ -1,15 +1,15 @@
 import { relations } from "drizzle-orm"
 import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
-import { guild } from "./guilds"
 import { user } from "./users"
+import { workspace } from "./workspaces"
 
 export const invitation = pgTable(
   "invitation",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    guildId: uuid("guild_id")
+    workspaceId: uuid("workspace_id")
       .notNull()
-      .references(() => guild.id, { onDelete: "cascade" }),
+      .references(() => workspace.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     role: text("role"),
     status: text("status").default("pending").notNull(),
@@ -20,15 +20,15 @@ export const invitation = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
-    index("invitation_guildId_idx").on(table.guildId),
+    index("invitation_workspaceId_idx").on(table.workspaceId),
     index("invitation_email_idx").on(table.email),
   ]
 )
 
 export const invitationRelations = relations(invitation, ({ one }) => ({
-  guild: one(guild, {
-    fields: [invitation.guildId],
-    references: [guild.id],
+  workspace: one(workspace, {
+    fields: [invitation.workspaceId],
+    references: [workspace.id],
   }),
   inviter: one(user, {
     fields: [invitation.inviterId],

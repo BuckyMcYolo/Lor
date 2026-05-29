@@ -6,11 +6,11 @@ import { globalRateLimit } from "@/middleware/rate-limit"
 import index from "@/routes/index.route"
 import channelsRouter from "@/routes/v1/channels/index"
 import dmsRouter from "@/routes/v1/dms/index"
-import guildsRouter from "@/routes/v1/guilds/index"
 import invitesRouter from "@/routes/v1/invites/index"
 import notificationSettingsRouter from "@/routes/v1/notification-settings/index"
 import uploadsRouter from "@/routes/v1/uploads/index"
 import usersRouter from "@/routes/v1/users/index"
+import workspacesRouter from "@/routes/v1/workspaces/index"
 import waitlistRouter from "@/routes/waitlist/index"
 
 const app = createApp()
@@ -38,7 +38,7 @@ app.route("/", index)
 const routes = app
   .route("/", waitlistRouter)
   .route("/v1", channelsRouter)
-  .route("/v1", guildsRouter)
+  .route("/v1", workspacesRouter)
   .route("/v1", invitesRouter)
   .route("/v1", notificationSettingsRouter)
   .route("/v1", dmsRouter)

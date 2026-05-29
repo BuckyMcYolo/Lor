@@ -15,13 +15,13 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lor.chat"),
-  title: "Lor — Institutional memory for software teams",
+  title: "Lor — The AI multiplayer workspace for teams",
   description:
-    "Lor is a team chat platform with an AI memory built in. Every conversation, decision, and integration becomes searchable lore your team can ask anything of.",
+    "Lor is the AI multiplayer workspace for teams. Every conversation, decision, and integration becomes searchable lore your team can ask anything of.",
   openGraph: {
-    title: "Lor — Institutional memory for software teams",
+    title: "Lor — The AI multiplayer workspace for teams",
     description:
-      "The chat where your team's lore lives. Open source, self-hostable, AGPL.",
+      "The AI multiplayer workspace for teams. Open source, self-hostable, AGPL.",
     url: "https://lor.chat",
     siteName: "Lor",
     type: "website",

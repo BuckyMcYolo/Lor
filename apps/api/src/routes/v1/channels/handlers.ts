@@ -8,7 +8,7 @@ import {
 } from "@repo/db/schema"
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
-import { assertGuildPermission } from "@/lib/permissions"
+import { assertWorkspacePermission } from "@/lib/permissions"
 import { fetchMessagePage } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
@@ -24,12 +24,12 @@ import type {
 } from "./routes"
 
 export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
 
   const channels = await db
     .select()
     .from(channel)
-    .where(eq(channel.guildId, guild.id))
+    .where(eq(channel.workspaceId, workspace.id))
     .orderBy(asc(channel.position))
 
   const categoryMap = new Map<string, typeof channels>()
@@ -66,11 +66,11 @@ export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
 }
 
 export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const member = c.var.member
   const body = c.req.valid("json")
 
-  assertGuildPermission(member, guild, {
+  assertWorkspacePermission(member, workspace, {
     channel: ["create"],
   })
 
@@ -78,7 +78,7 @@ export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
     .insert(channel)
     .values({
       ...body,
-      guildId: guild.id,
+      workspaceId: workspace.id,
     })
     .returning()
     .then((rows) => rows[0])
@@ -96,28 +96,34 @@ export const createChannel: AppRouteHandler<CreateChannelRoute> = async (c) => {
 export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
   c
 ) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const member = c.var.member
   const { channels: updates } = c.req.valid("json")
 
-  assertGuildPermission(member, guild, {
+  assertWorkspacePermission(member, workspace, {
     channel: ["update"],
   })
 
   const channelIds = updates.map((u) => u.id)
   const uniqueChannelIds = [...new Set(channelIds)]
 
-  // Verify all channels belong to this guild
+  // Verify all channels belong to this workspace
   const existing = await db
     .select({ id: channel.id })
     .from(channel)
     .where(
-      and(eq(channel.guildId, guild.id), inArray(channel.id, uniqueChannelIds))
+      and(
+        eq(channel.workspaceId, workspace.id),
+        inArray(channel.id, uniqueChannelIds)
+      )
     )
 
   if (existing.length !== uniqueChannelIds.length) {
     return c.json(
-      { success: false, message: "One or more channels not found in guild" },
+      {
+        success: false,
+        message: "One or more channels not found in workspace",
+      },
       HttpStatusCodes.FORBIDDEN
     )
   }
@@ -127,7 +133,9 @@ export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
       await tx
         .update(channel)
         .set({ position: update.position, parentId: update.parentId })
-        .where(and(eq(channel.id, update.id), eq(channel.guildId, guild.id)))
+        .where(
+          and(eq(channel.id, update.id), eq(channel.workspaceId, workspace.id))
+        )
     }
   })
 
@@ -135,13 +143,15 @@ export const reorderChannels: AppRouteHandler<ReorderChannelsRoute> = async (
 }
 
 export const getChannel: AppRouteHandler<GetChannelRoute> = async (c) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const { channelId } = c.req.valid("param")
 
   const ch = await db
     .select()
     .from(channel)
-    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .where(
+      and(eq(channel.id, channelId), eq(channel.workspaceId, workspace.id))
+    )
     .limit(1)
     .then((rows) => rows[0])
 
@@ -156,19 +166,21 @@ export const getChannel: AppRouteHandler<GetChannelRoute> = async (c) => {
 }
 
 export const updateChannel: AppRouteHandler<UpdateChannelRoute> = async (c) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const member = c.var.member
   const { channelId } = c.req.valid("param")
   const body = c.req.valid("json")
 
-  assertGuildPermission(member, guild, {
+  assertWorkspacePermission(member, workspace, {
     channel: ["update"],
   })
 
   const updated = await db
     .update(channel)
     .set(body)
-    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .where(
+      and(eq(channel.id, channelId), eq(channel.workspaceId, workspace.id))
+    )
     .returning()
     .then((rows) => rows[0])
 
@@ -183,17 +195,19 @@ export const updateChannel: AppRouteHandler<UpdateChannelRoute> = async (c) => {
 }
 
 export const deleteChannel: AppRouteHandler<DeleteChannelRoute> = async (c) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const member = c.var.member
   const { channelId } = c.req.valid("param")
 
-  assertGuildPermission(member, guild, {
+  assertWorkspacePermission(member, workspace, {
     channel: ["delete"],
   })
 
   const deleted = await db
     .delete(channel)
-    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .where(
+      and(eq(channel.id, channelId), eq(channel.workspaceId, workspace.id))
+    )
     .returning({ id: channel.id })
     .then((rows) => rows[0])
 
@@ -210,16 +224,18 @@ export const deleteChannel: AppRouteHandler<DeleteChannelRoute> = async (c) => {
 export const listChannelMessages: AppRouteHandler<
   ListChannelMessagesRoute
 > = async (c) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const currentUser = c.var.user
   const { channelId } = c.req.valid("param")
   const { page, perPage } = c.req.valid("query")
 
-  // Verify channel belongs to this guild
+  // Verify channel belongs to this workspace
   const ch = await db
     .select({ id: channel.id })
     .from(channel)
-    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .where(
+      and(eq(channel.id, channelId), eq(channel.workspaceId, workspace.id))
+    )
     .limit(1)
     .then((rows) => rows[0])
 
@@ -239,15 +255,15 @@ export const listChannelMessages: AppRouteHandler<
 export const toggleMessagePin: AppRouteHandler<ToggleMessagePinRoute> = async (
   c
 ) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const member = c.var.member
   const { channelId, messageId } = c.req.valid("param")
 
-  assertGuildPermission(member, guild, {
+  assertWorkspacePermission(member, workspace, {
     message: ["pin"],
   })
 
-  // Verify message exists in this channel and guild
+  // Verify message exists in this channel and workspace
   const msg = await db
     .select({
       id: message.id,
@@ -260,7 +276,7 @@ export const toggleMessagePin: AppRouteHandler<ToggleMessagePinRoute> = async (
       and(
         eq(message.id, messageId),
         eq(message.channelId, channelId),
-        eq(channel.guildId, guild.id)
+        eq(channel.workspaceId, workspace.id)
       )
     )
     .limit(1)
@@ -289,15 +305,17 @@ export const toggleMessagePin: AppRouteHandler<ToggleMessagePinRoute> = async (
 export const listPinnedMessages: AppRouteHandler<
   ListPinnedMessagesRoute
 > = async (c) => {
-  const guild = c.var.guild
+  const workspace = c.var.workspace
   const currentUser = c.var.user
   const { channelId } = c.req.valid("param")
 
-  // Verify channel belongs to guild
+  // Verify channel belongs to workspace
   const ch = await db
     .select({ id: channel.id })
     .from(channel)
-    .where(and(eq(channel.id, channelId), eq(channel.guildId, guild.id)))
+    .where(
+      and(eq(channel.id, channelId), eq(channel.workspaceId, workspace.id))
+    )
     .limit(1)
     .then((rows) => rows[0])
 

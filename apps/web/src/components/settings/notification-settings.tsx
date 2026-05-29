@@ -110,7 +110,7 @@ export function NotificationSettings() {
             <p className="text-xs text-muted-foreground">
               {permissionState === "denied"
                 ? "Notifications are blocked. Please enable them in your browser settings."
-                : "Allow Townhall to send you desktop notifications."}
+                : "Allow Lor to send you desktop notifications."}
             </p>
           </div>
           {permissionState === "default" && (
