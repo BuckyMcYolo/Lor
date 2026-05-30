@@ -34,8 +34,8 @@ import {
   CreateChannelProvider,
   useCreateChannel,
 } from "./channel-panel/create-channel-context"
-import { SearchBar } from "./channel-panel/search-bar"
 import { UserBar } from "./channel-panel/user-bar"
+import { WorkspaceCommand } from "./channel-panel/workspace-command"
 
 const LAST_WORKSPACE_KEY = "lor:last-workspace-slug"
 
@@ -132,34 +132,34 @@ function WorkspaceSidebarInner() {
           </SidebarMenuItem>
         </SidebarMenu>
 
-        <SearchBar
-          mode="workspace"
-          trailing={
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger
-                    aria-label="Create"
-                    className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:text-foreground hover:bg-foreground/[0.04] data-[state=open]:text-foreground data-[state=open]:bg-foreground/[0.04]"
-                  >
-                    <Plus className="size-4" />
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>Create</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end" sideOffset={6}>
-                <DropdownMenuItem onSelect={() => openCreateChannel()}>
-                  <Hash className="size-4 mr-2" />
-                  New channel
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={openCreateCategory}>
-                  <HugeiconsIcon icon={FolderAddIcon} className="size-4 mr-2" />
-                  New category
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          }
-        />
+        <div className="flex min-w-0 items-center gap-1.5 pt-3 pb-1">
+          <div className="min-w-0 flex-1">
+            <WorkspaceCommand />
+          </div>
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger
+                  aria-label="Create"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:text-foreground hover:bg-foreground/[0.04] data-[state=open]:text-foreground data-[state=open]:bg-foreground/[0.04]"
+                >
+                  <Plus className="size-4" />
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Create</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" sideOffset={6}>
+              <DropdownMenuItem onSelect={() => openCreateChannel()}>
+                <Hash className="size-4 mr-2" />
+                New channel
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={openCreateCategory}>
+                <HugeiconsIcon icon={FolderAddIcon} className="size-4 mr-2" />
+                New category
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>

@@ -9,10 +9,9 @@ import {
   CommandList,
   CommandSeparator,
 } from "@repo/ui/components/command"
-import { Kbd, KbdGroup } from "@repo/ui/components/kbd"
+import { Kbd } from "@repo/ui/components/unlumen-ui/kbd"
 import { cn } from "@repo/ui/lib/utils"
 import { Monitor, Moon, Search, Sun } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import * as React from "react"
 
@@ -21,9 +20,7 @@ export type CommandMenuItemDef = {
   label: string
   /** Lucide or any icon component */
   icon?: React.ComponentType<{ className?: string }>
-  /** Route to navigate to (uses next/navigation router.push) */
-  href?: string
-  /** Custom action — used instead of href when provided */
+  /** Action to run when the item is selected. */
   action?: () => void
   /** Extra keywords for matching */
   keywords?: string[]
@@ -85,10 +82,10 @@ function CommandMenuTrigger({
       <Search className="size-4 shrink-0" />
       <span className="flex-1 text-left">{label}</span>
       {showShortcut && (
-        <KbdGroup>
-          <Kbd>⌘</Kbd>
-          <Kbd>{shortcut}</Kbd>
-        </KbdGroup>
+        <span className="inline-flex items-center gap-0.5">
+          <Kbd size="sm">⌘</Kbd>
+          <Kbd size="sm">{shortcut}</Kbd>
+        </span>
       )}
     </button>
   )
@@ -104,7 +101,6 @@ function CommandMenu({
   triggerProps,
   className,
 }: CommandMenuProps) {
-  const router = useRouter()
   const { setTheme } = useTheme()
 
   const [open, setOpen] = React.useState(false)
@@ -145,12 +141,9 @@ function CommandMenu({
     (item: CommandMenuItemDef) => {
       if (item.action) {
         run(item.action)
-      } else if (item.href) {
-        const href = item.href
-        run(() => router.push(href))
       }
     },
-    [run, router]
+    [run]
   )
 
   return (
@@ -159,7 +152,7 @@ function CommandMenu({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="cursor-pointer text-left"
+          className="block w-full cursor-pointer text-left"
         >
           {trigger}
         </button>

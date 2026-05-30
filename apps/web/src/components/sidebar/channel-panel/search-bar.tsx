@@ -1,5 +1,4 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
-import { Kbd } from "@repo/ui/components/unlumen-ui/kbd"
 import { formatTime } from "@repo/utils/date"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
@@ -78,18 +77,6 @@ export function SearchBar({
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  useEffect(() => {
-    const handleShortcut = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        inputRef.current?.focus()
-        setIsOpen(true)
-      }
-    }
-    document.addEventListener("keydown", handleShortcut)
-    return () => document.removeEventListener("keydown", handleShortcut)
-  }, [])
-
   const { data, isPending } = useQuery({
     queryKey: [
       mode === "workspace" ? "workspace-search" : "dm-search",
@@ -163,22 +150,14 @@ export function SearchBar({
             onFocus={() => setIsOpen(true)}
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
-          {query ? (
+          {query && (
             <button
               type="button"
               onClick={handleClear}
-              className="shrink-0 text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground"
             >
               <X className="size-3.5" />
             </button>
-          ) : (
-            <div
-              className="hidden shrink-0 items-center gap-0.5 sm:flex"
-              aria-hidden
-            >
-              <Kbd size="sm">⌘</Kbd>
-              <Kbd size="sm">K</Kbd>
-            </div>
           )}
         </div>
         {trailing}
