@@ -206,7 +206,7 @@ function WorkspaceSidebarInner() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => setInviteOpen(true)}
-                  disabled={!workspaceSlug}
+                  disabled={!activeWorkspace}
                 >
                   <UserPlus className="size-4 text-muted-foreground" />
                   Invite people
