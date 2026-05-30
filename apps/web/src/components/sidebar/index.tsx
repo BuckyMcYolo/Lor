@@ -1,27 +1,71 @@
 import { Sheet, SheetContent } from "@repo/ui/components/sheet"
-import { SidebarInset, SidebarProvider } from "@repo/ui/components/sidebar"
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarFooter,
+  SidebarInset,
+  SidebarProvider,
+  useSidebar,
+} from "@repo/ui/components/sidebar"
 import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { cn } from "@repo/ui/lib/utils"
 import { useParams } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { DMSidebar } from "./dm-sidebar"
+import { UserBar } from "./channel-panel/user-bar"
+import { DMSidebarContent } from "./dm-sidebar"
 import {
   RightSidebarProvider,
   useRightSidebar,
 } from "./right-panel/right-sidebar-context"
 import { RightSidebarPanel } from "./right-panel/right-sidebar-panel"
-import { WorkspaceSidebar } from "./workspace-sidebar"
+import { WorkspaceSidebarContent } from "./workspace-sidebar"
 
 /**
- * URL-driven left sidebar selection:
- *   /$workspaceSlug/...  → WorkspaceSidebar (channels)
- *   /dms/...              → DMSidebar       (DM list)
- * See PIVOT.md "Navigation & sidebar IA".
+ * URL-driven left sidebar with a book-page-turn transition:
+ *   /$workspaceSlug/...  → WorkspaceSidebarContent (channels)
+ *   /dms/...              → DMSidebarContent       (DM list)
+ *
+ * Both contents are hosted inside a single Sidebar shell so the user-bar
+ * footer stays anchored across mode switches — only the contextual
+ * content (header + scrollable body) pivots around the left edge like a
+ * turning book page.
  */
 function LeftSidebar() {
   const { workspaceSlug } = useParams({ strict: false })
-  return workspaceSlug ? <WorkspaceSidebar /> : <DMSidebar />
+  const isWorkspace = !!workspaceSlug
+
+  return (
+    <ShadcnSidebar variant="inset">
+      <div
+        className="relative flex min-h-0 flex-1 flex-col"
+        style={{ perspective: 1400 }}
+      >
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={isWorkspace ? "workspace" : "dm"}
+            initial={{ rotateY: 78, opacity: 0 }}
+            animate={{ rotateY: 0, opacity: 1 }}
+            exit={{ rotateY: -78, opacity: 0 }}
+            transition={{
+              rotateY: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+              opacity: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+            }}
+            style={{
+              transformOrigin: "0% 50%",
+              transformStyle: "preserve-3d",
+              backfaceVisibility: "hidden",
+            }}
+            className="absolute inset-0 flex h-full w-full flex-col"
+          >
+            {isWorkspace ? <WorkspaceSidebarContent /> : <DMSidebarContent />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      <SidebarFooter>
+        <UserBar />
+      </SidebarFooter>
+    </ShadcnSidebar>
+  )
 }
 
 /**
@@ -76,13 +120,15 @@ function RightPanelDock() {
 
   return (
     <>
-      {/* Resize handle — sits in the gap between main inset and right panel */}
+      {/* Resize handle — pulled left with -ml-2 so its hit area overlaps
+          the inset's `mr-2` gap; the visible stroke sits at left-0, flush
+          with the inset's right border (which is the line users see). */}
       {!isCollapsed && (
         <div
           onMouseDown={handleMouseDown}
           className={cn(
-            "relative hidden h-full w-1.5 shrink-0 cursor-ew-resize items-center justify-center md:flex",
-            "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",
+            "relative -ml-2 hidden h-full w-2 shrink-0 cursor-ew-resize items-center justify-center md:flex",
+            "after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-transparent",
             isResizing ? "after:!bg-primary" : "hover:after:!bg-primary/50"
           )}
         />
@@ -158,13 +204,135 @@ function MobileRightPanel() {
   )
 }
 
+const LEFT_SIDEBAR_WIDTH_KEY = "lor:left-sidebar-width"
+const LEFT_SIDEBAR_MIN = 200
+const LEFT_SIDEBAR_MAX = 400
+const LEFT_SIDEBAR_DEFAULT = 240
+
+function getStoredLeftSidebarWidth(): number {
+  try {
+    const stored = localStorage.getItem(LEFT_SIDEBAR_WIDTH_KEY)
+    if (stored) {
+      const parsed = Number.parseInt(stored, 10)
+      if (parsed >= LEFT_SIDEBAR_MIN && parsed <= LEFT_SIDEBAR_MAX)
+        return parsed
+    }
+  } catch {}
+  return LEFT_SIDEBAR_DEFAULT
+}
+
+/**
+ * Desktop-only drag handle that resizes the left sidebar. Positioned `fixed`
+ * at the sidebar's right edge so it tracks `--sidebar-width` and works
+ * regardless of the inset card's internal padding. Hidden when the sidebar
+ * is collapsed (offcanvas variant has 0 width then — nothing to drag).
+ */
+function LeftSidebarResizeHandle({
+  width,
+  onWidthChange,
+}: {
+  width: number
+  onWidthChange: (width: number) => void
+}) {
+  const { state, isMobile } = useSidebar()
+  const [isResizing, setIsResizing] = useState(false)
+  const widthRef = useRef(width)
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      setIsResizing(true)
+
+      const startX = e.clientX
+      const startWidth = width
+      widthRef.current = startWidth
+
+      const wrapper = document.querySelector<HTMLElement>(
+        "[data-slot='sidebar-wrapper']"
+      )
+      // Sidebar gap + container animate `width` over 200ms — without disabling
+      // those transitions, the panel lags behind the cursor during drag.
+      const transitionTargets = document.querySelectorAll<HTMLElement>(
+        "[data-slot='sidebar-gap'], [data-slot='sidebar-container']"
+      )
+      for (const el of transitionTargets) {
+        el.style.transition = "none"
+      }
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const delta = moveEvent.clientX - startX
+        const next = Math.min(
+          Math.max(startWidth + delta, LEFT_SIDEBAR_MIN),
+          LEFT_SIDEBAR_MAX
+        )
+        widthRef.current = next
+        // SidebarProvider sets --sidebar-width inline on its wrapper, which
+        // wins over any value set on documentElement. Mutate the wrapper
+        // directly so the drag is visible immediately.
+        wrapper?.style.setProperty("--sidebar-width", `${next}px`)
+      }
+
+      const handleMouseUp = () => {
+        onWidthChange(widthRef.current)
+        for (const el of transitionTargets) {
+          el.style.transition = ""
+        }
+        requestAnimationFrame(() => setIsResizing(false))
+        document.removeEventListener("mousemove", handleMouseMove)
+        document.removeEventListener("mouseup", handleMouseUp)
+      }
+
+      document.addEventListener("mousemove", handleMouseMove)
+      document.addEventListener("mouseup", handleMouseUp)
+    },
+    [width, onWidthChange]
+  )
+
+  if (isMobile || state !== "expanded") return null
+
+  return (
+    <div
+      onMouseDown={handleMouseDown}
+      aria-hidden
+      className={cn(
+        "fixed top-0 bottom-0 z-50 hidden w-1.5 -translate-x-1/2 cursor-ew-resize md:block",
+        "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",
+        isResizing ? "after:!bg-primary" : "hover:after:!bg-primary/50"
+      )}
+      style={{ left: "var(--sidebar-width)" }}
+    />
+  )
+}
+
 function SidebarLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile()
+  const [width, setWidth] = useState(LEFT_SIDEBAR_DEFAULT)
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  useEffect(() => {
+    setWidth(getStoredLeftSidebarWidth())
+    setIsHydrated(true)
+  }, [])
+
+  const persistWidth = useCallback((next: number) => {
+    setWidth(next)
+    try {
+      localStorage.setItem(LEFT_SIDEBAR_WIDTH_KEY, String(next))
+    } catch {}
+  }, [])
+
   return (
     <SidebarProvider
-      style={{ "--sidebar-width": "15rem" } as React.CSSProperties}
+      style={
+        {
+          "--sidebar-width": isHydrated
+            ? `${width}px`
+            : `${LEFT_SIDEBAR_DEFAULT}px`,
+        } as React.CSSProperties
+      }
     >
       <LeftSidebar />
+      <LeftSidebarResizeHandle width={width} onWidthChange={persistWidth} />
       <MainArea>{children}</MainArea>
       {isMobile ? <MobileRightPanel /> : <RightPanelDock />}
     </SidebarProvider>

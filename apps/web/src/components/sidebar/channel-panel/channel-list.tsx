@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { authClient } from "@repo/auth/client"
+import { Button } from "@repo/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -570,24 +571,31 @@ function SortableCategorySection({
         </button>
         <div className="flex items-center gap-0.5">
           {canCreate && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={() => onCreateChannel?.(id)}
-              className="flex size-4 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100"
               title="Create channel"
+              aria-label="Create channel"
+              className="text-muted-foreground hover:text-foreground"
             >
-              <Plus className="size-3 shrink-0 text-muted-foreground" />
-            </button>
+              <Plus />
+            </Button>
           )}
           {canManage && (
             <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-              <DropdownMenuTrigger
-                className={cn(
-                  "flex size-4 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
-                  menuOpen && "opacity-100"
-                )}
-              >
-                <MoreHorizontal className="size-3 shrink-0 text-muted-foreground" />
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Category options"
+                  className={cn(
+                    "text-muted-foreground opacity-0 transition-opacity duration-150 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100",
+                    menuOpen && "opacity-100"
+                  )}
+                >
+                  <MoreHorizontal />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="bottom" align="start">
                 <DropdownMenuItem
@@ -729,14 +737,19 @@ function SortableChannelItem({
           )}
           {canManage && (
             <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-              <DropdownMenuTrigger
-                onClick={(e) => e.stopPropagation()}
-                className={cn(
-                  "flex size-5 items-center justify-center rounded opacity-0 hover:bg-foreground/10 group-hover:opacity-100",
-                  menuOpen && "opacity-100"
-                )}
-              >
-                <MoreHorizontal className="size-4 shrink-0" />
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Channel options"
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    "text-muted-foreground opacity-0 transition-opacity duration-150 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100",
+                    menuOpen && "opacity-100"
+                  )}
+                >
+                  <MoreHorizontal />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="bottom" align="start">
                 <DropdownMenuItem

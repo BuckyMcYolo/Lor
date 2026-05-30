@@ -4,8 +4,39 @@ import { cn } from "@repo/ui/lib/utils"
 import { MonitorIcon, MoonStarIcon, SunIcon } from "lucide-react"
 import { motion } from "motion/react"
 import { useTheme } from "next-themes"
-import type { JSX } from "react"
+import type { JSX, MouseEvent } from "react"
 import { useEffect, useState } from "react"
+
+type DocumentWithViewTransition = Document & {
+  startViewTransition?: (cb: () => void) => { ready: Promise<void> }
+}
+
+function applyThemeWithTransition(
+  event: MouseEvent<HTMLButtonElement>,
+  apply: () => void
+) {
+  const doc = document as DocumentWithViewTransition
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  if (reduced || typeof doc.startViewTransition !== "function") {
+    apply()
+    return
+  }
+
+  const x = event.clientX
+  const y = event.clientY
+  const endRadius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y)
+  )
+
+  const root = document.documentElement
+  root.style.setProperty("--vt-x", `${x}px`)
+  root.style.setProperty("--vt-y", `${y}px`)
+  root.style.setProperty("--vt-r", `${endRadius}px`)
+
+  doc.startViewTransition(apply)
+}
 
 function ThemeOption({
   icon,
@@ -16,7 +47,7 @@ function ThemeOption({
   icon: JSX.Element
   value: string
   isActive?: boolean
-  onClick: (value: string) => void
+  onClick: (value: string, event: MouseEvent<HTMLButtonElement>) => void
 }) {
   return (
     <button
@@ -29,7 +60,7 @@ function ThemeOption({
       )}
       aria-pressed={isActive}
       aria-label={`Switch to ${value} theme`}
-      onClick={() => onClick(value)}
+      onClick={(event) => onClick(value, event)}
     >
       {icon}
 
@@ -72,6 +103,14 @@ function ThemeSwitcher() {
     return <div className="flex h-8 w-24" />
   }
 
+  const handleSelect = (
+    value: string,
+    event: MouseEvent<HTMLButtonElement>
+  ) => {
+    if (value === theme) return
+    applyThemeWithTransition(event, () => setTheme(value))
+  }
+
   return (
     <motion.div
       key={String(isMounted)}
@@ -86,7 +125,7 @@ function ThemeSwitcher() {
           icon={option.icon}
           value={option.value}
           isActive={theme === option.value}
-          onClick={setTheme}
+          onClick={handleSelect}
         />
       ))}
     </motion.div>

@@ -473,7 +473,7 @@ export function WorkspaceMembersPanel({
             type="button"
             onClick={isMobile ? clearView : toggleCollapsed}
             aria-label="Close members panel"
-            className="-mr-1.5 flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+            className="-mr-1.5 flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
           >
             <SidebarToggleIcon
               isOpen={true}

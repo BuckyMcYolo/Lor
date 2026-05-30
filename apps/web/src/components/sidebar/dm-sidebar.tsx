@@ -4,7 +4,6 @@ import { authClient } from "@repo/auth/client"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -18,7 +17,6 @@ import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Plus } from "lucide-react"
 import { useMemo, useState } from "react"
 import { SearchBar } from "./channel-panel/search-bar"
-import { UserBar } from "./channel-panel/user-bar"
 import { DMList } from "./dm-panel/dm-list"
 import { NewDMDialog } from "./dm-panel/new-dm-dialog"
 
@@ -64,7 +62,23 @@ function useReturnWorkspace() {
   }, [workspaces, isPending])
 }
 
+/**
+ * Full standalone DM sidebar (Sidebar shell + content).
+ */
 export function DMSidebar() {
+  return (
+    <Sidebar variant="inset">
+      <DMSidebarContent />
+    </Sidebar>
+  )
+}
+
+/**
+ * Inner content only — designed to be hosted inside a Sidebar shell
+ * provided by the caller. Lets `sidebar/index.tsx` host both workspace
+ * and DM content under a single Sidebar so we can animate the swap.
+ */
+export function DMSidebarContent() {
   const navigate = useNavigate()
   const [newDMOpen, setNewDMOpen] = useState(false)
   const { slug, name, logo, isPending } = useReturnWorkspace()
@@ -72,7 +86,7 @@ export function DMSidebar() {
   const initial = (name ?? "L").charAt(0).toUpperCase()
 
   return (
-    <Sidebar variant="inset">
+    <>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -141,11 +155,7 @@ export function DMSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <UserBar />
-      </SidebarFooter>
-
       <NewDMDialog open={newDMOpen} onOpenChange={setNewDMOpen} />
-    </Sidebar>
+    </>
   )
 }
