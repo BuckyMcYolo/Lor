@@ -105,6 +105,7 @@ function ThemeSwitch({ iconSize = 16, className }: ThemeSwitchProps) {
 
   return (
     <motion.button
+      type="button"
       onClick={toggle}
       className={cn(
         "relative flex items-center justify-center size-9 rounded-full",

@@ -82,7 +82,7 @@ The sidebar is **URL-driven**, not tab-driven. Two distinct sidebar layouts, swa
 
 **Workspace sidebar** — shown when URL is `/$workspaceSlug/...`:
 
-```
+```text
 ┌──────────────────────────────────────────────┐
 │  [logo] Acme Engineering                     │  ← workspace badge (top)
 ├──────────────────────────────────────────────┤
@@ -103,7 +103,7 @@ The sidebar is **URL-driven**, not tab-driven. Two distinct sidebar layouts, swa
 
 **DM sidebar** — shown when URL is `/dms/...`:
 
-```
+```text
 ┌──────────────────────────────────────────────┐
 │  ← Acme Engineering                          │  ← back to last workspace
 ├──────────────────────────────────────────────┤
@@ -299,10 +299,10 @@ Three buckets. Execute in order: deletes first on a branch, get to a minimal cha
 - **Indexing + embedding pipeline** (Postgres source-of-truth + Qdrant vectors)
 - **Retrieval layer**
 - **LLM orchestration** with tool-calling
-- **ACL model:** source ACLs × workspace visibility (channels public to workspace, DMs private to participants, DM-indexed Merlin chats private to owner)
+- **ACL model:** source ACLs × workspace visibility (channels public to workspace, DMs private to participants; Merlin threads are public to the workspace — see "Merlin as a public surface")
 - **Wiki accumulation engine** — the visible growing brain (entity markdown pages maintained over time)
 - **`@merlin` agent surface** inside threads (streaming responses, source citations, warm-gold thinking indicator)
-- **Standalone Merlin chat surface** (the third sidebar tab, where DM-indexing applies)
+- **Merlin sidebar tab** — shared feed of public Merlin Q&A threads (any workspace member can start, read, or continue one)
 
 Recommended v1 scope: **one connector, done exceptionally well** (GitHub is the obvious pick for the dev-tools early audience) plus the collective-memory layer + visible wiki. Race for integration breadth later.
 

@@ -195,6 +195,12 @@
   }
 }
 
+@keyframes shimmer {
+  to {
+    transform: translateX(200%);
+  }
+}
+
 @keyframes theme-reveal {
   from {
     clip-path: circle(0% at var(--vt-x) var(--vt-y));

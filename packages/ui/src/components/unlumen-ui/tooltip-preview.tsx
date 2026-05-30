@@ -50,15 +50,27 @@ function TooltipPreview({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
+        {...props}
         className={cn(
           "underline decoration-dotted underline-offset-2 decoration-muted-foreground/50 hover:decoration-foreground/60 transition-colors",
           className
         )}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-        {...props}
+        onMouseEnter={(e) => {
+          props.onMouseEnter?.(e)
+          show()
+        }}
+        onMouseLeave={(e) => {
+          props.onMouseLeave?.(e)
+          hide()
+        }}
+        onFocus={(e) => {
+          props.onFocus?.(e)
+          show()
+        }}
+        onBlur={(e) => {
+          props.onBlur?.(e)
+          hide()
+        }}
       >
         {children}
       </a>

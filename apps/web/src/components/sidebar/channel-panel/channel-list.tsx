@@ -589,6 +589,7 @@ function SortableCategorySection({
                   variant="ghost"
                   size="icon-xs"
                   aria-label="Category options"
+                  onPointerDown={(e) => e.stopPropagation()}
                   className={cn(
                     "text-muted-foreground opacity-0 transition-opacity duration-150 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100",
                     menuOpen && "opacity-100"
@@ -743,6 +744,7 @@ function SortableChannelItem({
                   size="icon-xs"
                   aria-label="Channel options"
                   onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className={cn(
                     "text-muted-foreground opacity-0 transition-opacity duration-150 hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100",
                     menuOpen && "opacity-100"

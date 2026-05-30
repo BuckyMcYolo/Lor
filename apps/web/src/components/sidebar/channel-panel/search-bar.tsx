@@ -154,9 +154,10 @@ export function SearchBar({
             <button
               type="button"
               onClick={handleClear}
+              aria-label="Clear search"
               className="cursor-pointer text-muted-foreground hover:text-foreground"
             >
-              <X className="size-3.5" />
+              <X className="size-3.5" aria-hidden="true" />
             </button>
           )}
         </div>

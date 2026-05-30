@@ -77,9 +77,10 @@ export function ChatHeader({
               <button
                 type="button"
                 onClick={onTogglePinnedMessages}
+                aria-label="Toggle pinned messages"
                 className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
-                <HugeiconsIcon icon={Pin02Icon} size={16} />
+                <HugeiconsIcon icon={Pin02Icon} size={16} aria-hidden="true" />
               </button>
             </TooltipTrigger>
             <TooltipContent>Pinned Messages</TooltipContent>

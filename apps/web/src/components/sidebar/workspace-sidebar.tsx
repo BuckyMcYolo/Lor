@@ -100,10 +100,11 @@ function WorkspaceSidebarInner() {
     },
   })
 
-  const activeWorkspace = useMemo(
-    () => workspaces?.find((w) => w.slug === workspaceSlug) ?? workspaces?.[0],
-    [workspaces, workspaceSlug]
-  )
+  const activeWorkspace = useMemo(() => {
+    if (!workspaces) return undefined
+    if (!workspaceSlug) return workspaces[0]
+    return workspaces.find((w) => w.slug === workspaceSlug)
+  }, [workspaces, workspaceSlug])
 
   // Permission gating for the Create dropdown. Same queries the
   // ChannelList consumes — react-query dedupes so this is free.

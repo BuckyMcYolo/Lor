@@ -39,21 +39,43 @@ export function VideoAmbient({
     if (!ctx) return
 
     const draw = () => {
-      // Only paint when the video has pixel data to show.
-      if (!video.paused || video.readyState >= 2) {
-        try {
-          ctx.drawImage(video, 0, 0, CANVAS_W, CANVAS_H)
-        } catch {
-          // Ignore cross-origin canvas restrictions; video playback should continue.
-        }
+      if (video.paused || video.ended || video.readyState < 2) {
+        rafRef.current = 0
+        return
+      }
+      try {
+        ctx.drawImage(video, 0, 0, CANVAS_W, CANVAS_H)
+      } catch {
+        // Ignore cross-origin canvas restrictions; video playback should continue.
       }
       rafRef.current = requestAnimationFrame(draw)
     }
 
-    rafRef.current = requestAnimationFrame(draw)
+    const start = () => {
+      if (rafRef.current) return
+      rafRef.current = requestAnimationFrame(draw)
+    }
+
+    const stop = () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = 0
+      }
+    }
+
+    video.addEventListener("play", start)
+    video.addEventListener("playing", start)
+    video.addEventListener("pause", stop)
+    video.addEventListener("ended", stop)
+
+    if (!video.paused && video.readyState >= 2) start()
 
     return () => {
-      cancelAnimationFrame(rafRef.current)
+      video.removeEventListener("play", start)
+      video.removeEventListener("playing", start)
+      video.removeEventListener("pause", stop)
+      video.removeEventListener("ended", stop)
+      stop()
     }
   }, [])
 

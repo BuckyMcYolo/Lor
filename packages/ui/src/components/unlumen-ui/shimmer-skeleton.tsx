@@ -41,7 +41,6 @@ function ShimmerSkeleton({
           }}
         />
       )}
-      <style>{`@keyframes shimmer { to { transform: translateX(200%); } }`}</style>
     </output>
   )
 }

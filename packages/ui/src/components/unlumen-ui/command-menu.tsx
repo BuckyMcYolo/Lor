@@ -146,21 +146,34 @@ function CommandMenu({
     [run]
   )
 
+  const openMenu = React.useCallback(() => setOpen(true), [])
+
+  const renderedTrigger = React.useMemo(() => {
+    if (!trigger) return null
+    if (!React.isValidElement(trigger)) return trigger
+    const child = trigger as React.ReactElement<{
+      onClick?: React.MouseEventHandler<HTMLElement>
+    }>
+    return React.cloneElement(child, {
+      onClick: (e: React.MouseEvent<HTMLElement>) => {
+        child.props.onClick?.(e)
+        if (!e.defaultPrevented) openMenu()
+      },
+    })
+  }, [trigger, openMenu])
+
   return (
     <>
       {trigger ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="block w-full cursor-pointer text-left"
-        >
-          {trigger}
-        </button>
+        renderedTrigger
       ) : (
         <CommandMenuTrigger
           shortcut={shortcutKey.toUpperCase()}
           {...triggerProps}
-          onClick={() => setOpen(true)}
+          onClick={(e) => {
+            triggerProps?.onClick?.(e)
+            if (!e.defaultPrevented) openMenu()
+          }}
         />
       )}
 

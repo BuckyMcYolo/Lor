@@ -62,7 +62,11 @@ export function PinnedMessagesPanel({
         <button
           type="button"
           onClick={isMobile ? clearView : toggleCollapsed}
-          aria-label="Close pinned messages panel"
+          aria-label={
+            isMobile
+              ? "Close pinned messages panel"
+              : "Collapse pinned messages panel"
+          }
           className="-mr-1.5 ml-auto flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
         >
           <SidebarToggleIcon
