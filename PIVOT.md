@@ -76,15 +76,17 @@ Channels and DMs are different primitives, intentionally. A channel is a *persis
 
 ### Navigation & sidebar IA
 
-The interface is **two regions**: a thin top bar and a tabbed sidebar. The main conversation pane fills the rest.
+> **Revised 2026-05-28 (this section was previously a Slack-style tabbed sidebar — that was wrong).** The corrected model is Discord-influenced: **scoped and global primitives live in separate sidebars matched to separate routes**. Channels are workspace-scoped; DMs are user-scoped; they should not share a nav surface. (See [feedback memory on scoped vs global UI separation].)
+
+The sidebar is **URL-driven**, not tab-driven. Two distinct sidebar layouts, swapped by route:
+
+**Workspace sidebar** — shown when URL is `/$workspaceSlug/...`:
 
 ```
 ┌──────────────────────────────────────────────┐
-│  Workspace ▾                       🔍        │  ← top bar
+│  [logo] Acme Engineering                     │  ← workspace badge (top)
 ├──────────────────────────────────────────────┤
-│  ┌──────────┬──────────┬───────────────┐    │
-│  │ Channels │ DMs  (3) │ Merlin        │    │  ← sidebar tabs
-│  └──────────┴──────────┴───────────────┘    │
+│  [Search workspace messages]                 │
 ├──────────────────────────────────────────────┤
 │  ▾ core                                      │
 │      # general                               │
@@ -94,34 +96,35 @@ The interface is **two regions**: a thin top bar and a tabbed sidebar. The main 
 │      # eng-frontend                          │
 │      # eng-backend                           │
 │      🔊 pairing                              │
-│  ▾ design                                    │
-│      # design-crit                           │
 ├──────────────────────────────────────────────┤
-│  [Avatar]  You · presence            ⚙       │  ← user footer
+│  [Avatar] You · presence       💬  ⚙         │  ← user bar; 💬 → /dms
 └──────────────────────────────────────────────┘
 ```
 
-**Top bar — minimal, on purpose.** Two affordances:
+**DM sidebar** — shown when URL is `/dms/...`:
 
-- `Workspace ▾` — workspace switcher (Linear/Figma dropdown). Cross-workspace nav lives here only.
-- `🔍 Search` — global Cmd+K-style search across the active workspace.
+```
+┌──────────────────────────────────────────────┐
+│  ← Acme Engineering                          │  ← back to last workspace
+├──────────────────────────────────────────────┤
+│  [Search direct messages]                    │
+├──────────────────────────────────────────────┤
+│  DIRECT MESSAGES                       +     │
+│  • Jordan Lee                                │
+│  • #eng-leads                       (3)      │
+│  • Maya Patel                                │
+├──────────────────────────────────────────────┤
+│  [Avatar] You · presence       🏠  ⚙         │  ← user bar; 🏠 → workspace
+└──────────────────────────────────────────────┘
+```
 
-No new-message icon, no inbox, no drafts, no activity feed, no apps menu. Per-channel unread badges *are* the inbox. To start a new message, navigate to that channel and type.
+**Top of sidebar.** Workspace mode shows the workspace badge (will become the workspace-switcher dropdown post-v1). DM mode shows a back affordance to the last visited workspace. Global search lives in the inline SearchBar inside each sidebar (workspace messages vs DM messages); a Cmd+K command palette can unify these later.
 
-**Tabbed sidebar — three tabs, one active at a time.**
+**User bar (bottom of sidebar).** Avatar + name + presence + a mode-aware nav icon + settings cog. The mode-aware icon is the **only place DMs are reachable from the workspace view**, and vice versa — clean URL-level pivot between scopes. No orb rail.
 
-- **Channels** — all workspace channels (text + voice), organized in **collapsible Discord-style categories**. `#` for text, `🔊` for voice. One iconography system, no exceptions. No `🔒` — all channels are public to the workspace.
-- **DMs** — flat list, 1:1 and group DMs together, recents first. No friend requests, no allies, no friendship layer — workspace membership *is* the relationship.
-- **Merlin** — flat list of saved standalone Merlin chats (ChatGPT-style named conversations), `+ new chat` at top. Note: `@merlin` invocations inside channels/DMs are inline replies in those threads and do **not** create sidebar entries here. This tab is **only** for standalone 1:1 Merlin chats (the surface where DM-indexing applies, per the trust boundary below).
+**Merlin placement (TBD).** PIVOT originally put Merlin as a sidebar tab; with the tabs gone, Merlin's first-class home in the workspace sidebar is undecided. Deferred. When it lands, Merlin threads are workspace-scoped (per the "all chats public" decision) and live in the workspace sidebar — never the DM sidebar.
 
-**Tab-switching behavior:**
-
-- Activity in an inactive tab shows as a count badge on the tab itself (e.g., `DMs (3)`).
-- Switching tabs **only swaps the sidebar contents** — the main conversation pane is unaffected. You don't lose your place.
-- Keyboard: `Cmd+1` / `Cmd+2` / `Cmd+3` switch tabs.
-- The tab the user was on at last sign-out persists per-user — Lor opens to the tab you left.
-
-**User footer (bottom-left of sidebar):** avatar + name + presence indicator + settings cog. Profile, status, theme, preferences, notifications — all live behind the avatar/cog. Not in the top bar.
+**Why the split:** workspace and DM scopes have different mental models. Mixing them in a tabbed surface (Slack's choice) is the UI mistake that makes the whole thing feel cluttered. URL-driven mode switching keeps the conceptual line clean.
 
 **What we explicitly do NOT have** (refusing-by-design list, so future scope creep gets caught):
 
@@ -138,26 +141,25 @@ If a future feature wants a sidebar slot, it needs to displace something already
 
 ### Merlin's visibility & ACL behavior
 
-Two simple rules, derived from the "all channels public" decision:
+Two simple rules, derived from the "all conversations public" decision:
 
 1. **Channels:** every channel is visible to every workspace member, so Merlin can use any channel content in any answer to any member of that workspace. No per-user retrieval gating needed at the channel layer.
-2. **DMs:** Merlin **never** uses DM content when answering inside channels, group DMs, or another user's space. DM content is only ever used in the asking user's standalone Merlin chat, and only if that user has opted in to DM indexing (see next section).
+2. **DMs:** Merlin **never** uses DM content. DMs are the pressure-release valve for private one-to-one talk; they're explicitly OUT of Merlin's corpus.
 
 Cross-workspace isolation is absolute: a Merlin instance for Workspace A never sees Workspace B's corpus, full stop.
 
-### DM indexing & Merlin in DMs
+### Merlin as a public surface — no private Merlin chats (decision 2026-05-28)
 
-DM content is **opt-in per user**, off by default. When opted in, Merlin may use your DMs as context — but **only in one surface**: a **standalone 1:1 chat with Merlin** (a dedicated Merlin conversation, ChatGPT/Claude-app style, separate from any `@merlin` invocation in a multi-user space).
+Earlier draft proposed a private 1:1 "standalone Merlin chat" surface (ChatGPT-app-style, per-user, with opt-in DM indexing). **That is dropped.** All Merlin interactions are public to the workspace — they become part of the corpus, not a private conversation.
 
-Merlin **never** surfaces, cites, or references DM content in any other context:
+The Merlin sidebar tab is therefore a **shared feed of Merlin Q&A threads**, not a list of per-user private conversations. Any member can start a Merlin thread, anyone can read it, anyone can continue it. Threads are searchable like channels.
 
-- Not in any channel (all channels are public to the workspace, so DM content leaking there leaks broadly)
-- Not in group DMs (even if all participants of the source DM are present)
-- Not in another user's 1:1 with Merlin
+Why:
+- Consistency with the public-channels rule — the "all chats public" principle covers Merlin too, so the trust model is uniform.
+- Richer corpus — Merlin's own answers become indexable artifacts other members can find and build on.
+- Removes the DM-indexing-opt-in failure surface entirely.
 
-The trust boundary is **structural, not behavioral**: Merlin in your private space with Merlin = can use your indexed DMs. Merlin anywhere else = cannot, by construction. This is easier to reason about than runtime context-checking and removes the failure mode where DM content accidentally leaks via the agent into a multi-user setting.
-
-**Future:** 1:1 DMs should eventually be **E2E encrypted**. That implies Merlin's DM indexing will need to run client-side (agent operates on decrypted content locally; server only ever sees ciphertext). Architectural note for later — not v1, but should not design ourselves out of it.
+**Future:** 1:1 DMs should eventually be **E2E encrypted**. Since Merlin doesn't index DMs at all under this model, the E2E story simplifies — server can store ciphertext-only without affecting Merlin's behavior.
 
 ## New brand
 

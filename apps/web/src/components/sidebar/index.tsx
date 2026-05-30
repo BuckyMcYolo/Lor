@@ -1,66 +1,44 @@
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-  useDefaultLayout,
-} from "@repo/ui/components/resizable"
 import { Sheet, SheetContent } from "@repo/ui/components/sheet"
+import { SidebarInset, SidebarProvider } from "@repo/ui/components/sidebar"
 import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { cn } from "@repo/ui/lib/utils"
 import { useParams } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useMobileSidebar } from "@/context/mobile-sidebar-context"
-import { ChannelPanel } from "./channel-panel/channel-panel"
-import { DMPanel } from "./dm-panel/dm-panel"
+import { DMSidebar } from "./dm-sidebar"
 import {
   RightSidebarProvider,
   useRightSidebar,
 } from "./right-panel/right-sidebar-context"
 import { RightSidebarPanel } from "./right-panel/right-sidebar-panel"
-import { WorkspaceBar } from "./workspace-bar/workspace-bar"
+import { WorkspaceSidebar } from "./workspace-sidebar"
 
-function LeftSidebarContent() {
+/**
+ * URL-driven left sidebar selection:
+ *   /$workspaceSlug/...  → WorkspaceSidebar (channels)
+ *   /dms/...              → DMSidebar       (DM list)
+ * See PIVOT.md "Navigation & sidebar IA".
+ */
+function LeftSidebar() {
   const { workspaceSlug } = useParams({ strict: false })
-
-  return (
-    <div className="flex h-full w-full">
-      <WorkspaceBar />
-      <div className="min-w-0 flex-1">
-        {workspaceSlug ? <ChannelPanel /> : <DMPanel />}
-      </div>
-    </div>
-  )
+  return workspaceSlug ? <WorkspaceSidebar /> : <DMSidebar />
 }
 
-function MobileSidebar() {
-  const { open, setOpen } = useMobileSidebar()
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetContent
-        side="left"
-        showCloseButton={false}
-        className="w-[320px] p-0 sm:max-w-[320px]"
-      >
-        <LeftSidebarContent />
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Right-side floating inset card. Lives as a sibling of SidebarInset on
+ * the SidebarProvider canvas, mirroring the left sidebar's floating look:
+ * `bg-sidebar` with rounded corners, a small margin gap, and a soft
+ * shadow. This is a deliberate visual choice — the right panel hosts
+ * Merlin threads (and members / pinned / threads), so it needs its own
+ * visual identity rather than blending into the main chat surface.
+ */
+function RightPanelDock() {
   const { workspaceSlug } = useParams({ strict: false })
   const { view, isCollapsed, panelWidth, setPanelWidth, isHydrated } =
     useRightSidebar()
   const [isResizing, setIsResizing] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const widthRef = useRef(panelWidth)
-
-  const { defaultLayout, onLayoutChange } = useDefaultLayout({
-    groupId: "lor-sidebar",
-    storage: localStorage,
-  })
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -94,69 +72,69 @@ function DesktopSidebarLayout({ children }: { children: React.ReactNode }) {
 
   const showRightPanel = !!view && !!workspaceSlug
 
+  if (!showRightPanel || !isHydrated) return null
+
   return (
-    <div className="flex h-full w-full">
-      <WorkspaceBar />
-      <ResizablePanelGroup
-        orientation="horizontal"
-        defaultLayout={defaultLayout}
-        onLayoutChange={onLayoutChange}
-      >
-        <ResizablePanel
-          defaultSize="240px"
-          minSize="180px"
-          maxSize="420px"
-          className="overflow-hidden"
-        >
-          {workspaceSlug ? <ChannelPanel /> : <DMPanel />}
-        </ResizablePanel>
-        <ResizableHandle className="bg-border hover:!bg-primary data-[resize-handle-active]:!bg-primary" />
-        <ResizablePanel>
-          <div className="flex h-full min-w-0 overflow-hidden">
-            <div className="h-full min-w-0 flex-1">{children}</div>
-            {showRightPanel && isHydrated && (
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.div
-                    ref={panelRef}
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: panelWidth, opacity: 1 }}
-                    exit={{ width: 0, opacity: 0 }}
-                    transition={{
-                      duration: isResizing ? 0 : 0.2,
-                      ease: [0.4, 0, 0.2, 1],
-                    }}
-                    className="flex h-full overflow-hidden"
-                  >
-                    <div
-                      onMouseDown={handleMouseDown}
-                      className={cn(
-                        "relative flex h-full w-1.5 shrink-0 cursor-ew-resize items-center justify-center",
-                        "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border",
-                        isResizing
-                          ? "after:!bg-primary"
-                          : "hover:after:!bg-primary"
-                      )}
-                    />
-                    <div className="h-full min-w-0 flex-1 overflow-hidden">
-                      <RightSidebarPanel view={view} />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+    <>
+      {/* Resize handle — sits in the gap between main inset and right panel */}
+      {!isCollapsed && (
+        <div
+          onMouseDown={handleMouseDown}
+          className={cn(
+            "relative hidden h-full w-1.5 shrink-0 cursor-ew-resize items-center justify-center md:flex",
+            "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",
+            isResizing ? "after:!bg-primary" : "hover:after:!bg-primary/50"
+          )}
+        />
+      )}
+      <AnimatePresence>
+        {!isCollapsed && (
+          <motion.aside
+            ref={panelRef}
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: panelWidth, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{
+              duration: isResizing ? 0 : 0.2,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+            className={cn(
+              "hidden h-full shrink-0 overflow-hidden md:flex",
+              "bg-sidebar text-sidebar-foreground",
+              "md:my-2 md:mr-2 md:rounded-xl"
             )}
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+          >
+            <div className="h-full min-w-0 flex-1 overflow-hidden">
+              <RightSidebarPanel view={view} />
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
+function MainArea({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarInset className="min-w-0 md:my-2 md:mr-2 md:rounded-xl md:border md:border-border/60 md:shadow-none">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden md:rounded-[inherit]">
+        {children}
+      </div>
+    </SidebarInset>
+  )
+}
+
+/**
+ * Mobile-only right panel: renders as a slide-in sheet from the right edge
+ * since there's no room for a floating panel on small viewports.
+ */
 function MobileRightPanel() {
   const { view, clearView } = useRightSidebar()
   const { workspaceSlug } = useParams({ strict: false })
   const open = !!view && !!workspaceSlug
 
+  // If the user navigates away from a workspace while the panel is open,
+  // close it — it's workspace-scoped.
   useEffect(() => {
     if (!workspaceSlug && view) clearView()
   }, [workspaceSlug, view, clearView])
@@ -172,7 +150,7 @@ function MobileRightPanel() {
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="w-[300px] p-0 sm:max-w-[300px]"
+        className="w-[300px] bg-sidebar p-0 sm:max-w-[300px]"
       >
         {view && <RightSidebarPanel view={view} />}
       </SheetContent>
@@ -182,18 +160,13 @@ function MobileRightPanel() {
 
 function SidebarLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile()
-
-  if (isMobile) {
-    return (
-      <div className="flex h-full w-full flex-col">
-        <MobileSidebar />
-        <MobileRightPanel />
-        {children}
-      </div>
-    )
-  }
-
-  return <DesktopSidebarLayout>{children}</DesktopSidebarLayout>
+  return (
+    <SidebarProvider>
+      <LeftSidebar />
+      <MainArea>{children}</MainArea>
+      {isMobile ? <MobileRightPanel /> : <RightPanelDock />}
+    </SidebarProvider>
+  )
 }
 
 export function Sidebar({ children }: { children: React.ReactNode }) {

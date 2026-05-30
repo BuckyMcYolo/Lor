@@ -161,7 +161,7 @@ export function UserBar() {
           aria-label="Open settings"
           title="Open settings"
           onClick={openSettings}
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
         >
           <Settings className="size-4" />
         </button>

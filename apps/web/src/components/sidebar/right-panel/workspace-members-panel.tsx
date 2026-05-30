@@ -33,10 +33,11 @@ import {
 } from "@repo/ui/components/dropdown-menu"
 import { ScrollArea } from "@repo/ui/components/scroll-area"
 import { Skeleton } from "@repo/ui/components/skeleton"
+import { SidebarToggleIcon } from "@repo/ui/components/unlumen-ui/sidebar-toggle-icon"
 import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { cn } from "@repo/ui/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { MoreHorizontal, PanelRight } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { UserAvatar } from "@/components/ui/user-avatar"
@@ -463,17 +464,22 @@ export function WorkspaceMembersPanel({
 
   return (
     <>
-      <div className="flex h-full w-full flex-col bg-card">
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
-          <span className="text-sm text-muted-foreground">
-            {members.length} members
+      <div className="flex h-full w-full flex-col">
+        <div className="flex h-12 shrink-0 items-center justify-between px-4">
+          <span className="text-[13px] font-semibold tracking-tight text-foreground">
+            Members
           </span>
           <button
             type="button"
             onClick={isMobile ? clearView : toggleCollapsed}
-            className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Close members panel"
+            className="-mr-1.5 flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
           >
-            <PanelRight className="size-4" />
+            <SidebarToggleIcon
+              isOpen={true}
+              className="size-4 -scale-x-100"
+              strokeWidth={1.5}
+            />
           </button>
         </div>
 

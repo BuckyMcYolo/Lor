@@ -218,7 +218,7 @@ export function MessageItem({
       <div className="flex gap-3">
         {showHeader ? (
           <UserProfilePopover userId={author.id} side="right" align="start">
-            <button type="button" className="mt-0.5 cursor-pointer">
+            <button type="button" className="mt-0.5 cursor-pointer self-start">
               <Avatar size="lg">
                 {author.image && (
                   <AvatarImage src={author.image} alt={author.name} />

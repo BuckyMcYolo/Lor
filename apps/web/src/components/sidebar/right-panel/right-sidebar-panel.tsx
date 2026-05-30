@@ -26,7 +26,7 @@ function PlaceholderSidebar({
 
 export function RightSidebarPanel({ view }: { view: RightSidebarView }) {
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-card">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       {view.type === "workspace-members" && (
         <WorkspaceMembersPanel view={view} />
       )}
