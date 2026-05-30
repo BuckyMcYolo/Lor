@@ -1,3 +1,5 @@
+import { Pin02Icon, PinOffIcon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@repo/ui/components/button"
 import {
   DropdownMenu,
@@ -11,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
-import { MoreHorizontal, Pin, PinOff, Reply } from "lucide-react"
+import { MoreHorizontal, Reply } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { EmojiReactionPicker } from "./emoji-reaction-picker"
 
@@ -100,9 +102,9 @@ export function MessageActionBar({
               aria-label={isPinned ? "Unpin message" : "Pin message"}
             >
               {isPinned ? (
-                <PinOff className="size-4" />
+                <HugeiconsIcon icon={PinOffIcon} size={16} />
               ) : (
-                <Pin className="size-4" />
+                <HugeiconsIcon icon={Pin02Icon} size={16} />
               )}
             </Button>
           </TooltipTrigger>

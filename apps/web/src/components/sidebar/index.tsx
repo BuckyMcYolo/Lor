@@ -161,7 +161,9 @@ function MobileRightPanel() {
 function SidebarLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile()
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      style={{ "--sidebar-width": "15rem" } as React.CSSProperties}
+    >
       <LeftSidebar />
       <MainArea>{children}</MainArea>
       {isMobile ? <MobileRightPanel /> : <RightPanelDock />}

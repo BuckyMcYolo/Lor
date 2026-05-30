@@ -1,3 +1,5 @@
+import { Pin02Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import {
   Tooltip,
@@ -5,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
 import { useParams } from "@tanstack/react-router"
-import { Hash, Pin } from "lucide-react"
+import { Hash } from "lucide-react"
 import {
   LeftSidebarToggle,
   RightPanelToggle,
@@ -77,7 +79,7 @@ export function ChatHeader({
                 onClick={onTogglePinnedMessages}
                 className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
-                <Pin className="size-4" />
+                <HugeiconsIcon icon={Pin02Icon} size={16} />
               </button>
             </TooltipTrigger>
             <TooltipContent>Pinned Messages</TooltipContent>

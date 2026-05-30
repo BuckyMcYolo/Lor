@@ -1,3 +1,5 @@
+import { SentIcon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@repo/ui/components/button"
 import {
   Popover,
@@ -32,7 +34,6 @@ import {
   FileUp,
   Italic,
   Plus,
-  Send,
   Strikethrough,
   X,
 } from "lucide-react"
@@ -958,7 +959,7 @@ export function MessageInput({
               disabled={!canSend}
               aria-label="Send message"
             >
-              <Send className="size-4" />
+              <HugeiconsIcon icon={SentIcon} size={16} />
             </Button>
           </div>
         </div>

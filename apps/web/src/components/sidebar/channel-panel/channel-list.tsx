@@ -16,7 +16,6 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { authClient } from "@repo/auth/client"
-import { Button } from "@repo/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,14 +27,7 @@ import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import {
-  ChevronDown,
-  FolderPlus,
-  Hash,
-  MoreHorizontal,
-  Plus,
-  Volume2,
-} from "lucide-react"
+import { ChevronDown, Hash, MoreHorizontal, Plus, Volume2 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useState } from "react"
 import { useMobileSidebar } from "@/context/mobile-sidebar-context"
@@ -47,7 +39,7 @@ import {
   canDeleteChannels,
   canManageChannels,
 } from "@/lib/permissions"
-import { CreateChannelDialog } from "./create-channel-dialog"
+import { useCreateChannel } from "./create-channel-context"
 import { DeleteChannelDialog } from "./delete-channel-dialog"
 import { EditChannelDialog } from "./edit-channel-dialog"
 
@@ -196,11 +188,7 @@ export function ChannelList() {
     ? canDeleteChannels(permissionCtx.actor, permissionCtx.workspace)
     : false
 
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [createParentId, setCreateParentId] = useState<string | null>(null)
-  const [createForceType, setCreateForceType] = useState<
-    "category" | undefined
-  >(undefined)
+  const { openCreateChannel } = useCreateChannel()
 
   const [activeItem, setActiveItem] = useState<{
     channel: Channel
@@ -426,40 +414,7 @@ export function ChannelList() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <nav className="space-y-4">
-          {canCreate && (
-            <div className="flex items-center justify-between px-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Channels
-              </span>
-              <div className="flex items-center gap-0.5">
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  title="Create category"
-                  onClick={() => {
-                    setCreateParentId(null)
-                    setCreateForceType("category")
-                    setCreateDialogOpen(true)
-                  }}
-                >
-                  <FolderPlus className="size-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  title="Create channel"
-                  onClick={() => {
-                    setCreateParentId(null)
-                    setCreateForceType(undefined)
-                    setCreateDialogOpen(true)
-                  }}
-                >
-                  <Plus className="size-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
+        <nav className="space-y-3">
           {/* Uncategorized channels */}
           {data.uncategorized.length > 0 && (
             <SortableContext
@@ -518,11 +473,7 @@ export function ChannelList() {
                   })
                   closeMobileSidebar(false)
                 }}
-                onCreateChannel={(parentId) => {
-                  setCreateParentId(parentId)
-                  setCreateForceType(undefined)
-                  setCreateDialogOpen(true)
-                }}
+                onCreateChannel={(parentId) => openCreateChannel(parentId)}
               />
             ))}
           </SortableContext>
@@ -548,15 +499,6 @@ export function ChannelList() {
           )}
         </DragOverlay>
       </DndContext>
-      <CreateChannelDialog
-        open={createDialogOpen}
-        onOpenChange={(open) => {
-          setCreateDialogOpen(open)
-          if (!open) setCreateForceType(undefined)
-        }}
-        parentId={createParentId}
-        forceType={createForceType}
-      />
     </>
   )
 }
