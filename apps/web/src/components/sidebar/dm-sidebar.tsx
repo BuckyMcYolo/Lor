@@ -130,7 +130,7 @@ export function DMSidebar() {
               aria-label="New direct message"
               title="New direct message"
               onClick={() => setNewDMOpen(true)}
-              className="flex size-5 items-center justify-center rounded text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="flex size-5 cursor-pointer items-center justify-center rounded text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               <Plus className="size-3.5" strokeWidth={2.25} />
             </button>

@@ -154,7 +154,7 @@ export function SearchBar({
             <button
               type="button"
               onClick={handleClear}
-              className="text-muted-foreground hover:text-foreground"
+              className="cursor-pointer text-muted-foreground hover:text-foreground"
             >
               <X className="size-3.5" />
             </button>

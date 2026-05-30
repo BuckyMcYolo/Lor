@@ -22,7 +22,7 @@ function ThemeOption({
     <button
       type="button"
       className={cn(
-        "relative flex size-8 cursor-default items-center justify-center rounded-full transition-all [&_svg]:size-4",
+        "relative flex size-8 cursor-pointer items-center justify-center rounded-full transition-all [&_svg]:size-4",
         isActive
           ? "text-foreground"
           : "text-muted-foreground hover:text-foreground"

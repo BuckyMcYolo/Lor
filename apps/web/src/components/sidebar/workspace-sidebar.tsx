@@ -118,7 +118,7 @@ function WorkspaceSidebarInner() {
                   onClick={() => {
                     void navigate({ to: "/dms" })
                   }}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
                 >
                   <HugeiconsIcon
                     icon={BubbleChatIcon}

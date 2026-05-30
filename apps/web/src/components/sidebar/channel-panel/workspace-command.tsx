@@ -136,7 +136,7 @@ export function WorkspaceCommand() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-8 w-full min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-foreground/[0.04]"
+        className="flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-foreground/[0.04]"
       >
         <Search className="size-3.5 shrink-0" />
         <span className="min-w-0 flex-1 truncate text-left">Search</span>
