@@ -246,26 +246,26 @@ function Highlight<T extends string>({ ref, ...props }: HighlightProps<T>) {
     return children
   }
 
+  const contextValue = {
+    mode,
+    activeValue,
+    setActiveValue: safeSetActiveValue,
+    id,
+    hover,
+    className,
+    transition,
+    disabled,
+    enabled,
+    exitDelay,
+    setBounds: safeSetBounds,
+    clearBounds,
+    activeClassName: activeClassNameState,
+    setActiveClassName: setActiveClassNameState,
+    forceUpdateBounds,
+  } as unknown as HighlightContextType<string>
+
   return (
-    <HighlightContext.Provider
-      value={{
-        mode,
-        activeValue,
-        setActiveValue: safeSetActiveValue,
-        id,
-        hover,
-        className,
-        transition,
-        disabled,
-        enabled,
-        exitDelay,
-        setBounds: safeSetBounds,
-        clearBounds,
-        activeClassName: activeClassNameState,
-        setActiveClassName: setActiveClassNameState,
-        forceUpdateBounds,
-      }}
-    >
+    <HighlightContext.Provider value={contextValue}>
       {enabled
         ? controlledItems
           ? render(children)

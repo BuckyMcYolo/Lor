@@ -1,7 +1,6 @@
 import Image from "next/image"
 import { AgentBento } from "./components/agent-bento"
 import { ClosingCTA } from "./components/closing-cta"
-import { Explainer } from "./components/explainer"
 import { ProductDemo } from "./components/product-demo"
 import { Reveal } from "./components/reveal"
 import { SiteFooter } from "./components/site-footer"
@@ -42,7 +41,7 @@ function Hero() {
           <h1 className="max-w-[20ch] text-balance text-5xl font-semibold leading-[0.96] tracking-[-0.04em] sm:text-6xl md:text-[88px]">
             Every great journey needs a guide.
             <br />
-            <span className="text-foreground/55">Lor is yours.</span>
+            {/*<span className="text-foreground/55">Lor is yours.</span>*/}
           </h1>
         </Reveal>
         <Reveal delay={220}>
@@ -69,7 +68,6 @@ export default function Home() {
   return (
     <div className="flex min-h-[100dvh] flex-col">
       <Hero />
-      <Explainer />
       <ProductDemo />
       <AgentBento />
       <ClosingCTA />

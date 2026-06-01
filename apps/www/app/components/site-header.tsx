@@ -91,11 +91,7 @@ export function SiteHeader() {
           />
 
           {/* Center: nav */}
-          <MotionNavigationMenu
-            viewportClassName="bg-background/85 border border-foreground/[0.07] shadow-[0_30px_80px_-40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl backdrop-saturate-150"
-            springStiffness={350}
-            springDamping={32}
-          >
+          <MotionNavigationMenu springStiffness={350} springDamping={32} gooey>
             <MotionNavigationMenuList
               highlightClassName="rounded-full bg-foreground/[0.07]"
               className={`${T} ${scrolled ? "gap-0" : "gap-1"}`}
@@ -161,6 +157,55 @@ export function SiteHeader() {
                 </MotionNavigationMenuContent>
               </MotionNavigationMenuItem>
 
+              <MotionNavigationMenuItem value="resources">
+                <MotionNavigationMenuTrigger
+                  className={`text-foreground/75 hover:text-foreground ${T} ${
+                    scrolled
+                      ? "px-3 py-1.5 text-[13px]"
+                      : "px-4 py-2 text-[14px]"
+                  }`}
+                >
+                  Resources
+                </MotionNavigationMenuTrigger>
+                <MotionNavigationMenuContent highlightClassName="bg-foreground/[0.05] rounded-lg">
+                  <div className="grid w-[320px] gap-1 p-1">
+                    <MotionNavigationMenuLink
+                      href="#docs"
+                      className="rounded-lg p-3"
+                    >
+                      <span className="block text-[13px] font-medium text-foreground">
+                        Docs
+                      </span>
+                      <span className="mt-0.5 block text-[12px] leading-snug text-foreground/55">
+                        Setup, self-hosting, API reference.
+                      </span>
+                    </MotionNavigationMenuLink>
+                    <MotionNavigationMenuLink
+                      href="#changelog"
+                      className="rounded-lg p-3"
+                    >
+                      <span className="block text-[13px] font-medium text-foreground">
+                        Changelog
+                      </span>
+                      <span className="mt-0.5 block text-[12px] leading-snug text-foreground/55">
+                        What shipped, when, and why.
+                      </span>
+                    </MotionNavigationMenuLink>
+                    <MotionNavigationMenuLink
+                      href="https://github.com/BuckyMcYolo/lor"
+                      className="rounded-lg p-3"
+                    >
+                      <span className="block text-[13px] font-medium text-foreground">
+                        GitHub
+                      </span>
+                      <span className="mt-0.5 block text-[12px] leading-snug text-foreground/55">
+                        Source, issues, discussions.
+                      </span>
+                    </MotionNavigationMenuLink>
+                  </div>
+                </MotionNavigationMenuContent>
+              </MotionNavigationMenuItem>
+
               <MotionNavigationMenuItem>
                 <MotionNavigationMenuLink
                   href="#pricing"
@@ -171,19 +216,6 @@ export function SiteHeader() {
                   }`}
                 >
                   Pricing
-                </MotionNavigationMenuLink>
-              </MotionNavigationMenuItem>
-
-              <MotionNavigationMenuItem>
-                <MotionNavigationMenuLink
-                  href="https://github.com/BuckyMcYolo/lor"
-                  className={`font-medium text-foreground/75 hover:text-foreground ${T} ${
-                    scrolled
-                      ? "px-3 py-1.5 text-[13px]"
-                      : "px-4 py-2 text-[14px]"
-                  }`}
-                >
-                  GitHub
                 </MotionNavigationMenuLink>
               </MotionNavigationMenuItem>
             </MotionNavigationMenuList>

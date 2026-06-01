@@ -24,6 +24,13 @@ type ContentRecord = {
   innerClassName?: string
 }
 
+type TriggerRect = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 type MotionNavigationMenuContextValue = {
   activeValue: string
   direction: number
@@ -34,6 +41,10 @@ type MotionNavigationMenuContextValue = {
   closeMenu: () => void
   registerContent: (value: string, content: ContentRecord) => () => void
   updateViewportPosition: () => void
+  gooey: boolean
+  filterId: string | null
+  gooeyClassName?: string
+  reportContentSize: (size: { width: number; height: number }) => void
 }
 
 type MotionNavigationMenuItemContextValue = {
@@ -63,6 +74,8 @@ type MotionNavigationMenuProps = Omit<
   springDamping?: number
   value?: string
   onValueChange?: (value: string) => void
+  gooey?: boolean
+  gooeyClassName?: string
 }
 
 function MotionNavigationMenu({
@@ -77,6 +90,8 @@ function MotionNavigationMenu({
   onValueChange,
   onPointerLeave,
   onKeyDown,
+  gooey = false,
+  gooeyClassName,
   ref,
   ...props
 }: MotionNavigationMenuProps) {
@@ -90,6 +105,24 @@ function MotionNavigationMenu({
   const [contentByValue, setContentByValue] = React.useState<
     Record<string, ContentRecord>
   >({})
+  const [activeTriggerRect, setActiveTriggerRect] =
+    React.useState<TriggerRect | null>(null)
+  const [navHeight, setNavHeight] = React.useState(0)
+  const [contentSize, setContentSize] = React.useState<{
+    width: number
+    height: number
+  }>({ width: 0, height: 0 })
+
+  const reportContentSize = React.useCallback(
+    (size: { width: number; height: number }) => {
+      setContentSize((current) =>
+        current.width === size.width && current.height === size.height
+          ? current
+          : size
+      )
+    },
+    []
+  )
 
   const activeValue = value ?? internalValue
 
@@ -131,6 +164,7 @@ function MotionNavigationMenu({
       }
 
       const rootRect = root.getBoundingClientRect()
+      setNavHeight(rootRect.height)
       const activeTrigger = root.querySelector<HTMLElement>(
         '[data-slot="navigation-menu-trigger"][data-state="open"]'
       )
@@ -142,6 +176,12 @@ function MotionNavigationMenu({
 
       const triggerRect = activeTrigger.getBoundingClientRect()
       const idealX = triggerRect.left - rootRect.left + triggerRect.width / 2
+      setActiveTriggerRect({
+        x: triggerRect.left - rootRect.left,
+        y: triggerRect.top - rootRect.top,
+        width: triggerRect.width,
+        height: triggerRect.height,
+      })
 
       const measureEl = root.querySelector<HTMLElement>(
         '[data-slot="navigation-menu-measure"]'
@@ -326,6 +366,13 @@ function MotionNavigationMenu({
     return () => document.removeEventListener("pointerdown", handlePointerDown)
   }, [closeMenu])
 
+  const reactId = React.useId()
+  const filterId = React.useMemo(
+    () =>
+      gooey ? `gooey-navbar-menu-filter-${reactId.replace(/[:]/g, "-")}` : null,
+    [gooey, reactId]
+  )
+
   const contextValue = React.useMemo(
     () => ({
       activeValue,
@@ -337,6 +384,10 @@ function MotionNavigationMenu({
       closeMenu,
       registerContent,
       updateViewportPosition,
+      gooey,
+      filterId,
+      gooeyClassName,
+      reportContentSize,
     }),
     [
       activeValue,
@@ -348,6 +399,10 @@ function MotionNavigationMenu({
       updateViewportPosition,
       viewport,
       viewportX,
+      gooey,
+      filterId,
+      gooeyClassName,
+      reportContentSize,
     ]
   )
 
@@ -375,6 +430,101 @@ function MotionNavigationMenu({
         {...props}
       >
         {children}
+        {gooey && filterId && (
+          <>
+            {/* biome-ignore lint/a11y/noSvgWithoutTitle: filter-only SVG, no visible content */}
+            <svg
+              className="absolute hidden"
+              aria-hidden="true"
+              width="0"
+              height="0"
+            >
+              <defs>
+                <filter
+                  id={filterId}
+                  x="-20%"
+                  y="-20%"
+                  width="140%"
+                  height="140%"
+                >
+                  <feGaussianBlur
+                    in="SourceGraphic"
+                    stdDeviation="10"
+                    result="blur-sm"
+                  />
+                  <feColorMatrix
+                    in="blur-sm"
+                    type="matrix"
+                    values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10"
+                    result="goo"
+                  />
+                  <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+                </filter>
+              </defs>
+            </svg>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 z-0 overflow-visible"
+              style={{
+                height: navHeight + contentSize.height + 64,
+                filter: `url(#${filterId})`,
+              }}
+            >
+              {/* Trigger pill — anchors on the active trigger */}
+              <motion.div
+                initial={false}
+                animate={
+                  activeTriggerRect && activeValue
+                    ? {
+                        left: activeTriggerRect.x,
+                        top: activeTriggerRect.y,
+                        width: activeTriggerRect.width,
+                        height: activeTriggerRect.height,
+                        opacity: 1,
+                      }
+                    : {
+                        left: activeTriggerRect?.x ?? 0,
+                        top: activeTriggerRect?.y ?? 0,
+                        width: activeTriggerRect?.width ?? 0,
+                        height: activeTriggerRect?.height ?? 0,
+                        opacity: 0,
+                      }
+                }
+                transition={spring}
+                className={cn(
+                  "absolute rounded-full bg-popover",
+                  gooeyClassName
+                )}
+              />
+              {/* Dropdown backdrop — anchors on the viewport position */}
+              <motion.div
+                initial={false}
+                animate={
+                  activeValue && viewportX !== null
+                    ? {
+                        left: viewportX - contentSize.width / 2,
+                        top: navHeight + 6,
+                        width: contentSize.width,
+                        height: contentSize.height,
+                        opacity: 1,
+                      }
+                    : {
+                        left: viewportX ?? 0,
+                        top: navHeight + 6,
+                        width: 0,
+                        height: 0,
+                        opacity: 0,
+                      }
+                }
+                transition={spring}
+                className={cn(
+                  "absolute rounded-2xl bg-popover",
+                  gooeyClassName
+                )}
+              />
+            </div>
+          </>
+        )}
         {viewport && (
           <MotionNavigationMenuViewport
             className={viewportClassName}
@@ -393,11 +543,13 @@ function MotionNavigationMenuList({
 }: React.ComponentPropsWithRef<"ul"> & {
   highlightClassName?: string
 }) {
+  const context = React.useContext(MotionNavigationMenuContext)
   return (
     <Highlight
       mode="parent"
       controlledItems
       hover
+      enabled={!context?.gooey}
       className={cn(
         "bg-accent rounded-md pointer-events-none",
         highlightClassName
@@ -626,6 +778,7 @@ function MotionNavigationMenuViewport({
 
       if (nextSize.width > 0 || nextSize.height > 0) {
         setLastSize(nextSize)
+        context?.reportContentSize(nextSize)
       }
 
       context?.updateViewportPosition()
@@ -664,7 +817,9 @@ function MotionNavigationMenuViewport({
         }}
         transition={context?.spring}
         className={cn(
-          "bg-background text-popover-foreground relative mt-1.5 overflow-hidden rounded-md border shadow backdrop-blur-md",
+          "text-popover-foreground relative mt-1.5 overflow-hidden",
+          !context?.gooey &&
+            "bg-background rounded-md border shadow backdrop-blur-md",
           className
         )}
       >
