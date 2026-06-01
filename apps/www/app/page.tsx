@@ -1,8 +1,8 @@
 import Image from "next/image"
 import { AgentBento } from "./components/agent-bento"
-import { ChatDemo } from "./components/chat-demo"
 import { ClosingCTA } from "./components/closing-cta"
 import { Explainer } from "./components/explainer"
+import { ProductDemo } from "./components/product-demo"
 import { Reveal } from "./components/reveal"
 import { SiteFooter } from "./components/site-footer"
 import { Waitlist } from "./components/waitlist"
@@ -70,7 +70,7 @@ export default function Home() {
     <div className="flex min-h-[100dvh] flex-col">
       <Hero />
       <Explainer />
-      <ChatDemo />
+      <ProductDemo />
       <AgentBento />
       <ClosingCTA />
       <SiteFooter />
