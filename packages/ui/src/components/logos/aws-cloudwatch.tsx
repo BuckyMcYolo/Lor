@@ -1,6 +1,7 @@
 import { cn } from "@repo/ui/lib/utils"
+import type { SVGProps } from "react"
 
-export interface AWSCloudWatchLogoProps extends React.SVGProps<SVGSVGElement> {}
+export interface AWSCloudWatchLogoProps extends SVGProps<SVGSVGElement> {}
 
 export function AWSCloudWatchLogo({
   className,
@@ -10,7 +11,7 @@ export function AWSCloudWatchLogo({
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 80 80"
-      className={cn("", className)}
+      className={cn(className)}
       {...props}
     >
       <title>Amazon CloudWatch</title>

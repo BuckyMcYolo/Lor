@@ -1,7 +1,9 @@
+import { cn } from "@repo/ui/lib/utils"
+
 export function GoogleLogo({ className }: { className?: string }) {
   return (
     <svg
-      className={className || "w-8 h-8"}
+      className={cn("w-8 h-8", className)}
       viewBox="0 0 24 24"
       width="24"
       height="24"

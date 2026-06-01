@@ -1,20 +1,12 @@
 interface LogoProps {
   className?: string
-  variant?: "icon"
   mode?: "dark" | "light"
 }
 
-const COLORS = {
-  dark: "#362D59",
-  light: "#362D59",
-}
+const SENTRY_COLOR = "#362D59"
 
-export function SentryLogo({
-  className,
-  variant = "icon",
-  mode = "dark",
-}: LogoProps) {
-  const color = COLORS[mode]
+export function SentryLogo({ className }: LogoProps) {
+  const color = SENTRY_COLOR
 
   return (
     <svg

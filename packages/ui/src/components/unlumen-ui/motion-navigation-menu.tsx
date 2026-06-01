@@ -288,6 +288,7 @@ function MotionNavigationMenu({
         if (
           previous?.children === content.children &&
           previous?.className === content.className &&
+          previous?.highlightClassName === content.highlightClassName &&
           previous?.innerClassName === content.innerClassName
         ) {
           return current

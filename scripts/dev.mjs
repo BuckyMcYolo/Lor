@@ -18,7 +18,13 @@ const collectDevTargets = (workspaceDir) => {
         const pkg = JSON.parse(readFileSync(pkgPath, "utf8"))
         if (!pkg.scripts?.dev) return null
         return { name: pkg.name, dir: workspaceDir, hint: pkg.scripts.dev }
-      } catch {
+      } catch (err) {
+        if (err?.code !== "ENOENT") {
+          console.error(
+            `[dev] failed to read ${pkgPath} (workspace: ${workspaceDir}):`,
+            err
+          )
+        }
         return null
       }
     })

@@ -177,7 +177,7 @@ function ContextRow({
   translate,
   bg,
 }: {
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
   translate: string
   bg: string
@@ -289,7 +289,7 @@ function ActionPill({
   label,
   className = "",
 }: {
-  icon?: React.ReactNode
+  icon?: ReactNode
   label?: string
   className?: string
 }) {

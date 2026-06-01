@@ -1,3 +1,5 @@
+import { cn } from "@repo/ui/lib/utils"
+
 export function NotionLogo({ className }: { className?: string }) {
   return (
     <svg
@@ -6,7 +8,7 @@ export function NotionLogo({ className }: { className?: string }) {
       height="268"
       preserveAspectRatio="xMidYMid"
       viewBox="0 0 256 268"
-      className={className || "w-8 h-8"}
+      className={cn("w-8 h-8", className)}
     >
       <title>Notion Logo</title>
       <path

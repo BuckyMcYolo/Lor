@@ -1,20 +1,12 @@
 interface LogoProps {
   className?: string
-  variant?: "icon"
   mode?: "dark" | "light"
 }
 
-const COLORS = {
-  dark: "#632CA6",
-  light: "#632CA6",
-}
+const DATADOG_COLOR = "#632CA6"
 
-export function DatadogLogo({
-  className,
-  variant = "icon",
-  mode = "dark",
-}: LogoProps) {
-  const color = COLORS[mode]
+export function DatadogLogo({ className }: LogoProps) {
+  const color = DATADOG_COLOR
 
   return (
     <svg

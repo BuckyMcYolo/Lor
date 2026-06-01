@@ -1,10 +1,12 @@
+import { cn } from "@repo/ui/lib/utils"
+
 export function SlackLogo({ className }: { className?: string }) {
   return (
     <svg
       enableBackground="new 0 0 2447.6 2452.5"
       viewBox="0 0 2447.6 2452.5"
       xmlns="http://www.w3.org/2000/svg"
-      className={className || "w-8 h-8"}
+      className={cn("w-8 h-8", className)}
     >
       <title>Slack Logo</title>
       <g clipRule="evenodd" fillRule="evenodd">
