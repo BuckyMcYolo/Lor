@@ -19,6 +19,7 @@
     "hooks": "@repo/ui/hooks"
   },
   "registries": {
-    "@unlumen-ui": "https://ui.unlumen.com/r/{name}.json"
+    "@unlumen-ui": "https://ui.unlumen.com/r/{name}.json",
+    "@elements": "https://www.tryelements.dev/r/{name}.json"
   }
 }
