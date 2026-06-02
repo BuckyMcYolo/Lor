@@ -29,8 +29,10 @@ type SearchResponse = {
 
 export function SearchBar({
   mode = "workspace",
+  trailing,
 }: {
   mode?: "workspace" | "dm"
+  trailing?: React.ReactNode
 }) {
   const { workspaceSlug } = useParams({ strict: false })
   const navigate = useNavigate()
@@ -133,27 +135,33 @@ export function SearchBar({
   }
 
   return (
-    <div ref={containerRef} className="relative shrink-0 px-3 pt-3 pb-1">
-      <div className="flex h-8 items-center gap-2 rounded-md border border-border bg-background px-2.5 text-[13px]">
-        <Search className="size-3.5 shrink-0 text-muted-foreground" />
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder={mode === "dm" ? "Search all DMs" : "Search all channels"}
-          value={query}
-          onChange={(e) => handleQueryChange(e.target.value)}
-          onFocus={() => setIsOpen(true)}
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
+    <div ref={containerRef} className="relative shrink-0 pt-3 pb-1">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-background px-2.5 text-[13px]">
+          <Search className="size-3.5 shrink-0 text-muted-foreground" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder={
+              mode === "dm" ? "Search all DMs" : "Search all channels"
+            }
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            onFocus={() => setIsOpen(true)}
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={handleClear}
+              aria-label="Clear search"
+              className="cursor-pointer text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        {trailing}
       </div>
 
       {isOpen && debouncedQuery.length > 0 && (

@@ -14,8 +14,12 @@
   "aliases": {
     "components": "@repo/ui/components",
     "utils": "@repo/ui/lib/utils",
-    "hooks": "@repo/ui/hooks",
+    "ui": "@repo/ui/components",
     "lib": "@repo/ui/lib",
-    "ui": "@repo/ui/components"
+    "hooks": "@repo/ui/hooks"
+  },
+  "registries": {
+    "@unlumen-ui": "https://ui.unlumen.com/r/{name}.json",
+    "@elements": "https://www.tryelements.dev/r/{name}.json"
   }
 }

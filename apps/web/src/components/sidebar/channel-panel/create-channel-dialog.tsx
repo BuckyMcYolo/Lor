@@ -17,7 +17,7 @@ import {
 } from "@repo/ui/components/select"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { Loader2, Scroll, Volume2 } from "lucide-react"
+import { Hash, Loader2, Volume2 } from "lucide-react"
 import { useState } from "react"
 import { apiClient } from "@/lib/api-client"
 
@@ -25,7 +25,7 @@ const channelTypes = [
   {
     value: "text",
     label: "Text",
-    icon: Scroll,
+    icon: Hash,
     description: "A text channel for general conversation and discussion",
   },
   {

@@ -1,14 +1,17 @@
+import { Pin02Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
-import { useIsMobile } from "@repo/ui/hooks/use-mobile"
 import { useParams } from "@tanstack/react-router"
-import { Menu, PanelRight, Pin, Scroll } from "lucide-react"
-import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
-import { useMobileSidebar } from "@/context/mobile-sidebar-context"
+import { Hash } from "lucide-react"
+import {
+  LeftSidebarToggle,
+  RightPanelToggle,
+} from "@/components/sidebar/sidebar-toggle"
 import { HeaderSearch } from "./header-search"
 
 export type ChatContext =
@@ -30,25 +33,14 @@ export function ChatHeader({
   channelId: string
   onTogglePinnedMessages?: () => void
 }) {
-  const { view, setView, clearView, isCollapsed, toggleCollapsed } =
-    useRightSidebar()
-  const isMobile = useIsMobile()
-  const { setOpen: openMobileSidebar } = useMobileSidebar()
   const { workspaceSlug } = useParams({ strict: false })
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
-      {isMobile && (
-        <button
-          type="button"
-          onClick={() => openMobileSidebar(true)}
-          className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <Menu className="size-5" />
-        </button>
-      )}
+      <LeftSidebarToggle className="-ml-2" />
+      <div className="h-4 w-px bg-border" aria-hidden="true" />
       {context.type === "channel" && (
-        <Scroll className="size-5 shrink-0 text-muted-foreground" />
+        <Hash className="size-5 shrink-0 text-muted-foreground" />
       )}
       {context.type === "dm" && (
         <Avatar size="sm">
@@ -85,54 +77,21 @@ export function ChatHeader({
               <button
                 type="button"
                 onClick={onTogglePinnedMessages}
+                aria-label="Toggle pinned messages"
                 className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
-                <Pin className="size-4" />
+                <HugeiconsIcon icon={Pin02Icon} size={16} aria-hidden="true" />
               </button>
             </TooltipTrigger>
             <TooltipContent>Pinned Messages</TooltipContent>
           </Tooltip>
         )}
-        {context.type === "channel" &&
-          (isMobile ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (view) {
-                      clearView()
-                    } else {
-                      setView({
-                        type: "workspace-members",
-                        workspaceSlug: workspaceSlug ?? "",
-                        channelId,
-                      })
-                    }
-                  }}
-                  className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                >
-                  <PanelRight className="size-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Members</TooltipContent>
-            </Tooltip>
-          ) : (
-            isCollapsed && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={toggleCollapsed}
-                    className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    <PanelRight className="size-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Show Panel</TooltipContent>
-              </Tooltip>
-            )
-          ))}
+        {context.type === "channel" && (
+          <RightPanelToggle
+            workspaceSlug={workspaceSlug ?? ""}
+            channelId={channelId}
+          />
+        )}
       </div>
     </div>
   )

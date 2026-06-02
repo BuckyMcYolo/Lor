@@ -194,3 +194,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes shimmer {
+  to {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0% at var(--vt-x) var(--vt-y));
+  }
+
+  to {
+    clip-path: circle(var(--vt-r) at var(--vt-x) var(--vt-y));
+  }
+}
+
+::view-transition-old(root) {
+  animation: none;
+}
+
+::view-transition-new(root) {
+  animation: theme-reveal 320ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root),
+  ::view-transition-old(root) {
+    animation: none;
+  }
+}

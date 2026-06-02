@@ -1,7 +1,8 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { differenceInMinutes, isSameDay } from "@repo/utils/date"
-import { Loader2, ScrollText } from "lucide-react"
+import { Hash, Loader2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
@@ -27,19 +28,41 @@ interface MessageListProps {
   isFetchingMore?: boolean
 }
 
+function nameInitial(name: string) {
+  const trimmed = name.trim()
+  return trimmed.length > 0 ? trimmed.charAt(0).toUpperCase() : "?"
+}
+
 function EmptyState({ context }: { context: ChatContext }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-end px-4 pb-8">
-      <div className="flex flex-col items-center gap-3 opacity-40">
-        <ScrollText className="size-10" strokeWidth={1.2} />
-        <div className="text-center">
-          <h3 className="text-base font-semibold">
-            {context.type === "channel" ? context.name : context.name}
+    <div className="flex flex-1 flex-col justify-end px-6 pb-4">
+      <div className="flex flex-col items-start gap-3">
+        {context.type === "channel" ? (
+          <div className="flex size-14 items-center justify-center rounded-full bg-accent text-foreground">
+            <Hash className="size-7" strokeWidth={2.25} />
+          </div>
+        ) : (
+          <Avatar className="size-14">
+            {context.type === "dm" && context.avatarUrl && (
+              <AvatarImage src={context.avatarUrl} alt={context.name} />
+            )}
+            <AvatarFallback className="text-lg font-semibold">
+              {nameInitial(context.name)}
+            </AvatarFallback>
+          </Avatar>
+        )}
+        <div>
+          <h3 className="text-2xl font-extrabold">
+            {context.type === "channel"
+              ? `Welcome to #${context.name}!`
+              : context.name}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
             {context.type === "channel"
-              ? "The scroll is blank. Write the first entry."
-              : "Send a message to begin."}
+              ? `This is the start of the #${context.name} channel.`
+              : context.type === "dm"
+                ? `This is the beginning of your direct message history with ${context.name}.`
+                : `This is the beginning of your group conversation.`}
           </p>
         </div>
       </div>

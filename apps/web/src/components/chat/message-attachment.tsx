@@ -1,3 +1,4 @@
+import { VideoAmbient } from "@repo/ui/components/unlumen-ui/video-ambient"
 import { cn } from "@repo/ui/lib/utils"
 import { ChevronLeft, ChevronRight, Download, FileIcon, X } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
@@ -14,14 +15,9 @@ function formatFileSize(bytes: number): string {
 
 function VideoAttachment({ attachment }: { attachment: Attachment }) {
   return (
-    <video
-      src={attachment.url}
-      controls
-      preload="metadata"
-      className="max-h-[300px] max-w-[400px] rounded-md"
-    >
-      <track kind="captions" />
-    </video>
+    <div className="max-w-[400px]">
+      <VideoAmbient src={attachment.url} />
+    </div>
   )
 }
 

@@ -1,3 +1,5 @@
+import { Button } from "@repo/ui/components/button"
+import { Kbd } from "@repo/ui/components/unlumen-ui/kbd"
 import { cn } from "@repo/ui/lib/utils"
 import Link from "@tiptap/extension-link"
 import Mention from "@tiptap/extension-mention"
@@ -137,29 +139,33 @@ export function MessageEditInput({
   }, [editor, handleSave, onCancel])
 
   return (
-    <div className="rounded-md border border-input bg-muted/40 px-3 py-2">
+    <div className="rounded-xl border border-input bg-background px-3 py-2.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15">
       <div
         className={cn("[&_.ProseMirror_p]:m-0 [&_.ProseMirror_p]:leading-6")}
       >
         <EditorContent editor={editor} />
       </div>
-      <div className="mt-1 text-[11px] text-muted-foreground">
-        escape to{" "}
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-primary hover:underline"
-        >
-          cancel
-        </button>{" "}
-        &bull; enter to{" "}
-        <button
-          type="button"
-          onClick={handleSave}
-          className="text-primary hover:underline"
-        >
-          save
-        </button>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+          <Kbd size="sm">Esc</Kbd>
+          <span>to cancel</span>
+          <span className="text-muted-foreground/40">·</span>
+          <Kbd size="sm">↵</Kbd>
+          <span>to save</span>
+        </span>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCancel}
+            title="Cancel (Esc)"
+          >
+            Cancel
+          </Button>
+          <Button size="sm" onClick={handleSave} title="Save (Enter)">
+            Save
+          </Button>
+        </div>
       </div>
     </div>
   )

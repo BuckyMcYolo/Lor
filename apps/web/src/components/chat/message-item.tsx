@@ -1,3 +1,5 @@
+import { Pin02Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +18,6 @@ import {
 } from "@repo/ui/components/tooltip"
 import { cn } from "@repo/ui/lib/utils"
 import { formatTime } from "@repo/utils/date"
-import { Pin } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { UserProfilePopover } from "@/components/ui/user-profile-card"
 import type { Message } from "@/lib/api-types"
@@ -208,7 +209,7 @@ export function MessageItem({
       </div>
       {message.pinned && (
         <div className="mb-0.5 flex items-center gap-1.5 pl-[52px] text-xs text-muted-foreground">
-          <Pin className="size-3" />
+          <HugeiconsIcon icon={Pin02Icon} size={12} />
           <span>Pinned</span>
         </div>
       )}
@@ -218,7 +219,7 @@ export function MessageItem({
       <div className="flex gap-3">
         {showHeader ? (
           <UserProfilePopover userId={author.id} side="right" align="start">
-            <button type="button" className="mt-0.5 cursor-pointer">
+            <button type="button" className="mt-0.5 cursor-pointer self-start">
               <Avatar size="lg">
                 {author.image && (
                   <AvatarImage src={author.image} alt={author.name} />
