@@ -69,7 +69,7 @@ export function SiteHeader() {
               height={40}
               priority
               className={`w-auto ${T} group-hover:-translate-y-[1px] ${
-                scrolled ? "h-6" : "h-7"
+                scrolled ? "h-5" : "h-6"
               }`}
             />
             <span
