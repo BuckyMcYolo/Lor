@@ -193,6 +193,8 @@ export function SiteHeader() {
                     </MotionNavigationMenuLink>
                     <MotionNavigationMenuLink
                       href="https://github.com/BuckyMcYolo/lor"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="rounded-lg p-3"
                     >
                       <span className="block text-[13px] font-medium text-foreground">

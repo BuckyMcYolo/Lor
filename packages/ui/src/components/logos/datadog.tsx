@@ -1,6 +1,5 @@
 interface LogoProps {
   className?: string
-  mode?: "dark" | "light"
 }
 
 const DATADOG_COLOR = "#632CA6"

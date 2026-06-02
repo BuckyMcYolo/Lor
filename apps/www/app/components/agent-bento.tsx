@@ -42,7 +42,7 @@ const INTEGRATION_LOGOS: IntegrationLogo[] = [
     name: "Datadog",
     glyph: (
       <span className="text-foreground [&_path]:fill-current">
-        <DatadogLogo className="size-7" mode="dark" />
+        <DatadogLogo className="size-7" />
       </span>
     ),
     scale: "shrink",
@@ -51,7 +51,7 @@ const INTEGRATION_LOGOS: IntegrationLogo[] = [
     name: "Sentry",
     glyph: (
       <span className="text-foreground [&_path]:fill-current">
-        <SentryLogo className="size-7" mode="dark" />
+        <SentryLogo className="size-7" />
       </span>
     ),
     scale: "shrink-most",
@@ -125,9 +125,9 @@ function IntegrationsHeroCard() {
       <div className="p-6">
         <h3 className="font-medium text-base leading-tight md:text-lg">
           <span>Connects to your stack.</span>{" "}
-          <p className="text-muted-foreground">
+          <span className="text-muted-foreground">
             Merlin reads from the tools your team already lives in.
-          </p>
+          </span>
         </h3>
       </div>
       <div className="relative flex h-64 items-center justify-center overflow-hidden">
@@ -338,12 +338,12 @@ function ActionsCard() {
           </div>
           <div>
             <ActionPill
-              icon={<DatadogLogo className="size-4" mode="dark" />}
+              icon={<DatadogLogo className="size-4" />}
               label="Check Datadog spike"
               className="bg-[radial-gradient(80%_100%_at_50%_0%,--theme(--color-foreground/.1),transparent)]"
             />
             <ActionPill
-              icon={<SentryLogo className="size-4" mode="dark" />}
+              icon={<SentryLogo className="size-4" />}
               label="Triage Sentry error"
               className="opacity-60"
             />

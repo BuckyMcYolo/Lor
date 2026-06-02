@@ -1,6 +1,5 @@
 interface LogoProps {
   className?: string
-  mode?: "dark" | "light"
 }
 
 const SENTRY_COLOR = "#362D59"
