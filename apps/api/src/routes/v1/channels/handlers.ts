@@ -9,7 +9,7 @@ import {
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { assertWorkspacePermission } from "@/lib/permissions"
-import { fetchMessagePage } from "@/lib/queries/messages"
+import { fetchMessages } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
   CreateChannelRoute,
@@ -227,7 +227,7 @@ export const listChannelMessages: AppRouteHandler<
   const workspace = c.var.workspace
   const currentUser = c.var.user
   const { channelId } = c.req.valid("param")
-  const { page, perPage } = c.req.valid("query")
+  const { around, before, after, limit } = c.req.valid("query")
 
   // Verify channel belongs to this workspace
   const ch = await db
@@ -247,7 +247,14 @@ export const listChannelMessages: AppRouteHandler<
   }
 
   return c.json(
-    await fetchMessagePage(channelId, page, perPage, currentUser.id),
+    await fetchMessages({
+      channelId,
+      currentUserId: currentUser.id,
+      limit,
+      around,
+      before,
+      after,
+    }),
     HttpStatusCodes.OK
   )
 }

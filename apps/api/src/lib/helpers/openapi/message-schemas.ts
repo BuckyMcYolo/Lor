@@ -1,6 +1,5 @@
 import { z } from "@hono/zod-openapi"
 import { selectMessageSchema } from "@repo/db/schema"
-import { paginatedResponseSchema, paginationQuerySchema } from "./schemas"
 
 export const messageAuthorSchema = z.object({
   id: z.string().uuid(),
@@ -49,8 +48,19 @@ export const messageWithAuthorSchema = selectMessageSchema.extend({
   referencedMessage: referencedMessageSchema,
 })
 
-export const listMessagesQuerySchema = paginationQuerySchema
+// Cursor-based query: `around`, `before`, `after` are mutually exclusive
+// message ids. With none, the latest page is returned.
+export const listMessagesQuerySchema = z.object({
+  around: z.string().uuid().optional(),
+  before: z.string().uuid().optional(),
+  after: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+})
 
-export const listMessagesResponseSchema = paginatedResponseSchema(
-  messageWithAuthorSchema
-)
+export const listMessagesResponseSchema = z.object({
+  data: z.array(messageWithAuthorSchema),
+  beforeCursor: z.string().uuid().nullable(),
+  afterCursor: z.string().uuid().nullable(),
+  reachedOldest: z.boolean(),
+  reachedNewest: z.boolean(),
+})

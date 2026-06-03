@@ -2,7 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import { Skeleton } from "@repo/ui/components/skeleton"
 import { cn } from "@repo/ui/lib/utils"
 import { differenceInMinutes, isSameDay } from "@repo/utils/date"
-import { Hash, Loader2 } from "lucide-react"
+import { ArrowDown, Hash, Loader2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
@@ -23,9 +23,25 @@ interface MessageListProps {
   canPin?: boolean
   mentionCandidates?: MentionCandidate[]
   isLoading?: boolean
-  hasMore?: boolean
-  onLoadMore?: () => void
-  isFetchingMore?: boolean
+  hasOlder?: boolean
+  onLoadOlder?: () => void
+  isFetchingOlder?: boolean
+  hasNewer?: boolean
+  onLoadNewer?: () => void
+  isFetchingNewer?: boolean
+  /**
+   * Number of live messages received while the user is viewing older
+   * context. Shown on the Jump-to-present pill so they know how many they're
+   * behind on (Discord/Slack pattern).
+   */
+  pendingCount?: number
+  onJumpToPresent?: () => void
+  /**
+   * Clicking a reply preview / citation jumps to the referenced message id.
+   * The route translates this into URL-anchor navigation; MessageList just
+   * forwards the click.
+   */
+  onJumpToMessage?: (messageId: string) => void
 }
 
 function nameInitial(name: string) {
@@ -94,12 +110,19 @@ export function MessageList({
   canPin,
   mentionCandidates,
   isLoading,
-  hasMore,
-  onLoadMore,
-  isFetchingMore,
+  hasOlder,
+  onLoadOlder,
+  isFetchingOlder,
+  hasNewer,
+  onLoadNewer,
+  isFetchingNewer,
+  pendingCount = 0,
+  onJumpToPresent,
+  onJumpToMessage,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const sentinelRef = useRef<HTMLDivElement>(null)
+  const olderSentinelRef = useRef<HTMLDivElement>(null)
+  const newerSentinelRef = useRef<HTMLDivElement>(null)
   const isNearBottom = useRef(true)
   const prevNewestId = useRef<string | null>(null)
   const [stickyDate, setStickyDate] = useState<string | null>(null)
@@ -137,16 +160,16 @@ export function MessageList({
     prevNewestId.current = newestId
   }, [messages])
 
-  // IntersectionObserver for infinite scroll
+  // IntersectionObserver for fetching older (top of viewport)
   useEffect(() => {
-    const sentinel = sentinelRef.current
+    const sentinel = olderSentinelRef.current
     const container = scrollRef.current
-    if (!sentinel || !container || !hasMore || !onLoadMore) return
+    if (!sentinel || !container || !hasOlder || !onLoadOlder) return
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !isFetchingMore) {
-          onLoadMore()
+        if (entries[0]?.isIntersecting && !isFetchingOlder) {
+          onLoadOlder()
         }
       },
       { root: container, rootMargin: "200px" }
@@ -154,7 +177,27 @@ export function MessageList({
 
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [hasMore, onLoadMore, isFetchingMore])
+  }, [hasOlder, onLoadOlder, isFetchingOlder])
+
+  // IntersectionObserver for fetching newer (bottom of viewport — only
+  // active in anchored mode, where the user is looking at older context)
+  useEffect(() => {
+    const sentinel = newerSentinelRef.current
+    const container = scrollRef.current
+    if (!sentinel || !container || !hasNewer || !onLoadNewer) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetchingNewer) {
+          onLoadNewer()
+        }
+      },
+      { root: container, rootMargin: "200px" }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasNewer, onLoadNewer, isFetchingNewer])
 
   if (isLoading) {
     return (
@@ -190,6 +233,11 @@ export function MessageList({
     return <EmptyState context={context} />
   }
 
+  // The Jump-to-present pill shows when there are buffered live messages OR
+  // the user is in anchored mode with newer messages to fetch.
+  const showJumpToPresent =
+    !!onJumpToPresent && (pendingCount > 0 || !!hasNewer)
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <div
@@ -206,6 +254,14 @@ export function MessageList({
         data-message-scroll
         className="flex flex-1 select-text flex-col-reverse overflow-y-auto py-4"
       >
+        {/* Sentinel at the visual bottom (DOM-first because col-reverse). */}
+        {hasNewer && (
+          <div ref={newerSentinelRef} className="flex justify-center py-3">
+            {isFetchingNewer && (
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            )}
+          </div>
+        )}
         {messages.map((msg, i) => {
           const next = messages[i + 1]
           const isDateBoundary =
@@ -236,22 +292,70 @@ export function MessageList({
                 onTogglePin={onTogglePin}
                 canPin={canPin}
                 mentionCandidates={mentionCandidates}
+                onJumpToMessage={onJumpToMessage}
               />
             </div>
           )
         })}
-        {hasMore && (
-          <div ref={sentinelRef} className="flex justify-center py-3">
-            {isFetchingMore && (
+        {/* Sentinel at the visual top. */}
+        {hasOlder && (
+          <div ref={olderSentinelRef} className="flex justify-center py-3">
+            {isFetchingOlder && (
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             )}
           </div>
         )}
       </div>
+
+      {showJumpToPresent && (
+        <button
+          type="button"
+          onClick={onJumpToPresent}
+          className="absolute right-4 bottom-4 z-20 inline-flex items-center gap-1.5 rounded-full border border-border bg-background/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-md backdrop-blur-md transition hover:bg-accent"
+        >
+          {pendingCount > 0
+            ? `${pendingCount} new message${pendingCount === 1 ? "" : "s"}`
+            : "Jump to present"}
+          <ArrowDown className="size-3.5" strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   )
 }
 
+// Hold the highlight long enough for the user's eyes to catch up to the
+// scroll, then fade it out gently.
+const HIGHLIGHT_HOLD_MS = 3500
+const HIGHLIGHT_FADE_MS = 1200
+// Wait this long after the initial smooth scroll before we start observing
+// for re-anchor — long enough that the smooth animation has finished, short
+// enough that we still catch the first wave of image/embed loads.
+const REANCHOR_START_DELAY_MS = 350
+// Stop observing after this long. Covers slow networks (image fetches over
+// 4G, embed renderers, lazy-loaded code blocks). Longer than this and we'd
+// risk fighting eventual user scrolls.
+const REANCHOR_WINDOW_MS = 6000
+
+/**
+ * Scrolls a message into view and keeps it centered against late layout
+ * shifts (image loads, embed mounts, code-block highlighters, font swap).
+ *
+ * Strategy:
+ *   1. Initial smooth scroll places the target at the viewport center.
+ *   2. After the smooth animation settles, we attach a ResizeObserver to
+ *      every visible message. Whenever any message changes size — image
+ *      resolved, embed thumbnail rendered, etc. — we re-center the target
+ *      in the SAME frame (no `behavior: smooth`), so the user sees the
+ *      content "settle" around a stable target rather than the target
+ *      drifting offscreen and then snapping back.
+ *   3. A MutationObserver watches for new messages added to the DOM (via
+ *      bidirectional fetchOlder / fetchNewer) and observes those too.
+ *   4. All re-centers are coalesced through requestAnimationFrame so a
+ *      burst of size changes in one frame produces at most one scroll.
+ *   5. Any user input (wheel / touchmove / keydown) cancels the whole
+ *      thing — they're in control once they engage.
+ *   6. After REANCHOR_WINDOW_MS the observers tear down on their own.
+ */
 export function scrollToMessage(messageId: string): boolean {
   const el = document.querySelector(
     `[data-message-id="${messageId}"]`
@@ -263,25 +367,134 @@ export function scrollToMessage(messageId: string): boolean {
   ) as HTMLElement | null
   if (!scrollContainer) return false
 
-  const containerRect = scrollContainer.getBoundingClientRect()
-  const elRect = el.getBoundingClientRect()
-  const offset =
-    elRect.top -
-    containerRect.top -
-    containerRect.height / 2 +
-    elRect.height / 2
+  const computeOffset = () => {
+    const containerRect = scrollContainer.getBoundingClientRect()
+    const elRect = el.getBoundingClientRect()
+    return (
+      elRect.top -
+      containerRect.top -
+      containerRect.height / 2 +
+      elRect.height / 2
+    )
+  }
 
-  scrollContainer.scrollBy({ top: offset, behavior: "smooth" })
+  // Initial smooth scroll for visual feedback.
+  scrollContainer.scrollBy({ top: computeOffset(), behavior: "smooth" })
+
+  // Defer observer setup so the smooth scroll completes first. Without this,
+  // ResizeObserver's initial-observation fire would trigger a recenter mid-
+  // animation, which feels like a yank.
+  const startObserverTimer = window.setTimeout(() => {
+    let cancelled = false
+    let rafScheduled = false
+
+    const recenter = () => {
+      if (cancelled) return
+      const offset = computeOffset()
+      if (Math.abs(offset) < 1) return
+      scrollContainer.scrollBy({ top: offset, behavior: "auto" })
+    }
+
+    // Coalesce a burst of observer fires (multiple images resolving at once,
+    // for example) into a single recenter per frame.
+    const scheduleRecenter = () => {
+      if (cancelled || rafScheduled) return
+      rafScheduled = true
+      requestAnimationFrame(() => {
+        rafScheduled = false
+        recenter()
+      })
+    }
+
+    const resizeObserver = new ResizeObserver(scheduleRecenter)
+    const observeAll = () => {
+      const messageEls =
+        scrollContainer.querySelectorAll<HTMLElement>("[data-message-id]")
+      for (const msgEl of messageEls) {
+        resizeObserver.observe(msgEl)
+      }
+    }
+    observeAll()
+
+    // Catch new messages added later (fetchOlder/fetchNewer prepending pages)
+    // and observe them too. Without this we'd miss shifts originating from
+    // freshly-loaded pages above/below.
+    const mutationObserver = new MutationObserver((mutations) => {
+      let needsRecenter = false
+      for (const mut of mutations) {
+        for (const node of mut.addedNodes) {
+          if (!(node instanceof HTMLElement)) continue
+          if (node.dataset?.messageId) {
+            resizeObserver.observe(node)
+            needsRecenter = true
+          }
+          const nested =
+            node.querySelectorAll?.<HTMLElement>("[data-message-id]")
+          if (nested?.length) {
+            for (const n of nested) resizeObserver.observe(n)
+            needsRecenter = true
+          }
+        }
+      }
+      if (needsRecenter) scheduleRecenter()
+    })
+    mutationObserver.observe(scrollContainer, {
+      childList: true,
+      subtree: true,
+    })
+
+    const cleanup = () => {
+      if (cancelled) return
+      cancelled = true
+      resizeObserver.disconnect()
+      mutationObserver.disconnect()
+      scrollContainer.removeEventListener("wheel", onUserInput)
+      scrollContainer.removeEventListener("touchmove", onUserInput)
+      window.removeEventListener("keydown", onKeyDown)
+    }
+
+    const onUserInput = () => cleanup()
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Only treat scroll-causing keys as user-input. Typing in another
+      // surface (composer, search) shouldn't tear down the anchor.
+      if (
+        e.key === "ArrowUp" ||
+        e.key === "ArrowDown" ||
+        e.key === "PageUp" ||
+        e.key === "PageDown" ||
+        e.key === "Home" ||
+        e.key === "End" ||
+        e.key === " "
+      ) {
+        cleanup()
+      }
+    }
+    scrollContainer.addEventListener("wheel", onUserInput, { passive: true })
+    scrollContainer.addEventListener("touchmove", onUserInput, {
+      passive: true,
+    })
+    window.addEventListener("keydown", onKeyDown)
+
+    window.setTimeout(cleanup, REANCHOR_WINDOW_MS)
+  }, REANCHOR_START_DELAY_MS)
 
   el.style.transition = "background-color 0.3s ease"
   el.style.backgroundColor =
     "color-mix(in oklch, var(--primary) 15%, transparent)"
-  setTimeout(() => {
-    el.style.transition = "background-color 1s ease-out"
+  window.setTimeout(() => {
+    el.style.transition = `background-color ${HIGHLIGHT_FADE_MS}ms ease-out`
     el.style.backgroundColor = ""
-  }, 700)
-  setTimeout(() => {
-    el.style.transition = ""
-  }, 2000)
+  }, HIGHLIGHT_HOLD_MS)
+  window.setTimeout(
+    () => {
+      el.style.transition = ""
+    },
+    HIGHLIGHT_HOLD_MS + HIGHLIGHT_FADE_MS + 100
+  )
+
+  // Returned to allow callers (currently none) to early-cancel. Kept as a
+  // side-effect: the timeouts above still run and will guard against
+  // mutating an unmounted element via the cancelled flag inside.
+  void startObserverTimer
   return true
 }

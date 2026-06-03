@@ -1,12 +1,8 @@
 import { authClient } from "@repo/auth/client"
 import { useIsMobile } from "@repo/ui/hooks/use-mobile"
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useCallback, useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { useDropzone } from "react-dropzone"
 import { ChatSkeleton } from "@/components/chat/chat-skeleton"
 import { MessageInput } from "@/components/chat/composer/message-input"
@@ -17,6 +13,7 @@ import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 import { useSocket } from "@/context/socket-context"
 import { useAutoMarkRead } from "@/hooks/use-auto-mark-read"
+import { useChannelMessages } from "@/hooks/use-channel-messages"
 import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
 import { useMessageEditing } from "@/hooks/use-message-editing"
@@ -91,45 +88,90 @@ function ChannelView() {
     },
   })
 
-  const {
-    data: messagesInfinite,
-    isPending: messagesLoading,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: ["messages", channelId],
-    queryFn: async ({ pageParam }) => {
+  const fetchMessagesPage = useCallback(
+    async (params: {
+      around?: string
+      before?: string
+      after?: string
+      limit: number
+    }) => {
+      const query: Record<string, string> = { limit: String(params.limit) }
+      if (params.around) query.around = params.around
+      if (params.before) query.before = params.before
+      if (params.after) query.after = params.after
       const res = await apiClient.v1.workspaces[":workspaceSlug"].channels[
         ":channelId"
       ].messages.$get({
         param: { workspaceSlug, channelId },
-        query: { page: String(pageParam), perPage: "50" },
+        query,
       })
       if (!res.ok) throw new Error("Failed to fetch messages")
       return res.json()
     },
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
-    enabled: !!data,
-  })
-
-  const messages = useMemo(
-    () => messagesInfinite?.pages.flatMap((page) => page.data) ?? [],
-    [messagesInfinite]
+    [workspaceSlug, channelId]
   )
 
-  // Scroll to a specific message when navigating from search
+  const { handleSend, pendingNonces } = useMessageSending({
+    socket,
+    queryClient,
+    channelId,
+    currentUser: session?.user,
+  })
+
+  const {
+    messages,
+    isLoading: messagesLoading,
+    fetchOlder,
+    fetchNewer,
+    hasOlder,
+    hasNewer,
+    isFetchingOlder,
+    isFetchingNewer,
+    isAtPresent,
+    pendingCount,
+    clearPending,
+  } = useChannelMessages({
+    channelId,
+    anchor: msgId,
+    fetchPage: fetchMessagesPage,
+    enabled: !!data,
+    socket,
+    pendingNoncesRef: pendingNonces,
+  })
+
+  // After the anchored page renders, scroll the requested message into view
+  // and apply the highlight effect. We track that we've scrolled with a ref
+  // so subsequent page fetches (older/newer) don't yank the user back.
+  const didScrollToAnchorRef = useRef(false)
   useEffect(() => {
-    if (!msgId || messagesLoading || !messages.length) return
-    // Give DOM time to render
+    if (!msgId) {
+      didScrollToAnchorRef.current = false
+      return
+    }
+    if (didScrollToAnchorRef.current) return
+    if (messagesLoading || !messages.length) return
     const timer = setTimeout(() => {
       if (scrollToMessage(msgId)) {
-        void navigate({ search: {}, replace: true })
+        didScrollToAnchorRef.current = true
       }
     }, 100)
     return () => clearTimeout(timer)
-  }, [msgId, messagesLoading, messages, navigate])
+  }, [msgId, messagesLoading, messages.length])
+
+  const handleJumpToPresent = useCallback(() => {
+    clearPending()
+    void navigate({ search: {}, replace: true })
+  }, [clearPending, navigate])
+
+  const handleJumpToMessage = useCallback(
+    (messageId: string) => {
+      // Try local scroll first — if the target is already on screen, no
+      // refetch is needed.
+      if (scrollToMessage(messageId)) return
+      void navigate({ search: { msgId: messageId } })
+    },
+    [navigate]
+  )
 
   const { data: workspaceMembersData } = useQuery({
     queryKey: ["workspace-members", workspaceSlug],
@@ -171,13 +213,6 @@ function ChannelView() {
     socket,
     queryClient,
     channelId,
-  })
-
-  const { handleSend } = useMessageSending({
-    socket,
-    queryClient,
-    channelId,
-    currentUser: session?.user,
   })
 
   const { data: activeMember } = useQuery({
@@ -313,9 +348,15 @@ function ChannelView() {
       <MessageList
         context={context}
         messages={messages}
-        hasMore={hasNextPage}
-        onLoadMore={() => fetchNextPage()}
-        isFetchingMore={isFetchingNextPage}
+        hasOlder={hasOlder}
+        onLoadOlder={() => fetchOlder()}
+        isFetchingOlder={isFetchingOlder}
+        hasNewer={hasNewer}
+        onLoadNewer={() => fetchNewer()}
+        isFetchingNewer={isFetchingNewer}
+        pendingCount={pendingCount}
+        onJumpToPresent={isAtPresent ? undefined : handleJumpToPresent}
+        onJumpToMessage={handleJumpToMessage}
         currentUserId={currentUserId}
         onReact={handleReact}
         onReply={setReplyingTo}
