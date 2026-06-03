@@ -363,6 +363,7 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
                   onReact={handleReact}
                   onDelete={handleDelete}
                   onEdit={handleEdit}
+                  mentionCandidates={mentionCandidates}
                 />
               </motion.div>
             )

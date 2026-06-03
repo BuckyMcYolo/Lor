@@ -43,6 +43,7 @@ export type CreateMessageResult = {
 export type DeleteMessageResult = {
   channelId: string
   messageId: string
+  threadRootId: string | null
   channel: AccessibleChannel
 }
 
@@ -62,10 +63,15 @@ export async function createMessage(input: CreateMessageInput) {
   const threadRootId: string | null = input.payload.threadRootId ?? null
 
   const messageWithAuthor = await db.transaction(async (tx) => {
-    // Verify the referenced message exists in the same channel
+    // Verify the referenced message exists in the same channel AND in the
+    // same thread context (or both at channel level). Prevents a thread
+    // reply from quoting a message in a different thread.
     if (hasReply && input.payload.referencedMessageId) {
-      const refExists = await tx
-        .select({ id: schema.message.id })
+      const ref = await tx
+        .select({
+          id: schema.message.id,
+          threadRootId: schema.message.threadRootId,
+        })
         .from(schema.message)
         .where(
           and(
@@ -76,8 +82,18 @@ export async function createMessage(input: CreateMessageInput) {
         .limit(1)
         .then((rows) => rows[0])
 
-      if (!refExists) {
+      if (!ref) {
         hasReply = false
+      } else {
+        // Both must share the same effective thread scope (null === channel).
+        // A thread reply can only quote messages from the same thread root;
+        // a channel-level send can only quote channel-level messages.
+        const refRoot = ref.threadRootId ?? ref.id
+        if (threadRootId) {
+          if (refRoot !== threadRootId) hasReply = false
+        } else if (ref.threadRootId !== null) {
+          hasReply = false
+        }
       }
     }
 
@@ -285,6 +301,7 @@ export async function deleteMessage(
     .select({
       id: schema.message.id,
       authorId: schema.message.authorId,
+      threadRootId: schema.message.threadRootId,
     })
     .from(schema.message)
     .where(
@@ -311,6 +328,7 @@ export async function deleteMessage(
   return {
     channelId: input.payload.channelId,
     messageId: input.payload.messageId,
+    threadRootId: messageRecord.threadRootId,
     channel: channelRecord,
   }
 }

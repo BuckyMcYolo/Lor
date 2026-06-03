@@ -511,10 +511,32 @@ io.on("connection", (socket) => {
         payload: parsed,
       })
 
-      socket.to(channelRoom(parsed.channelId)).emit("message:deleted", {
+      const deletedPayload = {
         channelId: result.channelId,
         messageId: result.messageId,
-      })
+      }
+
+      if (result.threadRootId) {
+        // Thread reply: broadcast to thread room and refresh the channel's
+        // footer summary so the "N replies" count ticks down.
+        socket
+          .to(threadRoom(result.threadRootId))
+          .emit("message:deleted", deletedPayload)
+        const summary = await loadThreadSummary(
+          parsed.channelId,
+          result.threadRootId
+        )
+        if (summary) {
+          io.to(channelRoom(parsed.channelId)).emit(
+            "message:thread:updated",
+            summary
+          )
+        }
+      } else {
+        socket
+          .to(channelRoom(parsed.channelId))
+          .emit("message:deleted", deletedPayload)
+      }
 
       ack?.({ ok: true })
     } catch (error) {

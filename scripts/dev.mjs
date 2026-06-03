@@ -69,13 +69,24 @@ function runTurbo(packages) {
     stdio: "inherit",
     cwd: ROOT,
     env: process.env,
+    // Windows resolves `turbo.cmd` via the shell.
+    shell: process.platform === "win32",
   })
+  /** @type {Record<string, () => void>} */
+  const forwarders = {}
   for (const sig of ["SIGINT", "SIGTERM"]) {
-    process.on(sig, () => {
+    const handler = () => {
       if (!child.killed) child.kill(sig)
-    })
+    }
+    forwarders[sig] = handler
+    process.on(sig, handler)
   }
   child.on("exit", (code, signal) => {
+    // Remove our forwarders before re-raising so the default handler runs and
+    // we don't recurse on the signal.
+    for (const sig of Object.keys(forwarders)) {
+      process.off(sig, forwarders[sig])
+    }
     if (signal) process.kill(process.pid, signal)
     else process.exit(code ?? 0)
   })

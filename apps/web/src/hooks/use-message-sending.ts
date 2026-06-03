@@ -1,6 +1,6 @@
 import type { RealtimeMessageEmbedsUpdated } from "@repo/realtime-types"
 import type { InfiniteData, QueryClient } from "@tanstack/react-query"
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { Message } from "@/lib/api-types"
 import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import {
@@ -45,11 +45,12 @@ export function useMessageSending({
 }: UseMessageSendingOptions) {
   const pendingNonces = useRef(new Set<string>())
 
-  // The cache the optimistic UI mutates depends on whether we're sending to
-  // the channel feed or to a thread.
-  const cacheKey: readonly unknown[] = threadRootId
-    ? ["thread", threadRootId]
-    : ["messages", channelId]
+  // Memoize so it's a stable reference across renders — otherwise the
+  // useCallback deps below would invalidate every render.
+  const cacheKey = useMemo<readonly unknown[]>(
+    () => (threadRootId ? ["thread", threadRootId] : ["messages", channelId]),
+    [threadRootId, channelId]
+  )
 
   const updateMessagesInCache = useCallback(
     (
