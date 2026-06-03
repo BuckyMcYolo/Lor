@@ -26,7 +26,6 @@ import { EmbedCard } from "./embed-card"
 import { MessageActionBar } from "./message-action-bar"
 import { AttachmentGrid } from "./message-attachment"
 import { MessageEditInput } from "./message-edit-input"
-import { scrollToMessage } from "./message-list"
 import { MessageMarkdown } from "./message-markdown"
 
 interface MessageItemProps {
@@ -41,6 +40,7 @@ interface MessageItemProps {
   onTogglePin?: (messageId: string, currentlyPinned: boolean) => void
   canPin?: boolean
   mentionCandidates?: MentionCandidate[]
+  onJumpToMessage?: (messageId: string) => void
 }
 
 function nameInitial(name: string) {
@@ -50,8 +50,10 @@ function nameInitial(name: string) {
 
 function ReplyPreview({
   referencedMessage,
+  onJumpToMessage,
 }: {
   referencedMessage: Message["referencedMessage"]
+  onJumpToMessage?: (messageId: string) => void
 }) {
   if (!referencedMessage) {
     return (
@@ -71,7 +73,7 @@ function ReplyPreview({
   return (
     <button
       type="button"
-      onClick={() => scrollToMessage(referencedMessage.id)}
+      onClick={() => onJumpToMessage?.(referencedMessage.id)}
       className="mb-0.5 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-xs hover:opacity-80"
     >
       <div className="mb-1 ml-4 h-3 w-8 rounded-tl-md border-t-2 border-l-2 border-muted-foreground/40" />
@@ -105,6 +107,7 @@ export function MessageItem({
   onTogglePin,
   canPin = false,
   mentionCandidates,
+  onJumpToMessage,
 }: MessageItemProps) {
   const author = message.author
   const [isActionBarPinned, setIsActionBarPinned] = useState(false)
@@ -214,7 +217,10 @@ export function MessageItem({
         </div>
       )}
       {isReply && (
-        <ReplyPreview referencedMessage={message.referencedMessage} />
+        <ReplyPreview
+          referencedMessage={message.referencedMessage}
+          onJumpToMessage={onJumpToMessage}
+        />
       )}
       <div className="flex gap-3">
         {showHeader ? (

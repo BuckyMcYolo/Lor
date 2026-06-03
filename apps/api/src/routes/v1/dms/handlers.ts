@@ -8,7 +8,7 @@ import {
 } from "@repo/db/schema"
 import { and, count, desc, eq, ilike, inArray, ne, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
-import { fetchMessagePage } from "@/lib/queries/messages"
+import { fetchMessages } from "@/lib/queries/messages"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
   CreateDMRoute,
@@ -489,7 +489,7 @@ export const listDMMessages: AppRouteHandler<ListDMMessagesRoute> = async (
 ) => {
   const currentUser = c.var.user
   const { dmId } = c.req.valid("param")
-  const { page, perPage } = c.req.valid("query")
+  const { around, before, after, limit } = c.req.valid("query")
 
   // Verify the channel exists and the user is a member.
   const ch = await fetchDMMembershipChannel(dmId, currentUser.id)
@@ -502,7 +502,14 @@ export const listDMMessages: AppRouteHandler<ListDMMessagesRoute> = async (
   }
 
   return c.json(
-    await fetchMessagePage(ch.id, page, perPage, currentUser.id),
+    await fetchMessages({
+      channelId: ch.id,
+      currentUserId: currentUser.id,
+      limit,
+      around,
+      before,
+      after,
+    }),
     HttpStatusCodes.OK
   )
 }

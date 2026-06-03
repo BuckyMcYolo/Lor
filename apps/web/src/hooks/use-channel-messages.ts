@@ -1,0 +1,201 @@
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
+import {
+  type MutableRefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
+import type { Message } from "@/lib/api-types"
+import { realtimeMessageToMessage } from "@/lib/realtime-adapter"
+import type { AppSocket } from "@/lib/socket"
+
+// Mutually exclusive; null = latest.
+export type MessagesPageParam =
+  | { around: string }
+  | { before: string }
+  | { after: string }
+  | null
+
+export type MessagesPage = {
+  data: Message[]
+  beforeCursor: string | null
+  afterCursor: string | null
+  reachedOldest: boolean
+  reachedNewest: boolean
+}
+
+type FetchPageParams = {
+  around?: string
+  before?: string
+  after?: string
+  limit: number
+}
+
+interface UseChannelMessagesOptions {
+  channelId: string
+  /** Anchor message id; when set, initial fetch uses `?around=<id>`. */
+  anchor: string | null | undefined
+  fetchPage: (params: FetchPageParams) => Promise<MessagesPage>
+  enabled?: boolean
+  socket: AppSocket | null
+  /** Own optimistic-send nonces; reconciled by useMessageSending, skipped here. */
+  pendingNoncesRef?: MutableRefObject<Set<string>>
+  perPage?: number
+}
+
+export function useChannelMessages({
+  channelId,
+  anchor,
+  fetchPage,
+  enabled = true,
+  socket,
+  pendingNoncesRef,
+  perPage = 50,
+}: UseChannelMessagesOptions) {
+  const queryClient = useQueryClient()
+  const normalizedAnchor = anchor ?? null
+
+  const query = useInfiniteQuery<
+    MessagesPage,
+    Error,
+    InfiniteData<MessagesPage, MessagesPageParam>,
+    ["messages", string],
+    MessagesPageParam
+  >({
+    queryKey: ["messages", channelId],
+    queryFn: async ({ pageParam }) => {
+      const params: FetchPageParams = { limit: perPage }
+      if (pageParam) {
+        if ("around" in pageParam) params.around = pageParam.around
+        else if ("before" in pageParam) params.before = pageParam.before
+        else if ("after" in pageParam) params.after = pageParam.after
+      }
+      return fetchPage(params)
+    },
+    initialPageParam: normalizedAnchor ? { around: normalizedAnchor } : null,
+    getNextPageParam: (lastPage) =>
+      lastPage.reachedOldest || !lastPage.beforeCursor
+        ? undefined
+        : { before: lastPage.beforeCursor },
+    getPreviousPageParam: (firstPage) =>
+      firstPage.reachedNewest || !firstPage.afterCursor
+        ? undefined
+        : { after: firstPage.afterCursor },
+    enabled,
+  })
+
+  // Anchor change → drop cache so the next fetch uses the new initialPageParam.
+  const prevAnchorRef = useRef(normalizedAnchor)
+  useEffect(() => {
+    if (prevAnchorRef.current !== normalizedAnchor) {
+      prevAnchorRef.current = normalizedAnchor
+      void queryClient.resetQueries({
+        queryKey: ["messages", channelId],
+      })
+    }
+  }, [normalizedAnchor, channelId, queryClient])
+
+  const messages = useMemo(
+    () => query.data?.pages.flatMap((page) => page.data) ?? [],
+    [query.data]
+  )
+
+  // True iff the newest cached page has reached the live tail.
+  const isAtPresent = query.data?.pages[0]?.reachedNewest === true
+  const isAtPresentRef = useRef(isAtPresent)
+  useEffect(() => {
+    isAtPresentRef.current = isAtPresent
+  }, [isAtPresent])
+
+  const [pendingMessages, setPendingMessages] = useState<Message[]>([])
+
+  // Pending buffer is conversation-scoped.
+  useEffect(() => {
+    setPendingMessages([])
+  }, [channelId, normalizedAnchor])
+
+  // Drop buffered "N new" when we re-enter the live tail.
+  const wasAtPresentRef = useRef(isAtPresent)
+  useEffect(() => {
+    if (isAtPresent && !wasAtPresentRef.current) {
+      setPendingMessages([])
+    }
+    wasAtPresentRef.current = isAtPresent
+  }, [isAtPresent])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleMessageCreated = (
+      message: Parameters<typeof realtimeMessageToMessage>[0]
+    ) => {
+      if (message.channelId !== channelId) return
+      if (message.nonce && pendingNoncesRef?.current.has(message.nonce)) return
+
+      const adapted = realtimeMessageToMessage(message)
+
+      if (isAtPresentRef.current) {
+        queryClient.setQueryData<InfiniteData<MessagesPage, MessagesPageParam>>(
+          ["messages", channelId],
+          (old) => {
+            if (!old) return old
+            const exists = old.pages.some((page) =>
+              page.data.some((m) => m.id === adapted.id)
+            )
+            if (exists) return old
+            return {
+              ...old,
+              pages: old.pages.map((page, i) =>
+                i === 0
+                  ? {
+                      ...page,
+                      data: [adapted, ...page.data],
+                      afterCursor: adapted.id,
+                    }
+                  : page
+              ),
+            }
+          }
+        )
+      } else {
+        setPendingMessages((prev) => {
+          if (prev.some((m) => m.id === adapted.id)) return prev
+          return [...prev, adapted]
+        })
+      }
+    }
+
+    socket.on("message:created", handleMessageCreated)
+    return () => {
+      socket.off("message:created", handleMessageCreated)
+    }
+  }, [socket, channelId, queryClient, pendingNoncesRef])
+
+  // Route owns navigation; we just clear local state.
+  const clearPending = useCallback(() => {
+    setPendingMessages([])
+  }, [])
+
+  return {
+    messages,
+    isLoading: query.isPending,
+    isError: query.isError,
+    error: query.error,
+    fetchOlder: query.fetchNextPage,
+    fetchNewer: query.fetchPreviousPage,
+    hasOlder: query.hasNextPage,
+    hasNewer: query.hasPreviousPage,
+    isFetchingOlder: query.isFetchingNextPage,
+    isFetchingNewer: query.isFetchingPreviousPage,
+    isAtPresent,
+    pendingMessages,
+    pendingCount: pendingMessages.length,
+    clearPending,
+  }
+}

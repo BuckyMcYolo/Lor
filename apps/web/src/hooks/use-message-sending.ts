@@ -73,6 +73,7 @@ export function useMessageSending({
     [queryClient, channelId]
   )
 
+  // Own-nonce reconciliation only; live messages from others live in useChannelMessages.
   useEffect(() => {
     if (!socket) return
 
@@ -80,44 +81,21 @@ export function useMessageSending({
       message: Parameters<typeof realtimeMessageToMessage>[0]
     ) => {
       if (message.channelId !== channelId) return
+      if (!message.nonce || !pendingNonces.current.has(message.nonce)) return
 
-      // Check if this is a nonce replacement (our own optimistic message)
-      if (message.nonce && pendingNonces.current.has(message.nonce)) {
-        pendingNonces.current.delete(message.nonce)
-        updateMessagesInCache((messages) =>
-          messages.map((m) =>
-            m.id === message.nonce ? realtimeMessageToMessage(message) : m
-          )
+      pendingNonces.current.delete(message.nonce)
+      updateMessagesInCache((messages) =>
+        messages.map((m) =>
+          m.id === message.nonce ? realtimeMessageToMessage(message) : m
         )
-        return
-      }
-
-      // Check for duplicates across all pages
-      const allMessages = queryClient.getQueryData<InfiniteData<MessagePage>>([
-        "messages",
-        channelId,
-      ])
-      if (allMessages) {
-        const isDuplicate = allMessages.pages.some((page) =>
-          page.data.some((m) => m.id === message.id)
-        )
-        if (isDuplicate) return
-      }
-
-      prependToFirstPage(realtimeMessageToMessage(message))
+      )
     }
 
     socket.on("message:created", handleMessageCreated)
     return () => {
       socket.off("message:created", handleMessageCreated)
     }
-  }, [
-    socket,
-    channelId,
-    updateMessagesInCache,
-    prependToFirstPage,
-    queryClient,
-  ])
+  }, [socket, channelId, updateMessagesInCache])
 
   useEffect(() => {
     if (!socket) return
@@ -207,5 +185,5 @@ export function useMessageSending({
     [socket, currentUser, channelId, prependToFirstPage, updateMessagesInCache]
   )
 
-  return { handleSend }
+  return { handleSend, pendingNonces }
 }
