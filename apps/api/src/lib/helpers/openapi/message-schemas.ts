@@ -40,12 +40,28 @@ export const referencedMessageSchema = z
   })
   .nullable()
 
+export const threadParticipantSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  displayUsername: z.string().nullable(),
+  image: z.string().nullable(),
+})
+
+export const threadSummarySchema = z
+  .object({
+    replyCount: z.number().int().nonnegative(),
+    lastReplyAt: z.string(),
+    participants: z.array(threadParticipantSchema),
+  })
+  .nullable()
+
 export const messageWithAuthorSchema = selectMessageSchema.extend({
   author: messageAuthorSchema,
   mentions: z.array(messageAuthorSchema),
   reactions: z.array(messageReactionSchema),
   embeds: z.array(messageEmbedSchema),
   referencedMessage: referencedMessageSchema,
+  threadSummary: threadSummarySchema,
 })
 
 // Cursor-based query: `around`, `before`, `after` are mutually exclusive

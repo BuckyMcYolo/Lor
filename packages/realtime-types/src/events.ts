@@ -11,6 +11,10 @@ export const channelRoomPayloadSchema = z.object({
   channelId: z.string().uuid(),
 })
 
+export const threadRoomPayloadSchema = z.object({
+  threadRootId: z.string().uuid(),
+})
+
 export const attachmentPayloadSchema = z.object({
   url: z.string().url(),
   filename: z.string().min(1).max(256),
@@ -26,6 +30,7 @@ export const sendMessagePayloadSchema = z
     content: z.string().trim().max(2000).optional(),
     nonce: z.string().max(100).optional(),
     referencedMessageId: z.string().uuid().optional(),
+    threadRootId: z.string().uuid().optional(),
     attachments: z.array(attachmentPayloadSchema).max(10).optional(),
   })
   .refine(
@@ -58,6 +63,7 @@ export const markChannelReadPayloadSchema = z.object({
 })
 
 export type ChannelRoomPayload = z.infer<typeof channelRoomPayloadSchema>
+export type ThreadRoomPayload = z.infer<typeof threadRoomPayloadSchema>
 export type SendMessagePayload = z.infer<typeof sendMessagePayloadSchema>
 export type ToggleMessageReactionPayload = z.infer<
   typeof toggleMessageReactionPayloadSchema
@@ -140,6 +146,7 @@ export type RealtimeMessage = {
   attachments: RealtimeAttachment[]
   embeds: RealtimeEmbed[]
   referencedMessage: RealtimeReferencedMessage | null
+  threadRootId?: string | null
   editedAt?: string
   nonce?: string
 }
@@ -164,6 +171,23 @@ export type RealtimeMessageReactionUpdated = {
   actorUserId: string
   actorName: string
   reactedByActor: boolean
+}
+
+// Lightweight update for the channel-feed footer when a thread gets a reply.
+// Carries enough for the receiver to refresh the root's threadSummary without
+// re-fetching the channel feed. `replyCount: 0` + `lastReplyAt: null` signals
+// the thread is now empty (last reply deleted) so the footer can be cleared.
+export type RealtimeMessageThreadUpdated = {
+  channelId: string
+  threadRootId: string
+  replyCount: number
+  lastReplyAt: string | null
+  participants: Array<{
+    id: string
+    name: string
+    displayUsername: string | null
+    image: string | null
+  }>
 }
 
 export type SendMessageAck = (
@@ -269,6 +293,8 @@ export interface ClientToServerEvents {
   ) => void
   "channel:join": (payload: ChannelRoomPayload, ack?: JoinLeaveAck) => void
   "channel:leave": (payload: ChannelRoomPayload, ack?: JoinLeaveAck) => void
+  "thread:join": (payload: ThreadRoomPayload, ack?: JoinLeaveAck) => void
+  "thread:leave": (payload: ThreadRoomPayload, ack?: JoinLeaveAck) => void
   "message:send": (payload: SendMessagePayload, ack?: SendMessageAck) => void
   "message:delete": (
     payload: DeleteMessagePayload,
@@ -310,6 +336,7 @@ export interface ServerToClientEvents {
   "message:reaction:updated": (payload: RealtimeMessageReactionUpdated) => void
   "message:embeds:updated": (payload: RealtimeMessageEmbedsUpdated) => void
   "message:pin:toggled": (payload: RealtimeMessagePinToggled) => void
+  "message:thread:updated": (payload: RealtimeMessageThreadUpdated) => void
   "notification:bootstrap": (payload: NotificationBootstrap) => void
   "notification:unread": (payload: UnreadNotification) => void
   "notification:mention": (payload: MentionNotification) => void

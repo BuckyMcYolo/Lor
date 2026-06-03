@@ -1,9 +1,10 @@
-import { and, count, db, eq, schema } from "@repo/db"
+import { and, count, db, desc, eq, max, schema } from "@repo/db"
 import type {
   DeleteMessagePayload,
   EditMessagePayload,
   RealtimeMessage,
   RealtimeMessageReactionUpdated,
+  RealtimeMessageThreadUpdated,
   SendMessagePayload,
   ToggleMessageReactionPayload,
 } from "@repo/realtime-types"
@@ -42,6 +43,7 @@ export type CreateMessageResult = {
 export type DeleteMessageResult = {
   channelId: string
   messageId: string
+  threadRootId: string | null
   channel: AccessibleChannel
 }
 
@@ -58,12 +60,18 @@ export async function createMessage(input: CreateMessageInput) {
   const channelRecord = input.accessibleChannel
 
   let hasReply = !!input.payload.referencedMessageId
+  const threadRootId: string | null = input.payload.threadRootId ?? null
 
   const messageWithAuthor = await db.transaction(async (tx) => {
-    // Verify the referenced message exists in the same channel
+    // Verify the referenced message exists in the same channel AND in the
+    // same thread context (or both at channel level). Prevents a thread
+    // reply from quoting a message in a different thread.
     if (hasReply && input.payload.referencedMessageId) {
-      const refExists = await tx
-        .select({ id: schema.message.id })
+      const ref = await tx
+        .select({
+          id: schema.message.id,
+          threadRootId: schema.message.threadRootId,
+        })
         .from(schema.message)
         .where(
           and(
@@ -74,8 +82,41 @@ export async function createMessage(input: CreateMessageInput) {
         .limit(1)
         .then((rows) => rows[0])
 
-      if (!refExists) {
+      if (!ref) {
         hasReply = false
+      } else {
+        // Both must share the same effective thread scope (null === channel).
+        // A thread reply can only quote messages from the same thread root;
+        // a channel-level send can only quote channel-level messages.
+        const refRoot = ref.threadRootId ?? ref.id
+        if (threadRootId) {
+          if (refRoot !== threadRootId) hasReply = false
+        } else if (ref.threadRootId !== null) {
+          hasReply = false
+        }
+      }
+    }
+
+    // Verify the thread root exists, is in this channel, and is itself a
+    // channel-level message (threads are flat — replies can't host nested threads).
+    if (threadRootId) {
+      const root = await tx
+        .select({
+          id: schema.message.id,
+          threadRootId: schema.message.threadRootId,
+        })
+        .from(schema.message)
+        .where(
+          and(
+            eq(schema.message.id, threadRootId),
+            eq(schema.message.channelId, input.payload.channelId)
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (!root || root.threadRootId !== null) {
+        throw new Error("Invalid thread root")
       }
     }
 
@@ -89,6 +130,7 @@ export async function createMessage(input: CreateMessageInput) {
         referencedMessageId: hasReply
           ? (input.payload.referencedMessageId ?? null)
           : null,
+        threadRootId,
         attachments: input.payload.attachments ?? [],
       })
       .returning({
@@ -183,6 +225,7 @@ export async function createMessage(input: CreateMessageInput) {
     attachments: input.payload.attachments ?? [],
     embeds: [],
     referencedMessage,
+    threadRootId,
   }
 
   if (input.payload.nonce) {
@@ -193,6 +236,67 @@ export async function createMessage(input: CreateMessageInput) {
     message: createdMessage,
     channel: channelRecord,
   } satisfies CreateMessageResult
+}
+
+export async function loadThreadSummary(
+  channelId: string,
+  threadRootId: string
+): Promise<RealtimeMessageThreadUpdated> {
+  const summary = await db
+    .select({
+      replyCount: count(),
+      lastReplyAt: max(schema.message.createdAt),
+    })
+    .from(schema.message)
+    .where(eq(schema.message.threadRootId, threadRootId))
+    .then((rows) => rows[0])
+
+  // Empty thread (last reply deleted): return an explicit cleared shape so
+  // the channel-feed footer can drop its stale threadSummary.
+  if (!summary || !summary.lastReplyAt) {
+    return {
+      channelId,
+      threadRootId,
+      replyCount: 0,
+      lastReplyAt: null,
+      participants: [],
+    }
+  }
+
+  const recentReplies = await db
+    .select({
+      authorId: schema.message.authorId,
+      userName: schema.user.name,
+      userDisplayUsername: schema.user.displayUsername,
+      userImage: schema.user.image,
+    })
+    .from(schema.message)
+    .innerJoin(schema.user, eq(schema.message.authorId, schema.user.id))
+    .where(eq(schema.message.threadRootId, threadRootId))
+    .orderBy(desc(schema.message.createdAt))
+    .limit(20)
+
+  const seen = new Set<string>()
+  const participants: RealtimeMessageThreadUpdated["participants"] = []
+  for (const row of recentReplies) {
+    if (seen.has(row.authorId)) continue
+    seen.add(row.authorId)
+    participants.push({
+      id: row.authorId,
+      name: row.userName,
+      displayUsername: row.userDisplayUsername,
+      image: row.userImage,
+    })
+    if (participants.length >= 3) break
+  }
+
+  return {
+    channelId,
+    threadRootId,
+    replyCount: Number(summary.replyCount),
+    lastReplyAt: summary.lastReplyAt.toISOString(),
+    participants,
+  }
 }
 
 export async function deleteMessage(
@@ -207,6 +311,7 @@ export async function deleteMessage(
     .select({
       id: schema.message.id,
       authorId: schema.message.authorId,
+      threadRootId: schema.message.threadRootId,
     })
     .from(schema.message)
     .where(
@@ -233,6 +338,7 @@ export async function deleteMessage(
   return {
     channelId: input.payload.channelId,
     messageId: input.payload.messageId,
+    threadRootId: messageRecord.threadRootId,
     channel: channelRecord,
   }
 }

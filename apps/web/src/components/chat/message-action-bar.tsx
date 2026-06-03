@@ -1,4 +1,8 @@
-import { Pin02Icon, PinOffIcon } from "@hugeicons/core-free-icons"
+import {
+  MessageMultiple01Icon,
+  Pin02Icon,
+  PinOffIcon,
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@repo/ui/components/button"
 import {
@@ -20,6 +24,7 @@ import { EmojiReactionPicker } from "./emoji-reaction-picker"
 interface MessageActionBarProps {
   onReact?: (emoji: string) => void
   onReply?: () => void
+  onReplyInThread?: () => void
   onCopyText?: () => void
   onEdit?: () => void
   onDelete?: () => void
@@ -33,6 +38,7 @@ interface MessageActionBarProps {
 export function MessageActionBar({
   onReact,
   onReply,
+  onReplyInThread,
   onCopyText,
   onEdit,
   onDelete,
@@ -84,33 +90,27 @@ export function MessageActionBar({
             onClick={onReply}
             aria-label="Reply"
           >
-            <Reply className="size-4" />
+            <Reply className="size-4" strokeWidth={1.5} />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top">Reply</TooltipContent>
       </Tooltip>
 
-      {canPin && (
+      {onReplyInThread && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               type="button"
               variant="ghost"
-              size="icon-xs"
+              size="icon"
               className="size-7"
-              onClick={onTogglePin}
-              aria-label={isPinned ? "Unpin message" : "Pin message"}
+              onClick={onReplyInThread}
+              aria-label="Reply in thread"
             >
-              {isPinned ? (
-                <HugeiconsIcon icon={PinOffIcon} size={16} />
-              ) : (
-                <HugeiconsIcon icon={Pin02Icon} size={16} />
-              )}
+              <HugeiconsIcon icon={MessageMultiple01Icon} size={8} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top">
-            {isPinned ? "Unpin message" : "Pin message"}
-          </TooltipContent>
+          <TooltipContent side="top">Reply in thread</TooltipContent>
         </Tooltip>
       )}
 
@@ -139,6 +139,15 @@ export function MessageActionBar({
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={onCopyText}>Copy text</DropdownMenuItem>
+          {canPin && (
+            <DropdownMenuItem onSelect={onTogglePin} disabled={!onTogglePin}>
+              <HugeiconsIcon
+                icon={isPinned ? PinOffIcon : Pin02Icon}
+                size={14}
+              />
+              {isPinned ? "Unpin message" : "Pin message"}
+            </DropdownMenuItem>
+          )}
           {canManageMessage && (
             <>
               <DropdownMenuSeparator />

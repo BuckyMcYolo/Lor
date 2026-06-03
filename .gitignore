@@ -18,6 +18,9 @@ coverage
 # Turbo
 .turbo
 
+# dev launcher cache
+.cache
+
 # Vercel
 .vercel
 

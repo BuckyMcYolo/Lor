@@ -256,6 +256,7 @@ function DMConversation() {
         pendingCount={pendingCount}
         onJumpToPresent={isAtPresent ? undefined : handleJumpToPresent}
         onJumpToMessage={handleJumpToMessage}
+        replyingToId={replyingTo?.id ?? null}
         currentUserId={currentUserId}
         onReact={handleReact}
         onReply={setReplyingTo}

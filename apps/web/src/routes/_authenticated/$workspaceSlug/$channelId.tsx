@@ -170,6 +170,19 @@ function ChannelView() {
     [navigate]
   )
 
+  const handleOpenThread = useCallback(
+    (rootMessageId: string) => {
+      setView({
+        type: "thread",
+        workspaceSlug,
+        channelId,
+        threadRootId: rootMessageId,
+      })
+      if (isCollapsed) toggleCollapsed()
+    },
+    [setView, workspaceSlug, channelId, isCollapsed, toggleCollapsed]
+  )
+
   const { data: workspaceMembersData } = useQuery({
     queryKey: ["workspace-members", workspaceSlug],
     queryFn: async () => {
@@ -354,6 +367,9 @@ function ChannelView() {
         pendingCount={pendingCount}
         onJumpToPresent={isAtPresent ? undefined : handleJumpToPresent}
         onJumpToMessage={handleJumpToMessage}
+        onReplyInThread={(msg) => handleOpenThread(msg.id)}
+        onOpenThread={handleOpenThread}
+        replyingToId={replyingTo?.id ?? null}
         currentUserId={currentUserId}
         onReact={handleReact}
         onReply={setReplyingTo}

@@ -15,6 +15,8 @@ import {
   markChannelReadPayloadSchema,
   presenceSubscribePayloadSchema,
   sendMessagePayloadSchema,
+  threadRoom,
+  threadRoomPayloadSchema,
   toggleMessageReactionPayloadSchema,
   typingStartPayloadSchema,
   userRoom,
@@ -34,6 +36,7 @@ import {
   createMessage,
   deleteMessage,
   editMessage,
+  loadThreadSummary,
   toggleMessageReaction,
 } from "@/services/messages"
 import { buildMessageFanout } from "@/services/notifications"
@@ -368,6 +371,35 @@ io.on("connection", (socket) => {
     }
   })
 
+  socket.on("thread:join", async (payload, ack) => {
+    try {
+      const parsed = threadRoomPayloadSchema.parse(payload)
+      // Verify the user can access the thread's channel.
+      const root = await db
+        .select({ channelId: schema.message.channelId })
+        .from(schema.message)
+        .where(eq(schema.message.id, parsed.threadRootId))
+        .limit(1)
+        .then((rows) => rows[0])
+      if (!root) throw new Error("Thread not found")
+      await assertUserCanAccessChannel(socket.data.user.id, root.channelId)
+      await socket.join(threadRoom(parsed.threadRootId))
+      ack?.({ ok: true })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
+  socket.on("thread:leave", async (payload, ack) => {
+    try {
+      const parsed = threadRoomPayloadSchema.parse(payload)
+      await socket.leave(threadRoom(parsed.threadRootId))
+      ack?.({ ok: true })
+    } catch (error) {
+      ack?.({ ok: false, error: toErrorMessage(error) })
+    }
+  })
+
   socket.on("message:send", async (payload, ack) => {
     try {
       const parsed = sendMessagePayloadSchema.parse(payload)
@@ -406,9 +438,26 @@ io.on("connection", (socket) => {
         mentions: fanout.messageMentions,
       }
 
-      socket
-        .to(channelRoom(parsed.channelId))
-        .emit("message:created", messageWithMentions)
+      // Thread replies broadcast to the thread room only; the channel feed
+      // gets a lightweight `message:thread:updated` instead so its
+      // "N replies" footer can update without showing the reply inline.
+      if (messageWithMentions.threadRootId) {
+        socket
+          .to(threadRoom(messageWithMentions.threadRootId))
+          .emit("message:created", messageWithMentions)
+        const summary = await loadThreadSummary(
+          parsed.channelId,
+          messageWithMentions.threadRootId
+        )
+        io.to(channelRoom(parsed.channelId)).emit(
+          "message:thread:updated",
+          summary
+        )
+      } else {
+        socket
+          .to(channelRoom(parsed.channelId))
+          .emit("message:created", messageWithMentions)
+      }
 
       for (const unreadNotification of fanout.unreadNotifications) {
         io.to(userRoom(unreadNotification.userId)).emit(
@@ -460,10 +509,31 @@ io.on("connection", (socket) => {
         payload: parsed,
       })
 
-      socket.to(channelRoom(parsed.channelId)).emit("message:deleted", {
+      const deletedPayload = {
         channelId: result.channelId,
         messageId: result.messageId,
-      })
+      }
+
+      if (result.threadRootId) {
+        // Thread reply: broadcast to thread room and refresh the channel's
+        // footer summary so the "N replies" count ticks down (or clears
+        // entirely if this was the last reply).
+        socket
+          .to(threadRoom(result.threadRootId))
+          .emit("message:deleted", deletedPayload)
+        const summary = await loadThreadSummary(
+          parsed.channelId,
+          result.threadRootId
+        )
+        io.to(channelRoom(parsed.channelId)).emit(
+          "message:thread:updated",
+          summary
+        )
+      } else {
+        socket
+          .to(channelRoom(parsed.channelId))
+          .emit("message:deleted", deletedPayload)
+      }
 
       ack?.({ ok: true })
     } catch (error) {

@@ -9,3 +9,7 @@ export function workspaceRoom(workspaceId: string) {
 export function channelRoom(channelId: string) {
   return `channel:${channelId}`
 }
+
+export function threadRoom(threadRootId: string) {
+  return `thread:${threadRootId}`
+}

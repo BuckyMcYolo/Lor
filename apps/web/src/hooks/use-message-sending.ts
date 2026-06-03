@@ -1,6 +1,6 @@
 import type { RealtimeMessageEmbedsUpdated } from "@repo/realtime-types"
 import type { InfiniteData, QueryClient } from "@tanstack/react-query"
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { Message } from "@/lib/api-types"
 import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import {
@@ -28,6 +28,12 @@ interface UseMessageSendingOptions {
   queryClient: QueryClient
   channelId: string
   currentUser?: MessageSenderUser
+  /**
+   * When set, optimistic writes target the thread cache (`["thread", id]`)
+   * and the send payload carries `threadRootId`. Use this from the thread
+   * panel composer.
+   */
+  threadRootId?: string
 }
 
 export function useMessageSending({
@@ -35,8 +41,16 @@ export function useMessageSending({
   queryClient,
   channelId,
   currentUser,
+  threadRootId,
 }: UseMessageSendingOptions) {
   const pendingNonces = useRef(new Set<string>())
+
+  // Memoize so it's a stable reference across renders — otherwise the
+  // useCallback deps below would invalidate every render.
+  const cacheKey = useMemo<readonly unknown[]>(
+    () => (threadRootId ? ["thread", threadRootId] : ["messages", channelId]),
+    [threadRootId, channelId]
+  )
 
   const updateMessagesInCache = useCallback(
     (
@@ -44,33 +58,27 @@ export function useMessageSending({
         messages: MessageWithRealtimeShape[]
       ) => MessageWithRealtimeShape[]
     ) => {
-      queryClient.setQueryData<InfiniteData<MessagePage>>(
-        ["messages", channelId],
-        (old) => {
-          if (!old) return old
-          return updateMessagesAcrossPages(old, updater)
-        }
-      )
+      queryClient.setQueryData<InfiniteData<MessagePage>>(cacheKey, (old) => {
+        if (!old) return old
+        return updateMessagesAcrossPages(old, updater)
+      })
     },
-    [queryClient, channelId]
+    [queryClient, cacheKey]
   )
 
   const prependToFirstPage = useCallback(
     (message: MessageWithRealtimeShape) => {
-      queryClient.setQueryData<InfiniteData<MessagePage>>(
-        ["messages", channelId],
-        (old) => {
-          if (!old) return old
-          return {
-            ...old,
-            pages: old.pages.map((page, i) =>
-              i === 0 ? { ...page, data: [message, ...page.data] } : page
-            ),
-          }
+      queryClient.setQueryData<InfiniteData<MessagePage>>(cacheKey, (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          pages: old.pages.map((page, i) =>
+            i === 0 ? { ...page, data: [message, ...page.data] } : page
+          ),
         }
-      )
+      })
     },
-    [queryClient, channelId]
+    [queryClient, cacheKey]
   )
 
   // Own-nonce reconciliation only; live messages from others live in useChannelMessages.
@@ -159,6 +167,7 @@ export function useMessageSending({
           content: content || undefined,
           nonce,
           referencedMessageId,
+          threadRootId,
           attachments,
         },
         (result) => {
@@ -182,7 +191,14 @@ export function useMessageSending({
         }
       )
     },
-    [socket, currentUser, channelId, prependToFirstPage, updateMessagesInCache]
+    [
+      socket,
+      currentUser,
+      channelId,
+      threadRootId,
+      prependToFirstPage,
+      updateMessagesInCache,
+    ]
   )
 
   return { handleSend, pendingNonces }

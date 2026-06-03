@@ -15,6 +15,7 @@ import type {
   GetDMRoute,
   ListDMMessagesRoute,
   ListDMsRoute,
+  ListDMThreadRepliesRoute,
   SearchDMMessagesRoute,
 } from "./routes"
 
@@ -509,6 +510,50 @@ export const listDMMessages: AppRouteHandler<ListDMMessagesRoute> = async (
       around,
       before,
       after,
+    }),
+    HttpStatusCodes.OK
+  )
+}
+
+export const listDMThreadReplies: AppRouteHandler<
+  ListDMThreadRepliesRoute
+> = async (c) => {
+  const currentUser = c.var.user
+  const { dmId, messageId } = c.req.valid("param")
+  const { around, before, after, limit } = c.req.valid("query")
+
+  const ch = await fetchDMMembershipChannel(dmId, currentUser.id)
+
+  if (!ch) {
+    return c.json(
+      { success: false, message: "DM not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  const root = await db
+    .select({ id: message.id, threadRootId: message.threadRootId })
+    .from(message)
+    .where(and(eq(message.id, messageId), eq(message.channelId, ch.id)))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!root || root.threadRootId !== null) {
+    return c.json(
+      { success: false, message: "Thread root not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  return c.json(
+    await fetchMessages({
+      channelId: ch.id,
+      currentUserId: currentUser.id,
+      limit,
+      around,
+      before,
+      after,
+      threadRootId: messageId,
     }),
     HttpStatusCodes.OK
   )

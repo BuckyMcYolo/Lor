@@ -18,6 +18,7 @@ import type {
   ListChannelMessagesRoute,
   ListChannelsRoute,
   ListPinnedMessagesRoute,
+  ListThreadRepliesRoute,
   ReorderChannelsRoute,
   ToggleMessagePinRoute,
   UpdateChannelRoute,
@@ -343,6 +344,7 @@ export const listPinnedMessages: AppRouteHandler<
       attachments: message.attachments,
       embeds: message.embeds,
       referencedMessageId: message.referencedMessageId,
+      threadRootId: message.threadRootId,
       editedAt: message.editedAt,
       createdAt: message.createdAt,
       authorId: message.authorId,
@@ -485,7 +487,63 @@ export const listPinnedMessages: AppRouteHandler<
     referencedMessage: msg.referencedMessageId
       ? (referencedMessagesById.get(msg.referencedMessageId) ?? null)
       : null,
+    threadSummary: null,
   }))
 
   return c.json({ data }, HttpStatusCodes.OK)
+}
+
+export const listThreadReplies: AppRouteHandler<
+  ListThreadRepliesRoute
+> = async (c) => {
+  const workspace = c.var.workspace
+  const currentUser = c.var.user
+  const { channelId, messageId } = c.req.valid("param")
+  const { around, before, after, limit } = c.req.valid("query")
+
+  // Verify channel belongs to this workspace.
+  const ch = await db
+    .select({ id: channel.id })
+    .from(channel)
+    .where(
+      and(eq(channel.id, channelId), eq(channel.workspaceId, workspace.id))
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!ch) {
+    return c.json(
+      { success: false, message: "Channel not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  // Verify the root message exists, belongs to this channel, and is itself a
+  // channel-level message (not a thread reply — threads are flat).
+  const root = await db
+    .select({ id: message.id, threadRootId: message.threadRootId })
+    .from(message)
+    .where(and(eq(message.id, messageId), eq(message.channelId, channelId)))
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!root || root.threadRootId !== null) {
+    return c.json(
+      { success: false, message: "Thread root not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  return c.json(
+    await fetchMessages({
+      channelId,
+      currentUserId: currentUser.id,
+      limit,
+      around,
+      before,
+      after,
+      threadRootId: messageId,
+    }),
+    HttpStatusCodes.OK
+  )
 }

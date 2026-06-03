@@ -8,5 +8,6 @@ const dmsRouter = createRouter()
   .openapi(routes.searchDMMessages, handlers.searchDMMessages)
   .openapi(routes.getDM, handlers.getDM)
   .openapi(routes.listDMMessages, handlers.listDMMessages)
+  .openapi(routes.listDMThreadReplies, handlers.listDMThreadReplies)
 
 export default dmsRouter
