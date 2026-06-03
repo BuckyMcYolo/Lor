@@ -20,6 +20,16 @@ export const dmParamsSchema = z.object({
     }),
 })
 
+export const dmMessageIdParamsSchema = dmParamsSchema.extend({
+  messageId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "messageId", in: "path", required: true },
+      example: "00000000-0000-0000-0000-000000000000",
+    }),
+})
+
 export const lastMessageAuthorSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),

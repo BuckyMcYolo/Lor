@@ -1,3 +1,5 @@
+import { SmilePlusIcon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@repo/ui/components/button"
 import {
   Popover,
@@ -10,7 +12,7 @@ import {
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
 import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react"
-import { Plus, SmilePlus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useState } from "react"
 
@@ -56,11 +58,11 @@ export function EmojiReactionPicker({
             <Button
               type="button"
               variant="ghost"
-              size="icon-xs"
+              size="icon"
               className="size-7"
               aria-label="Add reaction"
             >
-              <SmilePlus className="size-4" />
+              <HugeiconsIcon icon={SmilePlusIcon} size={16} />
             </Button>
           </PopoverTrigger>
         </TooltipTrigger>

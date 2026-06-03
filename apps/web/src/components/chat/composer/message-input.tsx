@@ -94,6 +94,7 @@ const SLASH_COMMANDS: SlashCommandItem[] = [
 
 interface MessageInputProps {
   context: ChatContext
+  placeholder?: string
   disabled?: boolean
   disabledReason?: string
   onSend: (
@@ -409,6 +410,7 @@ function getActiveCodeBlockPos(editor: {
 
 export function MessageInput({
   context,
+  placeholder: placeholderOverride,
   disabled,
   disabledReason,
   onSend,
@@ -433,9 +435,10 @@ export function MessageInput({
   onTypingRef.current = onTyping
 
   const placeholder =
-    context.type === "channel"
+    placeholderOverride ??
+    (context.type === "channel"
       ? `Message #${context.name}`
-      : `Message ${context.name}`
+      : `Message ${context.name}`)
 
   const normalizedMentionCandidates = useMemo(() => {
     const uniqueCandidates = new Map<string, MentionCandidate>()

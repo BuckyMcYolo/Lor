@@ -239,6 +239,30 @@ export const listPinnedMessages = createRoute({
   },
 })
 
+export const listThreadReplies = createRoute({
+  path: "/workspaces/{workspaceSlug}/channels/{channelId}/messages/{messageId}/thread",
+  method: "get",
+  summary: "List thread replies",
+  description:
+    "Returns paginated replies under a thread root, using cursor pagination.",
+  tags: ["Channels"],
+  middleware: [workspaceAuthMiddleware] as const,
+  request: {
+    params: messageIdParamsSchema,
+    query: listMessagesQuerySchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: listMessagesResponseSchema,
+      description: "Paginated thread replies",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export type ListChannelsRoute = typeof listChannels
 export type CreateChannelRoute = typeof createChannel
 export type ReorderChannelsRoute = typeof reorderChannels
@@ -248,3 +272,4 @@ export type DeleteChannelRoute = typeof deleteChannel
 export type ListChannelMessagesRoute = typeof listChannelMessages
 export type ToggleMessagePinRoute = typeof toggleMessagePin
 export type ListPinnedMessagesRoute = typeof listPinnedMessages
+export type ListThreadRepliesRoute = typeof listThreadReplies

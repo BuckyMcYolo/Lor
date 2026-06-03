@@ -1,9 +1,10 @@
-import { and, count, db, eq, schema } from "@repo/db"
+import { and, count, db, desc, eq, max, schema } from "@repo/db"
 import type {
   DeleteMessagePayload,
   EditMessagePayload,
   RealtimeMessage,
   RealtimeMessageReactionUpdated,
+  RealtimeMessageThreadUpdated,
   SendMessagePayload,
   ToggleMessageReactionPayload,
 } from "@repo/realtime-types"
@@ -58,6 +59,7 @@ export async function createMessage(input: CreateMessageInput) {
   const channelRecord = input.accessibleChannel
 
   let hasReply = !!input.payload.referencedMessageId
+  const threadRootId: string | null = input.payload.threadRootId ?? null
 
   const messageWithAuthor = await db.transaction(async (tx) => {
     // Verify the referenced message exists in the same channel
@@ -79,6 +81,29 @@ export async function createMessage(input: CreateMessageInput) {
       }
     }
 
+    // Verify the thread root exists, is in this channel, and is itself a
+    // channel-level message (threads are flat — replies can't host nested threads).
+    if (threadRootId) {
+      const root = await tx
+        .select({
+          id: schema.message.id,
+          threadRootId: schema.message.threadRootId,
+        })
+        .from(schema.message)
+        .where(
+          and(
+            eq(schema.message.id, threadRootId),
+            eq(schema.message.channelId, input.payload.channelId)
+          )
+        )
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (!root || root.threadRootId !== null) {
+        throw new Error("Invalid thread root")
+      }
+    }
+
     const insertedMessage = await tx
       .insert(schema.message)
       .values({
@@ -89,6 +114,7 @@ export async function createMessage(input: CreateMessageInput) {
         referencedMessageId: hasReply
           ? (input.payload.referencedMessageId ?? null)
           : null,
+        threadRootId,
         attachments: input.payload.attachments ?? [],
       })
       .returning({
@@ -183,6 +209,7 @@ export async function createMessage(input: CreateMessageInput) {
     attachments: input.payload.attachments ?? [],
     embeds: [],
     referencedMessage,
+    threadRootId,
   }
 
   if (input.payload.nonce) {
@@ -193,6 +220,57 @@ export async function createMessage(input: CreateMessageInput) {
     message: createdMessage,
     channel: channelRecord,
   } satisfies CreateMessageResult
+}
+
+export async function loadThreadSummary(
+  channelId: string,
+  threadRootId: string
+): Promise<RealtimeMessageThreadUpdated | null> {
+  const summary = await db
+    .select({
+      replyCount: count(),
+      lastReplyAt: max(schema.message.createdAt),
+    })
+    .from(schema.message)
+    .where(eq(schema.message.threadRootId, threadRootId))
+    .then((rows) => rows[0])
+
+  if (!summary || !summary.lastReplyAt) return null
+
+  const recentReplies = await db
+    .select({
+      authorId: schema.message.authorId,
+      userName: schema.user.name,
+      userDisplayUsername: schema.user.displayUsername,
+      userImage: schema.user.image,
+    })
+    .from(schema.message)
+    .innerJoin(schema.user, eq(schema.message.authorId, schema.user.id))
+    .where(eq(schema.message.threadRootId, threadRootId))
+    .orderBy(desc(schema.message.createdAt))
+    .limit(20)
+
+  const seen = new Set<string>()
+  const participants: RealtimeMessageThreadUpdated["participants"] = []
+  for (const row of recentReplies) {
+    if (seen.has(row.authorId)) continue
+    seen.add(row.authorId)
+    participants.push({
+      id: row.authorId,
+      name: row.userName,
+      displayUsername: row.userDisplayUsername,
+      image: row.userImage,
+    })
+    if (participants.length >= 3) break
+  }
+
+  return {
+    channelId,
+    threadRootId,
+    replyCount: Number(summary.replyCount),
+    lastReplyAt: summary.lastReplyAt.toISOString(),
+    participants,
+  }
 }
 
 export async function deleteMessage(

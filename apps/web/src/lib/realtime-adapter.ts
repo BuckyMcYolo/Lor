@@ -21,6 +21,8 @@ export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
     editedAt: rm.editedAt ?? null,
     mentions: rm.mentions,
     reactions: rm.reactions,
+    threadRootId: rm.threadRootId ?? null,
+    threadSummary: null,
   }
 }
 
@@ -188,5 +190,7 @@ export function createOptimisticMessage(
     editedAt: null,
     mentions,
     reactions: [],
+    threadRootId: null,
+    threadSummary: null,
   }
 }

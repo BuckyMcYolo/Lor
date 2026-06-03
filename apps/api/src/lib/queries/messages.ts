@@ -1,7 +1,20 @@
 import { db } from "@repo/db"
 import type { Attachment, Embed } from "@repo/db/schema"
 import { message, messageMention, messageReaction, user } from "@repo/db/schema"
-import { and, asc, desc, eq, gt, inArray, lt, or } from "drizzle-orm"
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  max,
+  or,
+  type SQL,
+} from "drizzle-orm"
 
 type BareMessageRow = {
   id: string
@@ -12,6 +25,7 @@ type BareMessageRow = {
   attachments: Attachment[] | null
   embeds: Embed[] | null
   referencedMessageId: string | null
+  threadRootId: string | null
   editedAt: Date | null
   createdAt: Date
   authorId: string
@@ -33,6 +47,7 @@ const messageSelect = {
   attachments: message.attachments,
   embeds: message.embeds,
   referencedMessageId: message.referencedMessageId,
+  threadRootId: message.threadRootId,
   editedAt: message.editedAt,
   createdAt: message.createdAt,
   authorId: message.authorId,
@@ -53,6 +68,9 @@ type FetchMessagesParams = {
   around?: string
   before?: string
   after?: string
+  // When set, fetches thread replies under this root. Otherwise fetches
+  // channel messages (excluding thread replies).
+  threadRootId?: string
 }
 
 export async function fetchMessages({
@@ -62,8 +80,18 @@ export async function fetchMessages({
   around,
   before,
   after,
+  threadRootId,
 }: FetchMessagesParams) {
   const anchorId = around ?? before ?? after ?? null
+
+  // Scope filter: thread replies under a root, or channel messages
+  // (excluding thread replies).
+  const scopeCondition: SQL | undefined = threadRootId
+    ? and(
+        eq(message.channelId, channelId),
+        eq(message.threadRootId, threadRootId)
+      )
+    : and(eq(message.channelId, channelId), isNull(message.threadRootId))
 
   // Look up the anchor's (createdAt, id) so we can do stable comparisons
   // even when multiple messages share a millisecond timestamp.
@@ -72,7 +100,7 @@ export async function fetchMessages({
     const rows = await db
       .select({ id: message.id, createdAt: message.createdAt })
       .from(message)
-      .where(and(eq(message.id, anchorId), eq(message.channelId, channelId)))
+      .where(and(eq(message.id, anchorId), scopeCondition))
       .limit(1)
     anchor = rows[0] ?? null
 
@@ -106,7 +134,7 @@ export async function fetchMessages({
         .innerJoin(user, eq(message.authorId, user.id))
         .where(
           and(
-            eq(message.channelId, channelId),
+            scopeCondition,
             or(
               lt(message.createdAt, anchor.createdAt),
               and(
@@ -124,7 +152,7 @@ export async function fetchMessages({
         .innerJoin(user, eq(message.authorId, user.id))
         .where(
           and(
-            eq(message.channelId, channelId),
+            scopeCondition,
             or(
               gt(message.createdAt, anchor.createdAt),
               and(
@@ -179,7 +207,7 @@ export async function fetchMessages({
       .innerJoin(user, eq(message.authorId, user.id))
       .where(
         and(
-          eq(message.channelId, channelId),
+          scopeCondition,
           or(
             lt(message.createdAt, anchor.createdAt),
             and(
@@ -203,7 +231,7 @@ export async function fetchMessages({
       .innerJoin(user, eq(message.authorId, user.id))
       .where(
         and(
-          eq(message.channelId, channelId),
+          scopeCondition,
           or(
             gt(message.createdAt, anchor.createdAt),
             and(
@@ -225,7 +253,7 @@ export async function fetchMessages({
       .select(messageSelect)
       .from(message)
       .innerJoin(user, eq(message.authorId, user.id))
-      .where(eq(message.channelId, channelId))
+      .where(scopeCondition)
       .orderBy(desc(message.createdAt), desc(message.id))
       .limit(limit + 1)
 
@@ -236,7 +264,13 @@ export async function fetchMessages({
 
   const messageIds = messages.map((msg) => msg.id)
 
-  const [mentionRows, reactionRows, referencedMessageRows] = await Promise.all([
+  const [
+    mentionRows,
+    reactionRows,
+    referencedMessageRows,
+    threadSummaryRows,
+    threadParticipantRows,
+  ] = await Promise.all([
     messageIds.length > 0
       ? db
           .select({
@@ -287,7 +321,74 @@ export async function fetchMessages({
         .innerJoin(user, eq(message.authorId, user.id))
         .where(inArray(message.id, referencedMessageIds))
     })(),
+    // Thread summaries only when fetching channel messages, not thread replies.
+    threadRootId || messageIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({
+            threadRootId: message.threadRootId,
+            replyCount: count(),
+            lastReplyAt: max(message.createdAt),
+          })
+          .from(message)
+          .where(inArray(message.threadRootId, messageIds))
+          .groupBy(message.threadRootId),
+    threadRootId || messageIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({
+            threadRootId: message.threadRootId,
+            createdAt: message.createdAt,
+            userId: user.id,
+            userName: user.name,
+            userImage: user.image,
+            userDisplayUsername: user.displayUsername,
+          })
+          .from(message)
+          .innerJoin(user, eq(message.authorId, user.id))
+          .where(inArray(message.threadRootId, messageIds))
+          .orderBy(desc(message.createdAt)),
   ])
+
+  type ThreadSummary = {
+    replyCount: number
+    lastReplyAt: string
+    participants: Array<{
+      id: string
+      name: string
+      displayUsername: string | null
+      image: string | null
+    }>
+  }
+  const threadSummaryById = new Map<string, ThreadSummary>()
+  for (const row of threadSummaryRows) {
+    if (!row.threadRootId || !row.lastReplyAt) continue
+    threadSummaryById.set(row.threadRootId, {
+      replyCount: Number(row.replyCount),
+      lastReplyAt: row.lastReplyAt.toISOString(),
+      participants: [],
+    })
+  }
+  // Walk participants newest-first; for each root take the first 3 distinct authors.
+  const seenAuthorsPerRoot = new Map<string, Set<string>>()
+  for (const row of threadParticipantRows) {
+    if (!row.threadRootId) continue
+    const summary = threadSummaryById.get(row.threadRootId)
+    if (!summary || summary.participants.length >= 3) continue
+    let seen = seenAuthorsPerRoot.get(row.threadRootId)
+    if (!seen) {
+      seen = new Set()
+      seenAuthorsPerRoot.set(row.threadRootId, seen)
+    }
+    if (seen.has(row.userId)) continue
+    seen.add(row.userId)
+    summary.participants.push({
+      id: row.userId,
+      name: row.userName,
+      displayUsername: row.userDisplayUsername,
+      image: row.userImage,
+    })
+  }
 
   const referencedMessagesById = new Map(
     referencedMessageRows.map((row) => [
@@ -372,6 +473,7 @@ export async function fetchMessages({
     referencedMessage: msg.referencedMessageId
       ? (referencedMessagesById.get(msg.referencedMessageId) ?? null)
       : null,
+    threadSummary: threadSummaryById.get(msg.id) ?? null,
   }))
 
   const afterCursor = data[0]?.id ?? null

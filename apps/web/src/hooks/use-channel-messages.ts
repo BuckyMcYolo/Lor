@@ -1,3 +1,4 @@
+import type { RealtimeMessageThreadUpdated } from "@repo/realtime-types"
 import {
   type InfiniteData,
   useInfiniteQuery,
@@ -136,6 +137,8 @@ export function useChannelMessages({
       message: Parameters<typeof realtimeMessageToMessage>[0]
     ) => {
       if (message.channelId !== channelId) return
+      // Thread replies belong in the thread cache, not the channel feed.
+      if (message.threadRootId) return
       if (message.nonce && pendingNoncesRef?.current.has(message.nonce)) return
 
       const adapted = realtimeMessageToMessage(message)
@@ -176,6 +179,43 @@ export function useChannelMessages({
       socket.off("message:created", handleMessageCreated)
     }
   }, [socket, channelId, queryClient, pendingNoncesRef])
+
+  // Patch the root's threadSummary in the channel cache when a thread gets
+  // a reply (the reply itself is broadcast to the thread room only).
+  useEffect(() => {
+    if (!socket) return
+    const handleThreadUpdated = (payload: RealtimeMessageThreadUpdated) => {
+      if (payload.channelId !== channelId) return
+      queryClient.setQueryData<InfiniteData<MessagesPage, MessagesPageParam>>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              data: page.data.map((m) =>
+                m.id === payload.threadRootId
+                  ? {
+                      ...m,
+                      threadSummary: {
+                        replyCount: payload.replyCount,
+                        lastReplyAt: payload.lastReplyAt,
+                        participants: payload.participants,
+                      },
+                    }
+                  : m
+              ),
+            })),
+          }
+        }
+      )
+    }
+    socket.on("message:thread:updated", handleThreadUpdated)
+    return () => {
+      socket.off("message:thread:updated", handleThreadUpdated)
+    }
+  }, [socket, channelId, queryClient])
 
   // Route owns navigation; we just clear local state.
   const clearPending = useCallback(() => {

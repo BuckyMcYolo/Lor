@@ -16,9 +16,13 @@ function toDateTime(date: Date | string) {
 
 /**
  * Returns a relative time string (e.g. "2 hours ago", "just now").
+ * Anything within the last minute collapses to "just now" — Luxon's
+ * raw `toRelative()` would say "12 seconds ago" which reads awkwardly.
  */
 export function timeAgo(date: Date | string): string {
   const dt = toDateTime(date)
+  const diffSec = Math.abs(dt.diffNow("seconds").seconds)
+  if (diffSec < 60) return "just now"
   return dt.toRelative() ?? formatDate(date)
 }
 

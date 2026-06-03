@@ -17,6 +17,9 @@ interface MessageListProps {
   blockedUserIds?: Set<string>
   onReact?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
+  onReplyInThread?: (message: Message) => void
+  onOpenThread?: (rootMessageId: string) => void
+  replyingToId?: string | null
   onDelete?: (messageId: string) => void
   onEdit?: (messageId: string, content: string) => void
   onTogglePin?: (messageId: string, currentlyPinned: boolean) => void
@@ -104,6 +107,8 @@ export function MessageList({
   blockedUserIds,
   onReact,
   onReply,
+  onReplyInThread,
+  onOpenThread,
   onDelete,
   onEdit,
   onTogglePin,
@@ -119,6 +124,7 @@ export function MessageList({
   pendingCount = 0,
   onJumpToPresent,
   onJumpToMessage,
+  replyingToId,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const olderSentinelRef = useRef<HTMLDivElement>(null)
@@ -287,6 +293,9 @@ export function MessageList({
                 isBlocked={blockedUserIds?.has(msg.authorId) ?? false}
                 onReact={onReact}
                 onReply={onReply}
+                onReplyInThread={onReplyInThread}
+                onOpenThread={onOpenThread}
+                isReplyTarget={replyingToId === msg.id}
                 onDelete={onDelete}
                 onEdit={onEdit}
                 onTogglePin={onTogglePin}

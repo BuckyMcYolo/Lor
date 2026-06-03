@@ -13,6 +13,7 @@ import { sessionAuthMiddleware } from "@/middleware/session-auth"
 import {
   createDMRequestSchema,
   createDMResponseSchema,
+  dmMessageIdParamsSchema,
   dmParamsSchema,
   getDMResponseSchema,
   listDMMessagesQuerySchema,
@@ -135,7 +136,31 @@ export const searchDMMessages = createRoute({
   },
 })
 
+export const listDMThreadReplies = createRoute({
+  path: "/dms/{dmId}/messages/{messageId}/thread",
+  method: "get",
+  summary: "List DM thread replies",
+  description:
+    "Returns paginated replies under a thread root in a DM, using cursor pagination.",
+  tags: ["DMs"],
+  middleware: [sessionAuthMiddleware] as const,
+  request: {
+    params: dmMessageIdParamsSchema,
+    query: listDMMessagesQuerySchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: listDMMessagesResponseSchema,
+      description: "Paginated thread replies",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export type ListDMsRoute = typeof listDMs
 export type GetDMRoute = typeof getDM
 export type ListDMMessagesRoute = typeof listDMMessages
 export type SearchDMMessagesRoute = typeof searchDMMessages
+export type ListDMThreadRepliesRoute = typeof listDMThreadReplies

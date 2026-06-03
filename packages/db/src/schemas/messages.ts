@@ -43,6 +43,13 @@ export const message = pgTable(
       { onDelete: "set null" }
     ),
 
+    // thread root — when set, this message is a thread reply and does NOT
+    // appear in the channel feed. NULL = channel message (may itself host a thread).
+    threadRootId: uuid("thread_root_id").references(
+      (): AnyPgColumn => message.id,
+      { onDelete: "cascade" }
+    ),
+
     // file attachments as JSON array
     // [{ url, filename, size, contentType, width?, height? }]
     attachments: jsonb("attachments").$type<Attachment[]>().default([]),
@@ -63,6 +70,10 @@ export const message = pgTable(
     ),
     index("message_authorId_idx").on(table.authorId),
     index("message_referencedMessageId_idx").on(table.referencedMessageId),
+    index("message_threadRootId_createdAt_idx").on(
+      table.threadRootId,
+      table.createdAt
+    ),
     index("message_content_trgm_idx").using(
       "gin",
       sql`${table.content} gin_trgm_ops`
@@ -83,6 +94,11 @@ export const messageRelations = relations(message, ({ one }) => ({
     fields: [message.referencedMessageId],
     references: [message.id],
     relationName: "messageReply",
+  }),
+  threadRoot: one(message, {
+    fields: [message.threadRootId],
+    references: [message.id],
+    relationName: "threadReplies",
   }),
 }))
 

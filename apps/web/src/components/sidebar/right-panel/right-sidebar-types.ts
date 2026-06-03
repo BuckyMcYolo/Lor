@@ -8,7 +8,7 @@ export type ThreadSidebarView = {
   type: "thread"
   workspaceSlug: string
   channelId: string
-  threadId: string
+  threadRootId: string
 }
 
 export type AttachmentsSidebarView = {

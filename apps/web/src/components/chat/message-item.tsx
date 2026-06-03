@@ -17,7 +17,8 @@ import {
   TooltipTrigger,
 } from "@repo/ui/components/tooltip"
 import { cn } from "@repo/ui/lib/utils"
-import { formatTime } from "@repo/utils/date"
+import { formatTime, timeAgo } from "@repo/utils/date"
+import { ChevronRight } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { UserProfilePopover } from "@/components/ui/user-profile-card"
 import type { Message } from "@/lib/api-types"
@@ -33,8 +34,11 @@ interface MessageItemProps {
   showHeader: boolean
   currentUserId?: string
   isBlocked?: boolean
+  isReplyTarget?: boolean
   onReact?: (messageId: string, emoji: string) => void
   onReply?: (message: Message) => void
+  onReplyInThread?: (message: Message) => void
+  onOpenThread?: (rootMessageId: string) => void
   onDelete?: (messageId: string) => void
   onEdit?: (messageId: string, content: string) => void
   onTogglePin?: (messageId: string, currentlyPinned: boolean) => void
@@ -95,13 +99,68 @@ function ReplyPreview({
   )
 }
 
+function ThreadFooter({
+  summary,
+  onClick,
+}: {
+  summary: NonNullable<Message["threadSummary"]>
+  onClick: () => void
+}) {
+  const replyLabel =
+    summary.replyCount === 1 ? "1 reply" : `${summary.replyCount} replies`
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group/thread mt-1.5 flex w-full max-w-[480px] items-center gap-2 rounded-lg border border-transparent py-1 pr-2 pl-1 text-[12.5px]",
+        // `bg-sidebar` is the one token below `--background` in the surface
+        // hierarchy — gives a "deeper / pressed-in" hover in both themes.
+        "transition-colors hover:border-border/70 hover:bg-sidebar/50 cursor-pointer"
+      )}
+    >
+      <div className="flex shrink-0 -space-x-1.5">
+        {summary.participants.slice(0, 3).map((p) => (
+          <span
+            key={p.id}
+            className="rounded-md ring-2 ring-background transition-[box-shadow] group-hover/thread:ring-card"
+          >
+            <Avatar
+              size="sm"
+              className="size-[22px] rounded-md [&_[data-slot=avatar-image]]:rounded-md [&_[data-slot=avatar-fallback]]:rounded-md"
+            >
+              {p.image && <AvatarImage src={p.image} alt={p.name} />}
+              <AvatarFallback className="rounded-md text-[10px] font-semibold">
+                {nameInitial(p.displayUsername ?? p.name)}
+              </AvatarFallback>
+            </Avatar>
+          </span>
+        ))}
+      </div>
+      <span className="shrink-0 font-semibold text-primary group-hover/thread:underline">
+        {replyLabel}
+      </span>
+      <span className="truncate text-muted-foreground">
+        Last reply {timeAgo(summary.lastReplyAt)}
+      </span>
+      <ChevronRight
+        className="-mr-0.5 ml-auto size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread:opacity-100"
+        strokeWidth={2.25}
+      />
+    </button>
+  )
+}
+
 export function MessageItem({
   message,
   showHeader,
   currentUserId,
   isBlocked = false,
+  isReplyTarget = false,
   onReact,
   onReply,
+  onReplyInThread,
+  onOpenThread,
   onDelete,
   onEdit,
   onTogglePin,
@@ -141,6 +200,17 @@ export function MessageItem({
   const handleReply = useCallback(() => {
     onReply?.(message)
   }, [message, onReply])
+
+  const handleReplyInThread = useCallback(() => {
+    onReplyInThread?.(message)
+  }, [message, onReplyInThread])
+
+  const handleOpenThread = useCallback(() => {
+    onOpenThread?.(message.id)
+  }, [message.id, onOpenThread])
+
+  // Channel-level messages (not thread replies) can host a thread.
+  const canStartThread = !message.threadRootId && !!onReplyInThread
 
   const handleDeleteRequest = useCallback(() => {
     setIsDeleteDialogOpen(true)
@@ -188,7 +258,12 @@ export function MessageItem({
   return (
     <div
       data-message-id={message.id}
-      className="group relative px-4 py-0.5 hover:bg-muted/40"
+      className={cn(
+        "group relative px-4 py-0.5 transition-colors",
+        isReplyTarget
+          ? "bg-primary/[0.07] before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-primary"
+          : "hover:bg-muted/40"
+      )}
     >
       <div
         className={cn(
@@ -200,6 +275,7 @@ export function MessageItem({
         <MessageActionBar
           onReact={handleReact}
           onReply={handleReply}
+          onReplyInThread={canStartThread ? handleReplyInThread : undefined}
           onCopyText={handleCopyText}
           onEdit={isOwnMessage && onEdit ? handleEditRequest : undefined}
           onDelete={isOwnMessage && onDelete ? handleDeleteRequest : undefined}
@@ -320,6 +396,12 @@ export function MessageItem({
                 )
               })}
             </div>
+          )}
+          {message.threadSummary && message.threadSummary.replyCount > 0 && (
+            <ThreadFooter
+              summary={message.threadSummary}
+              onClick={handleOpenThread}
+            />
           )}
         </div>
       </div>
