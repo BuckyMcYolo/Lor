@@ -186,6 +186,16 @@ export function useChannelMessages({
     if (!socket) return
     const handleThreadUpdated = (payload: RealtimeMessageThreadUpdated) => {
       if (payload.channelId !== channelId) return
+      // `replyCount === 0` means the thread is empty (last reply deleted) —
+      // clear the footer rather than rendering "0 replies".
+      const nextSummary =
+        payload.replyCount === 0 || !payload.lastReplyAt
+          ? null
+          : {
+              replyCount: payload.replyCount,
+              lastReplyAt: payload.lastReplyAt,
+              participants: payload.participants,
+            }
       queryClient.setQueryData<InfiniteData<MessagesPage, MessagesPageParam>>(
         ["messages", channelId],
         (old) => {
@@ -196,14 +206,7 @@ export function useChannelMessages({
               ...page,
               data: page.data.map((m) =>
                 m.id === payload.threadRootId
-                  ? {
-                      ...m,
-                      threadSummary: {
-                        replyCount: payload.replyCount,
-                        lastReplyAt: payload.lastReplyAt,
-                        participants: payload.participants,
-                      },
-                    }
+                  ? { ...m, threadSummary: nextSummary }
                   : m
               ),
             })),

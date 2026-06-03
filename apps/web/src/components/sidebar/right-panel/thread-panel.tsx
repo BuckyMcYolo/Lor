@@ -66,15 +66,17 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
     })
   }
 
-  // Root message is read from the channel cache (the user must've seen it
-  // inline before opening the thread).
-  const rootMessage = useMemo(() => {
-    const cache = queryClient.getQueryData<ChannelMessagesCache>([
-      "messages",
-      view.channelId,
-    ])
-    return findMessageInChannelCache(cache, view.threadRootId)
-  }, [queryClient, view.channelId, view.threadRootId])
+  // Subscribe to the channel cache so the root reflects edits, reactions,
+  // and embed unfurls while the thread panel is open. The channel feed hook
+  // (in the main view) owns the actual fetch — we just read here.
+  const { data: channelCache } = useQuery<ChannelMessagesCache>({
+    queryKey: ["messages", view.channelId],
+    enabled: false,
+  })
+  const rootMessage = useMemo(
+    () => findMessageInChannelCache(channelCache, view.threadRootId),
+    [channelCache, view.threadRootId]
+  )
 
   const fetchThreadPage = useCallback(
     async (params: { before?: string; after?: string; limit: number }) => {
@@ -218,6 +220,17 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
     []
   )
 
+  // When older pages are still unloaded, `orderedReplies.length` is just the
+  // loaded slice — fall back to the root summary's total. Once `hasOlder` is
+  // false the loaded array is the full thread.
+  const summaryTotal = rootMessage?.threadSummary?.replyCount
+  const dividerCount = hasOlder ? summaryTotal : orderedReplies.length
+  const showDivider =
+    !isLoading &&
+    orderedReplies.length > 0 &&
+    dividerCount !== undefined &&
+    dividerCount > 0
+
   return (
     <div className="relative flex h-full w-full flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 px-4">
@@ -286,11 +299,10 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
           </motion.div>
         )}
 
-        {!isLoading && orderedReplies.length > 0 && (
+        {showDivider && (
           <div className="flex items-center gap-3 px-4 pt-3 pb-1 text-[12px] text-muted-foreground">
             <span className="font-medium">
-              {orderedReplies.length}{" "}
-              {orderedReplies.length === 1 ? "reply" : "replies"}
+              {dividerCount} {dividerCount === 1 ? "reply" : "replies"}
             </span>
             <div className="h-px flex-1 bg-border/60" />
           </div>

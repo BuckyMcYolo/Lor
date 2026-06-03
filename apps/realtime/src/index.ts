@@ -449,12 +449,10 @@ io.on("connection", (socket) => {
           parsed.channelId,
           messageWithMentions.threadRootId
         )
-        if (summary) {
-          io.to(channelRoom(parsed.channelId)).emit(
-            "message:thread:updated",
-            summary
-          )
-        }
+        io.to(channelRoom(parsed.channelId)).emit(
+          "message:thread:updated",
+          summary
+        )
       } else {
         socket
           .to(channelRoom(parsed.channelId))
@@ -518,7 +516,8 @@ io.on("connection", (socket) => {
 
       if (result.threadRootId) {
         // Thread reply: broadcast to thread room and refresh the channel's
-        // footer summary so the "N replies" count ticks down.
+        // footer summary so the "N replies" count ticks down (or clears
+        // entirely if this was the last reply).
         socket
           .to(threadRoom(result.threadRootId))
           .emit("message:deleted", deletedPayload)
@@ -526,12 +525,10 @@ io.on("connection", (socket) => {
           parsed.channelId,
           result.threadRootId
         )
-        if (summary) {
-          io.to(channelRoom(parsed.channelId)).emit(
-            "message:thread:updated",
-            summary
-          )
-        }
+        io.to(channelRoom(parsed.channelId)).emit(
+          "message:thread:updated",
+          summary
+        )
       } else {
         socket
           .to(channelRoom(parsed.channelId))

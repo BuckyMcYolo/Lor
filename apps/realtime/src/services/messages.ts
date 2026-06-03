@@ -241,7 +241,7 @@ export async function createMessage(input: CreateMessageInput) {
 export async function loadThreadSummary(
   channelId: string,
   threadRootId: string
-): Promise<RealtimeMessageThreadUpdated | null> {
+): Promise<RealtimeMessageThreadUpdated> {
   const summary = await db
     .select({
       replyCount: count(),
@@ -251,7 +251,17 @@ export async function loadThreadSummary(
     .where(eq(schema.message.threadRootId, threadRootId))
     .then((rows) => rows[0])
 
-  if (!summary || !summary.lastReplyAt) return null
+  // Empty thread (last reply deleted): return an explicit cleared shape so
+  // the channel-feed footer can drop its stale threadSummary.
+  if (!summary || !summary.lastReplyAt) {
+    return {
+      channelId,
+      threadRootId,
+      replyCount: 0,
+      lastReplyAt: null,
+      participants: [],
+    }
+  }
 
   const recentReplies = await db
     .select({

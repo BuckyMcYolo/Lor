@@ -175,12 +175,13 @@ export type RealtimeMessageReactionUpdated = {
 
 // Lightweight update for the channel-feed footer when a thread gets a reply.
 // Carries enough for the receiver to refresh the root's threadSummary without
-// re-fetching the channel feed.
+// re-fetching the channel feed. `replyCount: 0` + `lastReplyAt: null` signals
+// the thread is now empty (last reply deleted) so the footer can be cleared.
 export type RealtimeMessageThreadUpdated = {
   channelId: string
   threadRootId: string
   replyCount: number
-  lastReplyAt: string
+  lastReplyAt: string | null
   participants: Array<{
     id: string
     name: string
