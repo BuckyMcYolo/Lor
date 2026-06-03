@@ -3,9 +3,6 @@ import type { Attachment, Embed } from "@repo/db/schema"
 import { message, messageMention, messageReaction, user } from "@repo/db/schema"
 import { and, asc, desc, eq, gt, inArray, lt, or } from "drizzle-orm"
 
-// Newest-first ordering for the response array — same as the previous
-// page-based API, so the frontend's `flex-col-reverse` list keeps working.
-
 type BareMessageRow = {
   id: string
   channelId: string
@@ -97,9 +94,11 @@ export async function fetchMessages({
   let reachedNewest = false
 
   if (around && anchor) {
-    const halfBefore = Math.floor((limit - 1) / 2)
-    const halfAfter = Math.ceil((limit - 1) / 2)
+    const slots = limit - 1 // exclude the anchor itself
+    const halfBefore = Math.floor(slots / 2)
+    const halfAfter = Math.ceil(slots / 2)
 
+    // Fetch limit+1 each side so a half running short can borrow slots.
     const [olderRows, newerRows, anchorRow] = await Promise.all([
       db
         .select(messageSelect)
@@ -118,7 +117,7 @@ export async function fetchMessages({
           )
         )
         .orderBy(desc(message.createdAt), desc(message.id))
-        .limit(halfBefore + 1),
+        .limit(limit + 1),
       db
         .select(messageSelect)
         .from(message)
@@ -136,7 +135,7 @@ export async function fetchMessages({
           )
         )
         .orderBy(asc(message.createdAt), asc(message.id))
-        .limit(halfAfter + 1),
+        .limit(limit + 1),
       db
         .select(messageSelect)
         .from(message)
@@ -145,14 +144,33 @@ export async function fetchMessages({
         .limit(1),
     ])
 
-    reachedOldest = olderRows.length <= halfBefore
-    reachedNewest = newerRows.length <= halfAfter
+    // Donate unused slots from a short half to the other side.
+    let useNewer = Math.min(halfAfter, newerRows.length)
+    let useOlder = Math.min(halfBefore, olderRows.length)
+    if (useNewer < halfAfter) {
+      const surplus = halfAfter - useNewer
+      useOlder = Math.min(
+        useOlder + surplus,
+        olderRows.length,
+        slots - useNewer
+      )
+    } else if (useOlder < halfBefore) {
+      const surplus = halfBefore - useOlder
+      useNewer = Math.min(
+        useNewer + surplus,
+        newerRows.length,
+        slots - useOlder
+      )
+    }
+
+    reachedOldest = olderRows.length <= useOlder
+    reachedNewest = newerRows.length <= useNewer
 
     // Newest-first: [newest...anchor...oldest]
     messages = [
-      ...newerRows.slice(0, halfAfter).reverse(),
+      ...newerRows.slice(0, useNewer).reverse(),
       ...anchorRow,
-      ...olderRows.slice(0, halfBefore),
+      ...olderRows.slice(0, useOlder),
     ]
   } else if (before && anchor) {
     const rows = await db
@@ -356,9 +374,6 @@ export async function fetchMessages({
       : null,
   }))
 
-  // Cursors point at the boundary rows of the returned page (newest-first array):
-  //   afterCursor  = newest message id  → use as `?after=` to fetch newer
-  //   beforeCursor = oldest message id  → use as `?before=` to fetch older
   const afterCursor = data[0]?.id ?? null
   const beforeCursor = data[data.length - 1]?.id ?? null
 

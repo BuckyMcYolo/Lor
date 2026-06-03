@@ -50,12 +50,26 @@ export const messageWithAuthorSchema = selectMessageSchema.extend({
 
 // Cursor-based query: `around`, `before`, `after` are mutually exclusive
 // message ids. With none, the latest page is returned.
-export const listMessagesQuerySchema = z.object({
-  around: z.string().uuid().optional(),
-  before: z.string().uuid().optional(),
-  after: z.string().uuid().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-})
+export const listMessagesQuerySchema = z
+  .object({
+    around: z.string().uuid().optional(),
+    before: z.string().uuid().optional(),
+    after: z.string().uuid().optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .superRefine((value, ctx) => {
+    const cursors = [value.around, value.before, value.after].filter(
+      (v) => v !== undefined
+    )
+    if (cursors.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "`around`, `before`, and `after` are mutually exclusive — provide at most one",
+        path: ["around"],
+      })
+    }
+  })
 
 export const listMessagesResponseSchema = z.object({
   data: z.array(messageWithAuthorSchema),

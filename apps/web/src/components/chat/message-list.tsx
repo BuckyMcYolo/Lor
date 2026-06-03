@@ -323,39 +323,12 @@ export function MessageList({
   )
 }
 
-// Hold the highlight long enough for the user's eyes to catch up to the
-// scroll, then fade it out gently.
 const HIGHLIGHT_HOLD_MS = 3500
 const HIGHLIGHT_FADE_MS = 1200
-// Wait this long after the initial smooth scroll before we start observing
-// for re-anchor — long enough that the smooth animation has finished, short
-// enough that we still catch the first wave of image/embed loads.
 const REANCHOR_START_DELAY_MS = 350
-// Stop observing after this long. Covers slow networks (image fetches over
-// 4G, embed renderers, lazy-loaded code blocks). Longer than this and we'd
-// risk fighting eventual user scrolls.
 const REANCHOR_WINDOW_MS = 6000
 
-/**
- * Scrolls a message into view and keeps it centered against late layout
- * shifts (image loads, embed mounts, code-block highlighters, font swap).
- *
- * Strategy:
- *   1. Initial smooth scroll places the target at the viewport center.
- *   2. After the smooth animation settles, we attach a ResizeObserver to
- *      every visible message. Whenever any message changes size — image
- *      resolved, embed thumbnail rendered, etc. — we re-center the target
- *      in the SAME frame (no `behavior: smooth`), so the user sees the
- *      content "settle" around a stable target rather than the target
- *      drifting offscreen and then snapping back.
- *   3. A MutationObserver watches for new messages added to the DOM (via
- *      bidirectional fetchOlder / fetchNewer) and observes those too.
- *   4. All re-centers are coalesced through requestAnimationFrame so a
- *      burst of size changes in one frame produces at most one scroll.
- *   5. Any user input (wheel / touchmove / keydown) cancels the whole
- *      thing — they're in control once they engage.
- *   6. After REANCHOR_WINDOW_MS the observers tear down on their own.
- */
+/** Scrolls a message into view and keeps it centered against late layout shifts. */
 export function scrollToMessage(messageId: string): boolean {
   const el = document.querySelector(
     `[data-message-id="${messageId}"]`
@@ -378,12 +351,9 @@ export function scrollToMessage(messageId: string): boolean {
     )
   }
 
-  // Initial smooth scroll for visual feedback.
   scrollContainer.scrollBy({ top: computeOffset(), behavior: "smooth" })
 
-  // Defer observer setup so the smooth scroll completes first. Without this,
-  // ResizeObserver's initial-observation fire would trigger a recenter mid-
-  // animation, which feels like a yank.
+  // Defer observer setup until smooth scroll finishes (avoids mid-animation yanks).
   const startObserverTimer = window.setTimeout(() => {
     let cancelled = false
     let rafScheduled = false
@@ -395,8 +365,7 @@ export function scrollToMessage(messageId: string): boolean {
       scrollContainer.scrollBy({ top: offset, behavior: "auto" })
     }
 
-    // Coalesce a burst of observer fires (multiple images resolving at once,
-    // for example) into a single recenter per frame.
+    // Coalesce bursts of observer fires into one recenter per frame.
     const scheduleRecenter = () => {
       if (cancelled || rafScheduled) return
       rafScheduled = true
@@ -416,9 +385,7 @@ export function scrollToMessage(messageId: string): boolean {
     }
     observeAll()
 
-    // Catch new messages added later (fetchOlder/fetchNewer prepending pages)
-    // and observe them too. Without this we'd miss shifts originating from
-    // freshly-loaded pages above/below.
+    // Observe messages added later (fetchOlder/fetchNewer pages).
     const mutationObserver = new MutationObserver((mutations) => {
       let needsRecenter = false
       for (const mut of mutations) {
@@ -455,8 +422,7 @@ export function scrollToMessage(messageId: string): boolean {
 
     const onUserInput = () => cleanup()
     const onKeyDown = (e: KeyboardEvent) => {
-      // Only treat scroll-causing keys as user-input. Typing in another
-      // surface (composer, search) shouldn't tear down the anchor.
+      // Only bail on scroll-causing keys (typing elsewhere shouldn't tear down).
       if (
         e.key === "ArrowUp" ||
         e.key === "ArrowDown" ||
@@ -492,9 +458,6 @@ export function scrollToMessage(messageId: string): boolean {
     HIGHLIGHT_HOLD_MS + HIGHLIGHT_FADE_MS + 100
   )
 
-  // Returned to allow callers (currently none) to early-cancel. Kept as a
-  // side-effect: the timeouts above still run and will guard against
-  // mutating an unmounted element via the cancelled flag inside.
   void startObserverTimer
   return true
 }

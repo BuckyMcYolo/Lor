@@ -15,8 +15,7 @@ import type { Message } from "@/lib/api-types"
 import { realtimeMessageToMessage } from "@/lib/realtime-adapter"
 import type { AppSocket } from "@/lib/socket"
 
-// Mutually-exclusive cursor params passed to the API as `?around=`, `?before=`,
-// or `?after=`. A null pageParam means "latest" — no cursor.
+// Mutually exclusive; null = latest.
 export type MessagesPageParam =
   | { around: string }
   | { before: string }
@@ -40,21 +39,12 @@ type FetchPageParams = {
 
 interface UseChannelMessagesOptions {
   channelId: string
-  /**
-   * Optional anchor message id from the URL. When set, the initial fetch uses
-   * `?around=<anchor>` and the user enters "anchored mode" — they're looking
-   * at older context, not the live tail. Clearing this (e.g. via Jump-to-
-   * present) drops the cache and refetches the latest page.
-   */
+  /** Anchor message id; when set, initial fetch uses `?around=<id>`. */
   anchor: string | null | undefined
   fetchPage: (params: FetchPageParams) => Promise<MessagesPage>
   enabled?: boolean
   socket: AppSocket | null
-  /**
-   * Set of nonces created by the local client for optimistic sends. Messages
-   * carrying one of these are reconciled by `useMessageSending`, so this hook
-   * skips them to avoid double-handling.
-   */
+  /** Own optimistic-send nonces; reconciled by useMessageSending, skipped here. */
   pendingNoncesRef?: MutableRefObject<Set<string>>
   perPage?: number
 }
@@ -100,8 +90,7 @@ export function useChannelMessages({
     enabled,
   })
 
-  // When the anchor changes, drop the cache so the next fetch picks up the
-  // new `initialPageParam`.
+  // Anchor change → drop cache so the next fetch uses the new initialPageParam.
   const prevAnchorRef = useRef(normalizedAnchor)
   useEffect(() => {
     if (prevAnchorRef.current !== normalizedAnchor) {
@@ -117,9 +106,7 @@ export function useChannelMessages({
     [query.data]
   )
 
-  // "At present" = the newest page in the cache has reached the live tail.
-  // Until the user scrolls back to present (or jumps), live messages from
-  // others are buffered instead of being injected into the visible list.
+  // True iff the newest cached page has reached the live tail.
   const isAtPresent = query.data?.pages[0]?.reachedNewest === true
   const isAtPresentRef = useRef(isAtPresent)
   useEffect(() => {
@@ -128,8 +115,12 @@ export function useChannelMessages({
 
   const [pendingMessages, setPendingMessages] = useState<Message[]>([])
 
-  // When we transition into present, the buffered "N new" counter is no
-  // longer meaningful — the cache itself now reflects the live tail.
+  // Pending buffer is conversation-scoped.
+  useEffect(() => {
+    setPendingMessages([])
+  }, [channelId, normalizedAnchor])
+
+  // Drop buffered "N new" when we re-enter the live tail.
   const wasAtPresentRef = useRef(isAtPresent)
   useEffect(() => {
     if (isAtPresent && !wasAtPresentRef.current) {
@@ -138,8 +129,6 @@ export function useChannelMessages({
     wasAtPresentRef.current = isAtPresent
   }, [isAtPresent])
 
-  // Listen to live `message:created` events. Nonces created by the local
-  // sender are reconciled elsewhere (useMessageSending) so we skip them.
   useEffect(() => {
     if (!socket) return
 
@@ -152,7 +141,6 @@ export function useChannelMessages({
       const adapted = realtimeMessageToMessage(message)
 
       if (isAtPresentRef.current) {
-        // Dedup against cache, then prepend to the first (newest) page.
         queryClient.setQueryData<InfiniteData<MessagesPage, MessagesPageParam>>(
           ["messages", channelId],
           (old) => {
@@ -189,9 +177,7 @@ export function useChannelMessages({
     }
   }, [socket, channelId, queryClient, pendingNoncesRef])
 
-  // Drop the anchor from the URL — but the route owns navigation, so we just
-  // clear local pending state and let the route do the URL bit. The reset
-  // effect above will refetch the latest once `anchor` flips to null.
+  // Route owns navigation; we just clear local state.
   const clearPending = useCallback(() => {
     setPendingMessages([])
   }, [])

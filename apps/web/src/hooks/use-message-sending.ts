@@ -73,10 +73,7 @@ export function useMessageSending({
     [queryClient, channelId]
   )
 
-  // Listen only for own-nonce reconciliation. Live messages from others are
-  // handled by `useChannelMessages`, which decides whether to inject into the
-  // visible page or buffer them as "N new messages" while the user is scrolled
-  // up / viewing an anchored context.
+  // Own-nonce reconciliation only; live messages from others live in useChannelMessages.
   useEffect(() => {
     if (!socket) return
 

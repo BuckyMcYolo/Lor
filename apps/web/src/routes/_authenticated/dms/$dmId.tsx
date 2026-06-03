@@ -100,17 +100,19 @@ function DMConversation() {
     pendingNoncesRef: pendingNonces,
   })
 
-  const didScrollToAnchorRef = useRef(false)
+  // Tracking by id (not a bool) re-triggers on a new msgId while ignoring
+  // re-renders for the same one.
+  const lastScrolledMsgIdRef = useRef<string | null>(null)
   useEffect(() => {
     if (!msgId) {
-      didScrollToAnchorRef.current = false
+      lastScrolledMsgIdRef.current = null
       return
     }
-    if (didScrollToAnchorRef.current) return
+    if (lastScrolledMsgIdRef.current === msgId) return
     if (messagesLoading || !messages.length) return
     const timer = setTimeout(() => {
       if (scrollToMessage(msgId)) {
-        didScrollToAnchorRef.current = true
+        lastScrolledMsgIdRef.current = msgId
       }
     }, 100)
     return () => clearTimeout(timer)

@@ -139,20 +139,19 @@ function ChannelView() {
     pendingNoncesRef: pendingNonces,
   })
 
-  // After the anchored page renders, scroll the requested message into view
-  // and apply the highlight effect. We track that we've scrolled with a ref
-  // so subsequent page fetches (older/newer) don't yank the user back.
-  const didScrollToAnchorRef = useRef(false)
+  // Tracking by id (not a bool) re-triggers on a new msgId while ignoring
+  // re-renders for the same one.
+  const lastScrolledMsgIdRef = useRef<string | null>(null)
   useEffect(() => {
     if (!msgId) {
-      didScrollToAnchorRef.current = false
+      lastScrolledMsgIdRef.current = null
       return
     }
-    if (didScrollToAnchorRef.current) return
+    if (lastScrolledMsgIdRef.current === msgId) return
     if (messagesLoading || !messages.length) return
     const timer = setTimeout(() => {
       if (scrollToMessage(msgId)) {
-        didScrollToAnchorRef.current = true
+        lastScrolledMsgIdRef.current = msgId
       }
     }, 100)
     return () => clearTimeout(timer)
@@ -165,8 +164,6 @@ function ChannelView() {
 
   const handleJumpToMessage = useCallback(
     (messageId: string) => {
-      // Try local scroll first — if the target is already on screen, no
-      // refetch is needed.
       if (scrollToMessage(messageId)) return
       void navigate({ search: { msgId: messageId } })
     },
