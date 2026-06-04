@@ -3,6 +3,7 @@ import type { Schema } from "hono"
 import { requestId } from "hono/request-id"
 import defaultHook from "@/lib/misc/default-hook"
 import type { AppBindings, AppOpenAPI } from "@/lib/types/app-types"
+import { logContextMiddleware } from "@/middleware/log-context"
 import notFound from "@/middleware/not-found"
 import onError from "@/middleware/on-error"
 import { pinoLoggerMiddleware } from "@/middleware/pino-logger"
@@ -17,7 +18,7 @@ export function createRouter() {
 
 export default function createApp() {
   const app = createRouter()
-  app.use(requestId()).use(pinoLoggerMiddleware())
+  app.use(requestId()).use(logContextMiddleware).use(pinoLoggerMiddleware())
   app.use(serveFavicon("⚡"))
   app.notFound(notFound)
   app.onError(onError)

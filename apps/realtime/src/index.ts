@@ -2,6 +2,7 @@ import { createServer } from "node:http"
 import { auth, type Session } from "@repo/auth"
 import { and, db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
+import { enterContext } from "@repo/logger"
 import type {
   ClientToServerEvents,
   InterServerEvents,
@@ -304,6 +305,13 @@ io.on("connection", (socket) => {
   socket.data.initPromise = initializeConnection(socket).then((initialized) => {
     socket.data.initialized = initialized
     return initialized
+  })
+
+  // Attach { socketId, userId } to every log line emitted while handling
+  // an event from this socket.
+  socket.use((_event, next) => {
+    enterContext({ socketId: socket.id, userId: socket.data.user?.id })
+    next()
   })
 
   socket.on("presence:subscribe", async (payload, ack) => {

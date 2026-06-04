@@ -7,9 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 pnpm run build          # Build all packages (turbo)
 pnpm run dev            # Start all dev servers (web on 3000, www on 3001)
+pnpm run validate       # Contributor/CI static gate
 pnpm run check          # Biome lint + format check
 pnpm run check:fix      # Biome auto-fix
 pnpm run check-types    # TypeScript type checking across all packages
+pnpm run test           # Run package test suites
 ```
 
 ## Architecture
@@ -75,5 +77,6 @@ All CSS lives in `packages/ui`. Apps do NOT have their own `globals.css`.
 ./hooks/*        → ./src/hooks/*.ts
 ```
 
-PS. If u add/edit routes in the API, make sure to build the API Client as the frontend relies on this being built to be up to date.
-Otherwise you will receive errors when type checking
+PS. If you add/edit routes in the API, run `pnpm run validate`. The
+type-check task builds upstream dependencies before checking dependents, and
+the generated-file check verifies the web route tree is committed.
