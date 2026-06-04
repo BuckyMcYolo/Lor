@@ -13,37 +13,60 @@ import ogs from "open-graph-scraper"
 import { logger } from "@/lib/logger"
 import { isSafeUrl, matchProxyRule } from "./link-unfurl-url"
 
-const OG_FETCH_TIMEOUT_MS = 5
+const OG_FETCH_TIMEOUT_MS = 5000
+const MAX_REDIRECT_HOPS = 5
+const USER_AGENT = "Lor/1.0 OGBot"
+
+// Manual redirect handling: validate every hop with isSafeUrl before making
+// the next request. Letting fetch/ogs auto-follow lets an attacker chain
+// `safe.com → http://10.0.0.1/admin` past our final-URL check, since the
+// internal request fires before we inspect the result.
+async function fetchHtmlWithSafeRedirects(
+  initialUrl: string
+): Promise<{ finalUrl: string; html: string } | null> {
+  let current = initialUrl
+  for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+    if (!(await isSafeUrl(current))) {
+      logger.warn({ initialUrl, current, hop }, "Redirect hit unsafe URL")
+      return null
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), OG_FETCH_TIMEOUT_MS)
+    try {
+      const res = await fetch(current, {
+        redirect: "manual",
+        signal: controller.signal,
+        headers: { "user-agent": USER_AGENT },
+      })
+
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location")
+        if (!location) return null
+        current = new URL(location, current).toString()
+        continue
+      }
+
+      if (!res.ok) return null
+      const html = await res.text()
+      return { finalUrl: current, html }
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+  logger.warn({ initialUrl }, "Exceeded redirect hop limit")
+  return null
+}
 
 async function fetchOgEmbed(url: string): Promise<Embed | null> {
   const proxy = matchProxyRule(url)
   const fetchUrl = proxy?.fetchUrl ?? url
 
-  if (!(await isSafeUrl(fetchUrl))) {
-    logger.info({ url, fetchUrl }, "Skipped unsafe URL")
-    return null
-  }
-
   try {
-    const { error, result, response } = await ogs({
-      url: fetchUrl,
-      timeout: OG_FETCH_TIMEOUT_MS,
-      fetchOptions: {
-        headers: {
-          "user-agent": "Lor/1.0 OGBot",
-        },
-      },
-    })
+    const fetched = await fetchHtmlWithSafeRedirects(fetchUrl)
+    if (!fetched) return null
 
-    // Validate the final URL after redirects to prevent SSRF via redirect chain
-    const finalUrl = (response as Response | undefined)?.url ?? fetchUrl
-    if (finalUrl !== fetchUrl && !(await isSafeUrl(finalUrl))) {
-      logger.warn(
-        { url, fetchUrl, finalUrl },
-        "Redirected to unsafe URL, discarding result"
-      )
-      return null
-    }
+    const { error, result } = await ogs({ html: fetched.html })
 
     if (error || !result.success) {
       logger.warn({ url, fetchUrl, error }, "OG scrape returned no result")

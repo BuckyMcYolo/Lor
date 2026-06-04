@@ -1,4 +1,5 @@
 import { lookup } from "node:dns/promises"
+import { isIP } from "node:net"
 import { logger } from "@/lib/logger"
 
 const PRIVATE_IP_REGEX =
@@ -10,13 +11,14 @@ export async function isSafeUrl(urlString: string): Promise<boolean> {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
       return false
 
-    const hostname = parsed.hostname
-    if (
-      hostname === "localhost" ||
-      hostname === "[::1]" ||
-      PRIVATE_IP_REGEX.test(hostname)
-    )
-      return false
+    // `parsed.hostname` wraps IPv6 literals in brackets (`[::1]`); strip them
+    // so isIP / regex match the raw address.
+    const hostname = parsed.hostname.replace(/^\[|\]$/g, "")
+    if (hostname === "localhost") return false
+
+    // Only apply the IP regex to actual IP literals. Applied to DNS names it
+    // false-matches public domains starting with `fc`/`fd` (e.g. `fd.io`).
+    if (isIP(hostname) && PRIVATE_IP_REGEX.test(hostname)) return false
 
     const addresses = await lookup(hostname, { all: true })
     for (const { address } of addresses) {

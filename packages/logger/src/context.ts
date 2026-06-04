@@ -25,7 +25,8 @@ export interface LogContext {
 const storage = new AsyncLocalStorage<LogContext>()
 
 export function getAllContext(): LogContext {
-  return storage.getStore() ?? {}
+  const store = storage.getStore()
+  return store ? { ...store } : {}
 }
 
 /** Mutate the current scope's context. No-op if called outside `withContext`. */

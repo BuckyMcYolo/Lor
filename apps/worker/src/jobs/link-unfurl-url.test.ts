@@ -46,6 +46,13 @@ describe("isSafeUrl", () => {
     await expect(isSafeUrl("https://example.com/post")).resolves.toBe(false)
   })
 
+  it("allows public domains starting with fc/fd (not IPv6 ULAs)", async () => {
+    lookupMock.mockResolvedValue([{ address: "104.18.0.1", family: 4 }])
+
+    await expect(isSafeUrl("https://fd.io/news")).resolves.toBe(true)
+    await expect(isSafeUrl("https://fc2.com/")).resolves.toBe(true)
+  })
+
   it("rejects malformed URLs", async () => {
     await expect(isSafeUrl("not a url")).resolves.toBe(false)
   })
