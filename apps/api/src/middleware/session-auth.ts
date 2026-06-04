@@ -1,4 +1,5 @@
 import { auth } from "@repo/auth"
+import { setContext } from "@repo/logger"
 import type { Context, Next } from "hono"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import type { AppBindings } from "@/lib/types/app-types"
@@ -28,6 +29,7 @@ export const sessionAuthMiddleware = async (
 
   c.set("user", session.user)
   c.set("session", session.session)
+  setContext({ userId: session.user.id })
 
   await next()
 }

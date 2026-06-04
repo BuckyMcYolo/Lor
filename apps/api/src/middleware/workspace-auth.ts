@@ -1,6 +1,7 @@
 import { auth } from "@repo/auth"
 import { db } from "@repo/db"
 import { workspace, workspaceMember } from "@repo/db/schema"
+import { setContext } from "@repo/logger"
 import { and, eq } from "drizzle-orm"
 import type { Context, Next } from "hono"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
@@ -69,6 +70,10 @@ export const workspaceAuthMiddleware = async (
   c.set("session", session.session)
   c.set("workspace", workspaceRecord)
   c.set("member", memberRecord)
+  setContext({
+    userId: session.user.id,
+    workspaceId: workspaceRecord.id,
+  })
 
   await next()
 }

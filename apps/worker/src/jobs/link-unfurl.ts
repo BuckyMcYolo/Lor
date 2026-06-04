@@ -1,5 +1,6 @@
 import { db, eq, schema } from "@repo/db"
 import type { Embed } from "@repo/db/schema"
+import { withContext } from "@repo/logger"
 import type {
   LinkUnfurlJobData,
   RealtimeMessageEmbedsUpdated,
@@ -75,49 +76,52 @@ async function fetchOgEmbed(url: string): Promise<Embed | null> {
 export function createLinkUnfurlProcessor(
   emitter: Emitter<ServerToClientEvents>
 ) {
-  return async (job: Job<LinkUnfurlJobData>) => {
-    const { messageId, channelId, urls } = job.data
-    logger.info(
-      { jobId: job.id, messageId, urlCount: urls.length },
-      "Processing link-unfurl job"
+  return (job: Job<LinkUnfurlJobData>) =>
+    withContext(
+      { jobId: job.id, jobName: job.name, channelId: job.data.channelId },
+      async () => {
+        const { messageId, channelId, urls } = job.data
+        logger.info(
+          { messageId, urlCount: urls.length },
+          "Processing link-unfurl job"
+        )
+
+        if (urls.length === 0) return
+
+        const results = await Promise.all(urls.map(fetchOgEmbed))
+        const embeds = results.filter((e): e is Embed => e !== null)
+
+        if (embeds.length === 0) {
+          logger.info(
+            { messageId },
+            "No embeds produced, clearing stored embeds"
+          )
+        }
+
+        const [updated] = await db
+          .update(schema.message)
+          .set({ embeds })
+          .where(eq(schema.message.id, messageId))
+          .returning({ id: schema.message.id })
+
+        if (!updated) {
+          logger.warn({ messageId }, "Message not found for embed update")
+          return
+        }
+
+        const payload: RealtimeMessageEmbedsUpdated = {
+          channelId,
+          messageId,
+          embeds,
+        }
+
+        emitter
+          .to(channelRoom(channelId))
+          .emit("message:embeds:updated", payload)
+        logger.info(
+          { messageId, embedCount: embeds.length },
+          "Embeds updated and emitted"
+        )
+      }
     )
-
-    if (urls.length === 0) return
-
-    const results = await Promise.all(urls.map(fetchOgEmbed))
-    const embeds = results.filter((e): e is Embed => e !== null)
-
-    if (embeds.length === 0) {
-      logger.info(
-        { jobId: job.id, messageId },
-        "No embeds produced, clearing stored embeds"
-      )
-    }
-
-    const [updated] = await db
-      .update(schema.message)
-      .set({ embeds })
-      .where(eq(schema.message.id, messageId))
-      .returning({ id: schema.message.id })
-
-    if (!updated) {
-      logger.warn(
-        { jobId: job.id, messageId },
-        "Message not found for embed update"
-      )
-      return
-    }
-
-    const payload: RealtimeMessageEmbedsUpdated = {
-      channelId,
-      messageId,
-      embeds,
-    }
-
-    emitter.to(channelRoom(channelId)).emit("message:embeds:updated", payload)
-    logger.info(
-      { jobId: job.id, messageId, embedCount: embeds.length },
-      "Embeds updated and emitted"
-    )
-  }
 }
