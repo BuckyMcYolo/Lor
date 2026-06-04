@@ -28,14 +28,5 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Generate & build prerequisites for type-checking
-        run: |
-          pnpm --filter @repo/api build
-          pnpm --filter @repo/api-client build
-          cd apps/web && npx @tanstack/router-cli generate
-
-      - name: Biome lint & format check
-        run: pnpm run check
-
-      - name: TypeScript type check
-        run: pnpm run check-types
+      - name: Validate contributor checks
+        run: pnpm run validate
