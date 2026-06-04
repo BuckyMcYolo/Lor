@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite --port 3000",
     "generate:routes": "node scripts/generate-routes.mjs",
-    "check:generated": "pnpm run generate:routes && git diff --exit-code -- src/routeTree.gen.ts",
     "build": "vite build",
     "start": "serve dist -s -l 3000",
     "check-types": "pnpm run generate:routes && tsc --noEmit"

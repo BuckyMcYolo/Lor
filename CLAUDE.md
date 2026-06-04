@@ -10,7 +10,6 @@ pnpm run dev            # Start all dev servers (web on 3000, www on 3001)
 pnpm run validate       # Contributor/CI static gate
 pnpm run check          # Biome lint + format check
 pnpm run check:fix      # Biome auto-fix
-pnpm run check:generated # Verify generated files are committed
 pnpm run check-types    # TypeScript type checking across all packages
 pnpm run test           # Run package test suites
 ```

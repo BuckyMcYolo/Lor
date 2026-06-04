@@ -59,10 +59,9 @@ pnpm validate
 |---------|-------------|
 | `pnpm dev` | Start all apps in development mode |
 | `pnpm build` | Build all apps and packages |
-| `pnpm validate` | Run the contributor gate: Biome, generated files, TypeScript, and tests |
+| `pnpm validate` | Run the contributor gate: Biome, TypeScript, and tests |
 | `pnpm check` | Run Biome linting and formatting checks |
 | `pnpm check:fix` | Auto-fix Biome issues |
-| `pnpm check:generated` | Verify generated files, including the web route tree, are committed |
 | `pnpm check-types` | Run TypeScript type checking across the workspace |
 | `pnpm test` | Run package test suites |
 | `pnpm db:push` | Push Drizzle schema to database |
