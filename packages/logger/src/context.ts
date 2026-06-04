@@ -39,3 +39,8 @@ export function withContext<T>(context: LogContext, fn: () => T): T {
   const parent = storage.getStore() ?? {}
   return storage.run({ ...parent, ...context }, fn)
 }
+
+/** Set ALS scope for the rest of the current async chain. Use from Socket.IO middleware. */
+export function enterContext(context: LogContext): void {
+  storage.enterWith({ ...context })
+}

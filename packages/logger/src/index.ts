@@ -89,6 +89,7 @@ export function createLogger(name: string): pino.Logger {
 
 export type Logger = pino.Logger
 export {
+  enterContext,
   getAllContext,
   type LogContext,
   setContext,
