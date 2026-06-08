@@ -86,6 +86,10 @@ export function createMerlinRespondProcessor(
         // Register the stream so clients can show a thinking indicator.
         emit("", false)
 
+        // Phase 1 — generation + streaming. A failure here means no complete
+        // answer was streamed, so replacing the client's (partial) text with a
+        // fallback is correct.
+        let text: string
         try {
           const conversation = await loadConversation({
             channelId,
@@ -94,7 +98,7 @@ export function createMerlinRespondProcessor(
           })
 
           let pending = ""
-          const { text } = await respond(conversation, {
+          const result = await respond(conversation, {
             onDelta: (d) => {
               pending += d
               if (pending.length >= FLUSH_THRESHOLD) {
@@ -104,7 +108,25 @@ export function createMerlinRespondProcessor(
             },
           })
           if (pending.length > 0) emit(pending, false)
+          text = result.text
+        } catch (err) {
+          logger.error({ err, merlinMessageId }, "Merlin response failed")
+          const fallback =
+            "⚠️ I ran into an error answering that. Please try again."
+          await db
+            .update(schema.message)
+            .set({ content: fallback })
+            .where(eq(schema.message.id, merlinMessageId))
+            .catch(() => {})
+          emit(fallback, true)
+          return
+        }
 
+        // Phase 2 — persistence + fanout. The reply is already fully streamed
+        // to clients, so a failure here must NOT clobber it with a fallback:
+        // log it, still emit the final signal so clients finalize the streamed
+        // text, and leave the DB row for a later retry to reconcile.
+        try {
           await db
             .update(schema.message)
             .set({ content: text })
@@ -151,15 +173,11 @@ export function createMerlinRespondProcessor(
             "Merlin reply complete"
           )
         } catch (err) {
-          logger.error({ err, merlinMessageId }, "Merlin response failed")
-          const fallback =
-            "⚠️ I ran into an error answering that. Please try again."
-          await db
-            .update(schema.message)
-            .set({ content: fallback })
-            .where(eq(schema.message.id, merlinMessageId))
-            .catch(() => {})
-          emit(fallback, true)
+          logger.error(
+            { err, merlinMessageId },
+            "Merlin reply persistence/fanout failed after streaming"
+          )
+          emit("", true)
         }
       }
     )

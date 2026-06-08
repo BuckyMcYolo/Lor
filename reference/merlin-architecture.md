@@ -223,6 +223,7 @@ Verified against current GitHub REST API rate-limit docs. The headline: **the AP
 - Authenticate as a **GitHub App** (the correct type for multi-tenant; per-installation tokens, not a personal PAT).
 - Installation access token: **5,000 requests/hour minimum, per installation** — i.e. **per customer org**. Each workspace brings its own bucket; one customer's busy hour does not eat another's budget.
 - Scales up: installations with >20 repos get +50 req/hr per repo; >20 users get +50 req/hr per user; ceiling 12,500 req/hr.
+- **GitHub Enterprise Cloud orgs** get a higher fixed base of **15,000 req/hr** per installation (in place of the 5,000-plus-scaling formula above).
 
 ### 8.2 The math says we're fine
 - Initial repo-map crawl: tree (1) + tens of targeted reads < 100 calls, one-time, async. Trivial against 5,000/hr.
@@ -231,13 +232,13 @@ Verified against current GitHub REST API rate-limit docs. The headline: **the AP
 This is why the ephemeral sandbox (§7.4) stays a *later* optimization: the rate-limit fear that would justify it doesn't materialize at v1 usage.
 
 ### 8.3 The two real watch-outs
-1. **Code Search is a separate, much tighter bucket** (the search endpoints are more restrictive — historically ~10–30/min). So the lever to protect is *search frequency*, not file reads. Orientation via the repo map keeps search rare — Merlin usually has an anchor and goes straight to `read`. Keep search the exception.
+1. **Code Search is a separate, much tighter bucket** (the code search endpoint is limited to **9 requests/min** for authenticated requests — vs 30/min for the other search endpoints). So the lever to protect is *search frequency*, not file reads. Orientation via the repo map keeps search rare — Merlin usually has an anchor and goes straight to `read`. Keep search the exception.
 2. **Secondary limits — concurrency.** Max 100 concurrent requests, shared across REST + GraphQL. The ingestion worker must use **bounded concurrency** (a small pool), not a parallel blast of file reads — even when nowhere near the primary limit.
 
 ### 8.4 Required client behavior (build once, never think about it again)
 The GitHub client wrapper must, from day one:
 - **Read rate-limit response headers** off every response: `x-ratelimit-remaining`, `x-ratelimit-reset` (UTC epoch seconds), `x-ratelimit-used`, `x-ratelimit-limit`. Self-throttle when `remaining` gets low; back off until `reset`. Prefer headers over polling the `GET /rate_limit` endpoint (that endpoint doesn't count against the primary limit but the docs advise using headers).
-- **Handle 403/429 with correct backoff:** on primary-limit hit (`remaining` = 0), do not retry until `x-ratelimit-reset`. On secondary-limit hit, honor `retry-after` if present; otherwise wait ≥1 minute then exponential backoff. **Continuing to hammer while rate-limited risks the integration being banned** — this wrapper is not optional.
+- **Handle 403/429 with correct backoff:** on primary-limit hit (`remaining` = 0), do not retry until `x-ratelimit-reset`. On secondary-limit hit, honor `retry-after` if present; otherwise back off according to the documented reset/backoff guidance. **Continuing to hammer while rate-limited risks the integration being banned** — this wrapper is not optional.
 - **Bounded concurrency** to respect the 100-concurrent secondary limit.
 
 ---

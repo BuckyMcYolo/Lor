@@ -407,100 +407,98 @@ export function ChannelList() {
   }
 
   return (
-    <>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={rectIntersection}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <nav className="space-y-3">
-          {/* Uncategorized channels */}
-          {data.uncategorized.length > 0 && (
-            <SortableContext
-              items={data.uncategorized.map((ch) => ch.id)}
-              strategy={verticalListSortingStrategy}
-              disabled={!canManage}
-            >
-              <div>
-                {data.uncategorized.map((ch) => (
-                  <SortableChannelItem
-                    key={ch.id}
-                    channel={ch}
-                    active={activeChannelId === ch.id}
-                    canManage={canManage}
-                    canDelete={canDelete}
-                    onClick={() => {
-                      navigate({
-                        to: "/$workspaceSlug/$channelId",
-                        params: {
-                          workspaceSlug: workspaceSlug as string,
-                          channelId: ch.id,
-                        },
-                      })
-                      closeMobileSidebar(false)
-                    }}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          )}
-
-          {/* Categories with children */}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={rectIntersection}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <nav className="space-y-3">
+        {/* Uncategorized channels */}
+        {data.uncategorized.length > 0 && (
           <SortableContext
-            items={data.categories.map((cat) => cat.id)}
+            items={data.uncategorized.map((ch) => ch.id)}
             strategy={verticalListSortingStrategy}
             disabled={!canManage}
           >
-            {data.categories.map((cat) => (
-              <SortableCategorySection
-                key={cat.id}
-                id={cat.id}
-                name={cat.name ?? ""}
-                channels={cat.channels}
-                draggingCategory={activeItem?.isCategory ?? false}
-                activeChannelId={activeChannelId}
-                canCreate={canCreate}
-                canManage={canManage}
-                canDelete={canDelete}
-                onChannelClick={(channelId) => {
-                  navigate({
-                    to: "/$workspaceSlug/$channelId",
-                    params: {
-                      workspaceSlug: workspaceSlug as string,
-                      channelId,
-                    },
-                  })
-                  closeMobileSidebar(false)
-                }}
-                onCreateChannel={(parentId) => openCreateChannel(parentId)}
-              />
-            ))}
-          </SortableContext>
-        </nav>
-
-        <DragOverlay>
-          {activeItem && (
-            <div className="rounded-lg bg-background shadow-lg">
-              {activeItem.isCategory ? (
-                <div className="flex items-center gap-0.5 px-1 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <ChevronDown className="size-3 shrink-0" />
-                  <span className="truncate">
-                    {activeItem.channel.name ?? ""}
-                  </span>
-                </div>
-              ) : (
-                <ChannelItem
-                  name={activeItem.channel.name ?? ""}
-                  type={activeItem.channel.type}
+            <div>
+              {data.uncategorized.map((ch) => (
+                <SortableChannelItem
+                  key={ch.id}
+                  channel={ch}
+                  active={activeChannelId === ch.id}
+                  canManage={canManage}
+                  canDelete={canDelete}
+                  onClick={() => {
+                    navigate({
+                      to: "/$workspaceSlug/$channelId",
+                      params: {
+                        workspaceSlug: workspaceSlug as string,
+                        channelId: ch.id,
+                      },
+                    })
+                    closeMobileSidebar(false)
+                  }}
                 />
-              )}
+              ))}
             </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-    </>
+          </SortableContext>
+        )}
+
+        {/* Categories with children */}
+        <SortableContext
+          items={data.categories.map((cat) => cat.id)}
+          strategy={verticalListSortingStrategy}
+          disabled={!canManage}
+        >
+          {data.categories.map((cat) => (
+            <SortableCategorySection
+              key={cat.id}
+              id={cat.id}
+              name={cat.name ?? ""}
+              channels={cat.channels}
+              draggingCategory={activeItem?.isCategory ?? false}
+              activeChannelId={activeChannelId}
+              canCreate={canCreate}
+              canManage={canManage}
+              canDelete={canDelete}
+              onChannelClick={(channelId) => {
+                navigate({
+                  to: "/$workspaceSlug/$channelId",
+                  params: {
+                    workspaceSlug: workspaceSlug as string,
+                    channelId,
+                  },
+                })
+                closeMobileSidebar(false)
+              }}
+              onCreateChannel={(parentId) => openCreateChannel(parentId)}
+            />
+          ))}
+        </SortableContext>
+      </nav>
+
+      <DragOverlay>
+        {activeItem && (
+          <div className="rounded-lg bg-background shadow-lg">
+            {activeItem.isCategory ? (
+              <div className="flex items-center gap-0.5 px-1 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <ChevronDown className="size-3 shrink-0" />
+                <span className="truncate">
+                  {activeItem.channel.name ?? ""}
+                </span>
+              </div>
+            ) : (
+              <ChannelItem
+                name={activeItem.channel.name ?? ""}
+                type={activeItem.channel.type}
+              />
+            )}
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   )
 }
 
@@ -707,7 +705,6 @@ function SortableChannelItem({
 
   return (
     <>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit requires a div here */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: dnd-kit handles keyboard interactions */}
       <div
         ref={setNodeRef}

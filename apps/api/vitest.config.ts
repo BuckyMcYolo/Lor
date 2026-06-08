@@ -11,6 +11,7 @@ const TEST_ENV = {
   DATABASE_URL: "postgres://test:test@localhost:5432/test",
   REDIS_URL: "redis://localhost:6379",
   BETTER_AUTH_SECRET: "test-secret-not-real",
+  ANTHROPIC_API_KEY: "test",
   NEXT_PUBLIC_API_URL: "http://localhost:8080",
   S3_ENDPOINT: "http://localhost:9000",
   S3_ACCESS_KEY_ID: "test",

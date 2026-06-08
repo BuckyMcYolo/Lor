@@ -150,6 +150,16 @@
       }
     },
     {
+      "includes": ["packages/ui/**/*.tsx"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noImgElement": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.js", "**/*.mjs", "**/*.cjs"],
       "javascript": {
         "globals": ["exports", "module", "require", "__dirname", "__filename"]

@@ -100,7 +100,6 @@ function InvitePage() {
         onClick={goHome}
         onKeyDown={(e) => e.key === "Escape" && goHome()}
       >
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: stop click propagation to backdrop */}
         <div
           className="flex flex-col items-center gap-4 rounded-xl border border-border bg-card p-8 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
@@ -130,7 +129,6 @@ function InvitePage() {
       onClick={goHome}
       onKeyDown={(e) => e.key === "Escape" && goHome()}
     >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: stop click propagation to backdrop */}
       <div
         className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
