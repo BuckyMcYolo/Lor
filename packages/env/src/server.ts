@@ -33,6 +33,7 @@ const serverSchema = z.object({
   REALTIME_CORS_ORIGIN: z.string().default(DEFAULT_REALTIME_CORS_ORIGIN),
   REDIS_URL: z.string().url(),
   BETTER_AUTH_SECRET: z.string().min(1),
+  ANTHROPIC_API_KEY: z.string().min(1),
   NEXT_PUBLIC_SELF_HOSTED: z
     .preprocess((v) => v === "true" || v === "1", z.boolean())
     .default(false),

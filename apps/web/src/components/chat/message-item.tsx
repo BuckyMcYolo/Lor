@@ -342,6 +342,11 @@ export function MessageItem({
               onCancel={handleEditCancel}
               mentionCandidates={mentionCandidates}
             />
+          ) : message.streaming && !message.content ? (
+            <span className="inline-flex items-center text-sm text-muted-foreground italic">
+              Merlin is thinking
+              <span className="ml-1 animate-pulse">…</span>
+            </span>
           ) : (
             <MessageMarkdown
               content={message.content}

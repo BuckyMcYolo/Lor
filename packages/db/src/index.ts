@@ -8,3 +8,4 @@ export const db = drizzle(client, { schema })
 
 export { schema }
 export * from "drizzle-orm"
+export * from "./constants"

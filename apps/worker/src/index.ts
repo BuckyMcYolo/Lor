@@ -1,10 +1,14 @@
 import { env } from "@repo/env/server"
 import type { ServerToClientEvents } from "@repo/realtime-types/events"
-import { LINK_UNFURL_QUEUE } from "@repo/realtime-types/queues"
+import {
+  LINK_UNFURL_QUEUE,
+  MERLIN_RESPOND_QUEUE,
+} from "@repo/realtime-types/queues"
 import { Emitter } from "@socket.io/redis-emitter"
 import { Worker } from "bullmq"
 import { createClient } from "redis"
 import { createLinkUnfurlProcessor } from "@/jobs/link-unfurl"
+import { createMerlinRespondProcessor } from "@/jobs/merlin-respond"
 import { logger } from "@/lib/logger"
 
 function parseRedisUrl(url: string) {
@@ -56,11 +60,42 @@ async function bootstrap() {
     )
   })
 
-  logger.info({ queue: LINK_UNFURL_QUEUE }, "Worker started")
+  const merlinRespondWorker = new Worker(
+    MERLIN_RESPOND_QUEUE,
+    createMerlinRespondProcessor(emitter),
+    {
+      connection: {
+        ...redisOpts,
+        maxRetriesPerRequest: null,
+      },
+      concurrency: 5,
+    }
+  )
+
+  merlinRespondWorker.on("failed", (job, error) => {
+    logger.error({ jobId: job?.id, err: error }, "Merlin-respond job failed")
+  })
+
+  merlinRespondWorker.on("error", (error) => {
+    logger.error(
+      {
+        queue: MERLIN_RESPOND_QUEUE,
+        workerId: merlinRespondWorker.id,
+        err: error,
+      },
+      "Merlin-respond worker error"
+    )
+  })
+
+  logger.info(
+    { queues: [LINK_UNFURL_QUEUE, MERLIN_RESPOND_QUEUE] },
+    "Worker started"
+  )
 
   const shutdown = async () => {
     logger.info("Shutting down...")
     await linkUnfurlWorker.close()
+    await merlinRespondWorker.close()
     await redisEmitterClient.quit()
     process.exit(0)
   }
