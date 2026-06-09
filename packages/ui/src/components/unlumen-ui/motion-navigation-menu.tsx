@@ -433,7 +433,6 @@ function MotionNavigationMenu({
         {children}
         {gooey && filterId && (
           <>
-            {/* biome-ignore lint/a11y/noSvgWithoutTitle: filter-only SVG, no visible content */}
             <svg
               className="absolute hidden"
               aria-hidden="true"

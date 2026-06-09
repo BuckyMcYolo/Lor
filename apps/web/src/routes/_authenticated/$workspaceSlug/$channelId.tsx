@@ -15,6 +15,7 @@ import { useSocket } from "@/context/socket-context"
 import { useAutoMarkRead } from "@/hooks/use-auto-mark-read"
 import { useChannelMessages } from "@/hooks/use-channel-messages"
 import { useFileUpload } from "@/hooks/use-file-upload"
+import { useMerlinStream } from "@/hooks/use-merlin-stream"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
 import { useMessageEditing } from "@/hooks/use-message-editing"
 import { useMessagePinning } from "@/hooks/use-message-pinning"
@@ -224,6 +225,8 @@ function ChannelView() {
     queryClient,
     channelId,
   })
+
+  useMerlinStream({ socket, queryClient, channelId })
 
   const { data: activeMember } = useQuery({
     queryKey: ["active-workspace-member", workspaceSlug],

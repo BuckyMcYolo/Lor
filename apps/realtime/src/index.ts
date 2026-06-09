@@ -3,6 +3,7 @@ import { auth, type Session } from "@repo/auth"
 import { and, db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import { enterContext } from "@repo/logger"
+import { buildMessageFanout } from "@repo/messaging"
 import type {
   ClientToServerEvents,
   InterServerEvents,
@@ -24,8 +25,14 @@ import {
   workspaceMemberJoinedPayloadSchema,
   workspaceRoom,
 } from "@repo/realtime-types"
-import type { LinkUnfurlJobData } from "@repo/realtime-types/queues"
-import { LINK_UNFURL_QUEUE } from "@repo/realtime-types/queues"
+import type {
+  LinkUnfurlJobData,
+  MerlinRespondJobData,
+} from "@repo/realtime-types/queues"
+import {
+  LINK_UNFURL_QUEUE,
+  MERLIN_RESPOND_QUEUE,
+} from "@repo/realtime-types/queues"
 import { createAdapter } from "@socket.io/redis-adapter"
 import { Queue } from "bullmq"
 import { createClient } from "redis"
@@ -33,6 +40,7 @@ import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
 import { logger } from "@/lib/logger"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
+import { createMerlinPlaceholder, isMerlinMentioned } from "@/services/merlin"
 import {
   createMessage,
   deleteMessage,
@@ -40,7 +48,6 @@ import {
   loadThreadSummary,
   toggleMessageReaction,
 } from "@/services/messages"
-import { buildMessageFanout } from "@/services/notifications"
 import {
   listOnlineUserIds,
   markUserConnected,
@@ -504,6 +511,47 @@ io.on("connection", (socket) => {
             logger.error({ err }, "Failed to enqueue link-unfurl")
           })
       }
+
+      // If Merlin was @mentioned, post an empty placeholder and let the worker
+      // stream the reply into it (mirrors the trigger's thread/channel context).
+      if (isMerlinMentioned(parsed.content)) {
+        const merlinThreadRootId = parsed.threadRootId ?? null
+        void createMerlinPlaceholder({
+          accessibleChannel,
+          channelId: parsed.channelId,
+          threadRootId: merlinThreadRootId,
+        })
+          .then(async (merlinMessage) => {
+            if (merlinMessage.threadRootId) {
+              io.to(threadRoom(merlinMessage.threadRootId)).emit(
+                "message:created",
+                merlinMessage
+              )
+              const summary = await loadThreadSummary(
+                parsed.channelId,
+                merlinMessage.threadRootId
+              )
+              io.to(channelRoom(parsed.channelId)).emit(
+                "message:thread:updated",
+                summary
+              )
+            } else {
+              io.to(channelRoom(parsed.channelId)).emit(
+                "message:created",
+                merlinMessage
+              )
+            }
+            await merlinRespondQueue.add("respond", {
+              merlinMessageId: merlinMessage.id,
+              channelId: parsed.channelId,
+              threadRootId: merlinThreadRootId,
+              triggerMessageId: createdMessage.message.id,
+            })
+          })
+          .catch((err) => {
+            logger.error({ err }, "Failed to start Merlin response")
+          })
+      }
     } catch (error) {
       ack?.({ ok: false, error: toErrorMessage(error) })
     }
@@ -727,6 +775,20 @@ const linkUnfurlQueue = new Queue<LinkUnfurlJobData>(LINK_UNFURL_QUEUE, {
     removeOnFail: { age: 86400, count: 5000 },
   },
 })
+
+const merlinRespondQueue = new Queue<MerlinRespondJobData>(
+  MERLIN_RESPOND_QUEUE,
+  {
+    connection: {
+      ...parseRedisUrl(env.REDIS_URL),
+      maxRetriesPerRequest: null,
+    },
+    defaultJobOptions: {
+      removeOnComplete: { age: 3600, count: 1000 },
+      removeOnFail: { age: 86400, count: 5000 },
+    },
+  }
+)
 
 async function bootstrap() {
   await Promise.all([

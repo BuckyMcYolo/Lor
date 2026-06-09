@@ -1,16 +1,29 @@
 import { and, db, eq, inArray, schema } from "@repo/db"
 import type {
   MentionNotification,
-  RealtimeMessage,
   RealtimeMessageMention,
   UnreadNotification,
 } from "@repo/realtime-types"
-import type { AccessibleChannel } from "./channel-access"
+
+// Minimal shapes so this works for both a human message (realtime) and Merlin's
+// completed reply (worker) without depending on app-specific types.
+type FanoutChannel = {
+  id: string
+  workspaceId: string | null
+  name: string | null
+}
+
+type FanoutMessage = {
+  id: string
+  content: string | null
+  author: { name: string }
+  attachments: readonly unknown[]
+}
 
 type MessageFanoutInput = {
   authorId: string
-  channel: AccessibleChannel
-  message: RealtimeMessage
+  channel: FanoutChannel
+  message: FanoutMessage
 }
 
 type UserTargetedPayload<T> = {
@@ -32,7 +45,7 @@ const MARKDOWN_USER_MENTION_REGEX =
 const EVERYONE_MENTION_REGEX = /(^|\s)@everyone\b/i
 const mentionNotificationTypes = ["direct_mention", "everyone_mention"] as const
 
-function extractDirectMentionUserIds(content: string) {
+export function extractDirectMentionUserIds(content: string) {
   const userIds = new Set<string>()
 
   for (const match of content.matchAll(USER_MENTION_REGEX)) {
@@ -52,7 +65,7 @@ function extractDirectMentionUserIds(content: string) {
   return userIds
 }
 
-async function listRecipientUserIds(channel: AccessibleChannel) {
+async function listRecipientUserIds(channel: FanoutChannel) {
   if (channel.workspaceId) {
     return db
       .select({
@@ -73,7 +86,7 @@ async function listRecipientUserIds(channel: AccessibleChannel) {
 }
 
 function buildMentionTargets(args: {
-  channel: AccessibleChannel
+  channel: FanoutChannel
   recipients: string[]
   messageContent: string
 }) {

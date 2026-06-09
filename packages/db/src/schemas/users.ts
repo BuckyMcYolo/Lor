@@ -35,6 +35,8 @@ export const user = pgTable("user", {
   onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
   bio: varchar("bio", { length: 255 }),
   status: varchar("status", { length: 128 }),
+  // bot users (Merlin) — bypass membership checks, author messages like a user
+  isBot: boolean("is_bot").default(false).notNull(),
 })
 
 export const userRelations = relations(user, ({ many }) => ({

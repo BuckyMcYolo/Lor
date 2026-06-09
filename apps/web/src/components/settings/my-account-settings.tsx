@@ -277,7 +277,6 @@ export function MyAccountSettings() {
 
   return (
     <div className="space-y-6">
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: drop zone for avatar upload */}
       <div
         className={cn(
           "flex items-center gap-4 rounded-lg border-2 border-dashed p-4 transition-colors",

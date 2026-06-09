@@ -25,7 +25,11 @@ export type ListMessagesResponse = InferResponseType<
   MessagesClient["$get"],
   200
 >
-export type Message = ListMessagesResponse["data"][number]
+// `streaming` is a client-only transient flag, set while Merlin streams its
+// reply into this message. Never present on server payloads.
+export type Message = ListMessagesResponse["data"][number] & {
+  streaming?: boolean
+}
 export type MessageAuthor = Message["author"]
 
 // ── DMs ──────────────────────────────────────────

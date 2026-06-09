@@ -220,7 +220,6 @@ export function WorkspaceSettingsDialog({
         </DialogHeader>
 
         <div className="space-y-6 pt-2">
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: drop zone for icon upload */}
           <div
             className={cn(
               "flex flex-col items-center gap-4 rounded-lg border-2 border-dashed p-6 transition-colors",

@@ -354,7 +354,7 @@ function getCodeBlockLanguageValue(language: unknown) {
   return DEFAULT_CODE_BLOCK_LANGUAGE
 }
 
-function getActiveCodeBlockRect(editor: {
+function _getActiveCodeBlockRect(editor: {
   state: {
     doc: {
       nodeAt: (pos: number) => { attrs?: { language?: unknown } } | null
@@ -671,7 +671,7 @@ export function MessageInput({
   const _isCodeBlockActive = markState?.isCodeBlockActive ?? false
   const codeBlockPos = markState?.codeBlockPos ?? null
   const isCodeActive = markState?.isCodeActive ?? false
-  const codeBlockLanguage =
+  const _codeBlockLanguage =
     markState?.codeBlockLanguage ?? DEFAULT_CODE_BLOCK_LANGUAGE
   const isItalicActive = markState?.isItalicActive ?? false
   const isStrikeActive = markState?.isStrikeActive ?? false
@@ -684,7 +684,7 @@ export function MessageInput({
         "border-primary/30 bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary"
     )
 
-  const handleCodeBlockLanguageChange = useCallback(
+  const _handleCodeBlockLanguageChange = useCallback(
     (language: string) => {
       if (!editor || codeBlockPos === null) return
 
@@ -764,7 +764,6 @@ export function MessageInput({
           </button>
         </div>
       )}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: paste zone, not an interactive control */}
       <div
         className={cn(
           "border border-input bg-muted/40",

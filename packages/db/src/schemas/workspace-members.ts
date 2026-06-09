@@ -15,6 +15,7 @@ export const workspaceMember = pgTable(
   "workspace_member",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspace.id, { onDelete: "cascade" }),
@@ -22,7 +23,6 @@ export const workspaceMember = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),
-    createdAt: timestamp("created_at").notNull(),
   },
   (table) => [
     index("workspaceMember_workspaceId_idx").on(table.workspaceId),

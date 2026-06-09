@@ -1,5 +1,5 @@
 import { redisStorage } from "@better-auth/redis-storage"
-import { db, eq, schema } from "@repo/db"
+import { db, eq, MERLIN_USER_ID, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { betterAuth } from "better-auth/minimal"
@@ -78,6 +78,15 @@ async function seedDefaultWorkspaceChannels(workspaceId: string) {
         await tx.insert(schema.channel).values(childRows)
       }
     }
+  })
+}
+
+// Merlin is a member of every workspace so it's mentionable and receives fanout.
+async function addMerlinToWorkspace(workspaceId: string) {
+  await db.insert(schema.workspaceMember).values({
+    workspaceId,
+    userId: MERLIN_USER_ID,
+    role: "member",
   })
 }
 
@@ -262,6 +271,15 @@ export const auth = betterAuth({
               "Failed to seed default channels for workspace"
             )
             return
+          }
+
+          try {
+            await addMerlinToWorkspace(organization.id)
+          } catch (error) {
+            logger.error(
+              { err: error, workspaceId: organization.id },
+              "Failed to add Merlin to workspace"
+            )
           }
 
           try {

@@ -335,6 +335,14 @@ export interface ServerToClientEvents {
   }) => void
   "message:reaction:updated": (payload: RealtimeMessageReactionUpdated) => void
   "message:embeds:updated": (payload: RealtimeMessageEmbedsUpdated) => void
+  // Merlin streaming its reply into an existing (placeholder) message.
+  // delta = new text chunk; done = final chunk (content now persisted in DB).
+  "message:stream": (payload: {
+    channelId: string
+    messageId: string
+    delta: string
+    done: boolean
+  }) => void
   "message:pin:toggled": (payload: RealtimeMessagePinToggled) => void
   "message:thread:updated": (payload: RealtimeMessageThreadUpdated) => void
   "notification:bootstrap": (payload: NotificationBootstrap) => void
