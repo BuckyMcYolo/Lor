@@ -1,4 +1,4 @@
-import { db } from "@repo/db"
+import { db, MERLIN_USER_ID } from "@repo/db"
 import {
   channel,
   channelMember,
@@ -69,6 +69,17 @@ export const createDM: AppRouteHandler<CreateDMRoute> = async (c) => {
   if (targetUserIds.length === 0) {
     return c.json(
       { success: false, message: "Cannot create a DM with yourself" },
+      HttpStatusCodes.BAD_REQUEST
+    )
+  }
+
+  // Merlin is workspace-scoped — it lives in channels, not user-to-user DMs.
+  if (targetUserIds.includes(MERLIN_USER_ID)) {
+    return c.json(
+      {
+        success: false,
+        message: "You can't DM Merlin — @mention it in a channel instead.",
+      },
       HttpStatusCodes.BAD_REQUEST
     )
   }

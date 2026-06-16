@@ -97,16 +97,38 @@ export function createMerlinRespondProcessor(
             merlinMessageId,
           })
 
+          const channel = await db
+            .select({ workspaceId: schema.channel.workspaceId })
+            .from(schema.channel)
+            .where(eq(schema.channel.id, channelId))
+            .then((r) => r[0])
+
+          // Merlin only answers in workspace channels (it's never in a DM).
+          if (!channel?.workspaceId) {
+            logger.warn(
+              { channelId, merlinMessageId },
+              "Merlin invoked outside a workspace channel; skipping"
+            )
+            emit("", true)
+            return
+          }
+
           let pending = ""
-          const result = await respond(conversation, {
-            onDelta: (d) => {
-              pending += d
-              if (pending.length >= FLUSH_THRESHOLD) {
-                emit(pending, false)
-                pending = ""
-              }
+          const result = await respond(
+            {
+              workspaceId: channel.workspaceId,
+              conversation,
             },
-          })
+            {
+              onDelta: (d) => {
+                pending += d
+                if (pending.length >= FLUSH_THRESHOLD) {
+                  emit(pending, false)
+                  pending = ""
+                }
+              },
+            }
+          )
           if (pending.length > 0) emit(pending, false)
           text = result.text
         } catch (err) {

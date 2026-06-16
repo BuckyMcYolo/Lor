@@ -537,9 +537,15 @@ importers:
       '@ai-sdk/anthropic':
         specifier: ^3.0.81
         version: 3.0.81(zod@4.3.6)
+      '@repo/db':
+        specifier: workspace:^
+        version: link:../db
       ai:
         specifier: ^6.0.197
         version: 6.0.197(zod@4.3.6)
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
