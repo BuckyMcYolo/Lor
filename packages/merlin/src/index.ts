@@ -2,27 +2,30 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { and, asc, db, eq, or, schema, sql } from "@repo/db"
 import { stepCountIs, streamText, tool } from "ai"
 import { z } from "zod"
+import { buildBrainTools } from "./brain"
 
 // Sonnet drives the main loop; Opus is reserved for hard cases later.
 export const MERLIN_MODEL = "claude-sonnet-4-6"
 
 // Cap the tool-use loop. Each step is one model turn (tool calls or final text).
-const MAX_STEPS = 8
+const MAX_STEPS = 12
 const SEARCH_DEFAULT_LIMIT = 8
 const SNIPPET_MAX = 500
 const THREAD_MAX = 100
 
 const SYSTEM_PROMPT = `You are Merlin, the knowledge keeper for this team's Lor workspace. You answer questions about the team's work, decisions, history, and people.
 
-You have tools to search the team's message history:
-- search_messages: keyword search across all channels. Call it (often several times, with different keywords) to find what was actually said.
-- read_thread: read the full thread around a message you found.
+You have two kinds of memory:
+- Your brain: a filesystem of notes you've saved about this workspace. Browse it with ls / tree and read pages with read. Consult it first — it's your distilled knowledge (it may be sparse early on).
+- The team's message history: search it with search_messages (keyword, all channels) and read_thread for full context.
 
 How to answer:
-- For questions about THIS team/workspace, ground your answer in what you find with the tools. Note who said it and roughly when. If your searches turn up nothing relevant, say you don't have it in memory yet — never invent specifics.
-- For general questions (how-to, definitions, quick help), just answer directly; no search needed.
-- Use your tools silently — don't narrate that you're searching. Gather what you need, then give one clear answer.
-- Be concise. Use Markdown. Speak in the first person; never claim to be human.`
+- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. If nothing turns up, say you don't have it in memory yet — never invent specifics.
+- For general questions (how-to, definitions, quick help), just answer directly; no lookup needed.
+
+Writing to your brain: only when someone explicitly asks you to remember, note, or save something. Use write (it creates parent folders automatically), plus mkdir / move / link to organize. Otherwise don't write.
+
+Use your tools silently — don't narrate that you're searching. Gather what you need, then give one clear answer. Be concise. Use Markdown. Speak in the first person; never claim to be human.`
 
 export type ConversationTurn = {
   authorName: string
@@ -107,7 +110,7 @@ async function readThread(messageId: string) {
   }))
 }
 
-function buildTools(workspaceId: string) {
+function buildChatTools(workspaceId: string) {
   return {
     search_messages: tool({
       description:
@@ -167,7 +170,10 @@ export async function respond(
     model: anthropic(MERLIN_MODEL),
     system: SYSTEM_PROMPT,
     prompt: `Recent conversation in this channel:\n\n${transcript}\n\n---\nAnswer the most recent message. Search the team's history with your tools if you need more than the recent messages above.`,
-    tools: buildTools(ctx.workspaceId),
+    tools: {
+      ...buildChatTools(ctx.workspaceId),
+      ...buildBrainTools(ctx.workspaceId),
+    },
     stopWhen: stepCountIs(MAX_STEPS),
   })
 
