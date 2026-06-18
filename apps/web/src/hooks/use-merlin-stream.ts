@@ -4,7 +4,12 @@ import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import type { AppSocket } from "@/lib/socket"
 
 interface MessagePage {
-  data: { id: string; content: string | null; streaming?: boolean }[]
+  data: {
+    id: string
+    content: string | null
+    streaming?: boolean
+    remembered?: { path: string; action: "created" | "updated" }[]
+  }[]
 }
 
 interface UseMerlinStreamOptions {
@@ -52,6 +57,45 @@ export function useMerlinStream({
     socket.on("message:stream", handleStream)
     return () => {
       socket.off("message:stream", handleStream)
+    }
+  }, [socket, channelId, queryClient])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleMemory = (payload: {
+      channelId: string
+      messageId: string
+      path: string
+      action: "created" | "updated"
+    }) => {
+      if (payload.channelId !== channelId) return
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["messages", channelId],
+        (old) => {
+          if (!old) return old
+          return updateMessagesAcrossPages(old, (msgs) =>
+            msgs.map((m) =>
+              m.id === payload.messageId
+                ? {
+                    ...m,
+                    remembered: [
+                      ...(m.remembered ?? []).filter(
+                        (r) => r.path !== payload.path
+                      ),
+                      { path: payload.path, action: payload.action },
+                    ],
+                  }
+                : m
+            )
+          )
+        }
+      )
+    }
+
+    socket.on("merlin:memory", handleMemory)
+    return () => {
+      socket.off("merlin:memory", handleMemory)
     }
   }, [socket, channelId, queryClient])
 }

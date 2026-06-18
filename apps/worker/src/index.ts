@@ -62,7 +62,7 @@ async function bootstrap() {
 
   const merlinRespondWorker = new Worker(
     MERLIN_RESPOND_QUEUE,
-    createMerlinRespondProcessor(emitter),
+    createMerlinRespondProcessor(emitter, redisEmitterClient),
     {
       connection: {
         ...redisOpts,

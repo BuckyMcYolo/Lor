@@ -172,7 +172,9 @@ export async function writePage(
   workspaceId: string,
   path: string,
   body: string
-) {
+): Promise<
+  { error: string } | { path: string; action: "created" | "updated" }
+> {
   const segments = segmentsOf(path)
   if (segments.length === 0) return { error: "cannot write to the root" }
   const leaf = segments[segments.length - 1] as string
@@ -257,7 +259,9 @@ function wrap<T>(fn: () => Promise<T>) {
 
 // Bare filesystem names — models have strong priors for ls/read/write/etc.
 // These operate on Merlin's brain, not the host filesystem (see descriptions).
-export function buildBrainTools(workspaceId: string) {
+// Split read/write so the answer loop gets read-only and write-back gets both.
+
+export function buildBrainReadTools(workspaceId: string) {
   return {
     ls: tool({
       description:
@@ -287,6 +291,14 @@ export function buildBrainTools(workspaceId: string) {
         wrap(() => tree(workspaceId, path, depth ?? TREE_DEFAULT_DEPTH)),
       strict: true,
     }),
+  }
+}
+
+export function buildBrainWriteTools(
+  workspaceId: string,
+  onWrite?: (e: { path: string; action: "created" | "updated" }) => void
+) {
+  return {
     write: tool({
       description:
         "Create or update a brain page at a path (parent folders are created automatically). Overwrites the page body.",
@@ -295,7 +307,13 @@ export function buildBrainTools(workspaceId: string) {
         body: z.string().describe("the page contents (Markdown)"),
       }),
       execute: ({ path, body }) =>
-        wrap(() => writePage(workspaceId, path, body)),
+        wrap(async () => {
+          const result = await writePage(workspaceId, path, body)
+          if (onWrite && "action" in result) {
+            onWrite({ path: result.path, action: result.action })
+          }
+          return result
+        }),
       strict: true,
     }),
     mkdir: tool({

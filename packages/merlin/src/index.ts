@@ -1,11 +1,19 @@
 import { anthropic } from "@ai-sdk/anthropic"
 import { and, asc, db, eq, or, schema, sql } from "@repo/db"
-import { stepCountIs, streamText, tool } from "ai"
+import {
+  generateObject,
+  generateText,
+  type ModelMessage,
+  stepCountIs,
+  streamText,
+  tool,
+} from "ai"
 import { z } from "zod"
-import { buildBrainTools } from "./brain"
+import { buildBrainReadTools, buildBrainWriteTools } from "./brain"
 
-// Sonnet drives the main loop; Opus is reserved for hard cases later.
+// Sonnet drives the main loop; Haiku gates the (cheap) write-back salience check.
 export const MERLIN_MODEL = "claude-sonnet-4-6"
+const MERLIN_GATE_MODEL = "claude-haiku-4-5"
 
 // Cap the tool-use loop. Each step is one model turn (tool calls or final text).
 const MAX_STEPS = 12
@@ -23,9 +31,18 @@ How to answer:
 - For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. If nothing turns up, say you don't have it in memory yet — never invent specifics.
 - For general questions (how-to, definitions, quick help), just answer directly; no lookup needed.
 
-Writing to your brain: only when someone explicitly asks you to remember, note, or save something. Use write (it creates parent folders automatically), plus mkdir / move / link to organize. Otherwise don't write.
-
 Use your tools silently — don't narrate that you're searching. Gather what you need, then give one clear answer. Be concise. Use Markdown. Speak in the first person; never claim to be human.`
+
+const GATE_QUESTION = `Does the exchange above contain durable team knowledge worth saving to long-term memory — a decision, how something works, who owns or is responsible for what, a resolved problem, or a lasting fact? Answer false for small talk, transient status, or general/how-to questions.`
+
+const WRITEBACK_INSTRUCTION = `You've just answered. Now step back and act as the keeper of this workspace's long-term memory.
+
+Looking only at what was just discussed and what you found: is there durable knowledge here worth saving — a decision, how something works, who owns or is responsible for what, a resolved problem, or a convention/fact that will matter weeks from now?
+
+- If yes: first browse your brain (ls / tree / read) to find where it belongs and whether a page on this already exists. Strongly prefer updating or extending an existing page over creating a near-duplicate. Then write the page (write creates parent folders automatically), and use link if it clearly relates to another page. Keep pages tight, factual, and self-contained.
+- If there's nothing durable here — small talk, transient status, or a general question — do nothing.
+
+Decide for yourself. Don't reply to the user; just maintain memory. End with one short line of what you saved, or "nothing to save".`
 
 export type ConversationTurn = {
   authorName: string
@@ -40,6 +57,23 @@ export type RespondContext = {
 
 export type RespondCallbacks = {
   onDelta: (delta: string) => void | Promise<void>
+}
+
+export type RespondResult = {
+  text: string
+  // The answer turn's full message history, for the write-back to continue from.
+  messages: ModelMessage[]
+}
+
+export type WriteBackContext = {
+  workspaceId: string
+  priorMessages: ModelMessage[]
+  // Compact plain-text exchange for the cheap salience gate (no tool blocks).
+  gateText: string
+}
+
+export type WriteBackCallbacks = {
+  onMemoryWritten?: (e: { path: string; action: "created" | "updated" }) => void
 }
 
 async function searchMessages(
@@ -156,23 +190,28 @@ function buildChatTools(workspaceId: string) {
   }
 }
 
-// `onDelta` fires per streamed chunk of the final answer; the full text is
-// returned at the end. Merlin may call its tools across multiple steps first.
+// `onDelta` fires per streamed chunk of the final answer. Read-only: Merlin
+// consults its brain and the message history but does not write here.
 export async function respond(
   ctx: RespondContext,
   { onDelta }: RespondCallbacks
-): Promise<{ text: string }> {
+): Promise<RespondResult> {
   const transcript = ctx.conversation
     .map((t) => `${t.authorName}: ${t.content}`)
     .join("\n")
 
+  const userMessage: ModelMessage = {
+    role: "user",
+    content: `Recent conversation in this channel:\n\n${transcript}\n\n---\nAnswer the most recent message. Search the team's history with your tools if you need more than the recent messages above.`,
+  }
+
   const result = streamText({
     model: anthropic(MERLIN_MODEL),
     system: SYSTEM_PROMPT,
-    prompt: `Recent conversation in this channel:\n\n${transcript}\n\n---\nAnswer the most recent message. Search the team's history with your tools if you need more than the recent messages above.`,
+    messages: [userMessage],
     tools: {
       ...buildChatTools(ctx.workspaceId),
-      ...buildBrainTools(ctx.workspaceId),
+      ...buildBrainReadTools(ctx.workspaceId),
     },
     stopWhen: stepCountIs(MAX_STEPS),
   })
@@ -182,5 +221,38 @@ export async function respond(
     text += delta
     await onDelta(delta)
   }
-  return { text }
+
+  const response = await result.response
+  return { text, messages: [userMessage, ...response.messages] }
+}
+
+// Autonomous: after the answer ships, decide whether the exchange holds durable
+// knowledge and, if so, persist it to the brain. The cheap Haiku gate skips the
+// expensive agent on trivial exchanges. Continues the answer's message history
+// so the write-back already "knows" what was found, then adds the write tools.
+export async function writeBack(
+  ctx: WriteBackContext,
+  { onMemoryWritten }: WriteBackCallbacks
+): Promise<void> {
+  const gate = await generateObject({
+    model: anthropic(MERLIN_GATE_MODEL),
+    schema: z.object({ worthSaving: z.boolean() }),
+    prompt: `${ctx.gateText}\n\n---\n${GATE_QUESTION}`,
+  })
+  if (!gate.object.worthSaving) return
+
+  await generateText({
+    model: anthropic(MERLIN_MODEL),
+    system: SYSTEM_PROMPT,
+    messages: [
+      ...ctx.priorMessages,
+      { role: "user", content: WRITEBACK_INSTRUCTION },
+    ],
+    tools: {
+      ...buildChatTools(ctx.workspaceId),
+      ...buildBrainReadTools(ctx.workspaceId),
+      ...buildBrainWriteTools(ctx.workspaceId, onMemoryWritten),
+    },
+    stopWhen: stepCountIs(MAX_STEPS),
+  })
 }
