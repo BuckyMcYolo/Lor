@@ -21,18 +21,16 @@ import type { Job } from "bullmq"
 import type { createClient } from "redis"
 import { logger } from "@/lib/logger"
 
-// The redis client type, derived from the same createClient the worker
-// entrypoint uses (avoids the RedisClientType generic/duplicate-copy mismatch).
+// Matches the worker's createClient (bare RedisClientType mismatches its generics).
 type RedisClient = ReturnType<typeof createClient>
 
 // Batch streamed tokens so we publish ~every 24 chars, not per chunk.
 const FLUSH_THRESHOLD = 24
 const CONTEXT_LIMIT = 30
-// Per-workspace write-back lock TTL (seconds) — releases if the worker crashes.
+// Write-back lock TTL (s); auto-releases if the worker crashes.
 const WRITEBACK_LOCK_TTL = 120
 
-// Recent messages of the channel (or thread), oldest→newest, with author
-// names — excluding the empty placeholder and content-less system messages.
+// Recent channel/thread messages, oldest→newest; skips the placeholder + empties.
 async function loadConversation(args: {
   channelId: string
   threadRootId: string | null
@@ -94,9 +92,8 @@ export function createMerlinRespondProcessor(
         // Register the stream so clients can show a thinking indicator.
         emit("", false)
 
-        // Phase 1 — generation + streaming. A failure here means no complete
-        // answer was streamed, so replacing the client's (partial) text with a
-        // fallback is correct.
+        // Phase 1 — generate + stream. On failure, replace the partial text
+        // with a fallback.
         let answer: Awaited<ReturnType<typeof respond>>
         let workspaceId: string
         let gateText: string
@@ -155,18 +152,15 @@ export function createMerlinRespondProcessor(
           return
         }
 
-        // Phase 2 — persistence + fanout. The reply is already fully streamed
-        // to clients, so a failure here must NOT clobber it with a fallback:
-        // log it, still emit the final signal so clients finalize the streamed
-        // text, and leave the DB row for a later retry to reconcile.
+        // Phase 2 — persist + fan out. Already streamed, so on failure just log
+        // and emit the final signal (never clobber the shown text).
         try {
           await db
             .update(schema.message)
             .set({ content: answer.text })
             .where(eq(schema.message.id, merlinMessageId))
 
-          // Notify like a normal message now the reply is final: fan out
-          // unread/mention notifications to recipients' user rooms.
+          // Notify like a normal message: fan out unread/mention to recipients.
           const channelRow = await db
             .select({
               id: schema.channel.id,
@@ -213,10 +207,8 @@ export function createMerlinRespondProcessor(
           emit("", true)
         }
 
-        // Phase 3 — autonomous write-back, after the answer is delivered.
-        // A per-workspace lock serializes writes so concurrent mentions can't
-        // race on the brain tree; if another write-back holds it, skip this one
-        // (the knowledge resurfaces on a later mention).
+        // Phase 3 — autonomous write-back. Per-workspace lock serializes brain
+        // writes; skip if another holds it (resurfaces on a later mention).
         const lockKey = `merlin:writeback:${workspaceId}`
         const acquired = await redis
           .set(lockKey, "1", { NX: true, EX: WRITEBACK_LOCK_TTL })

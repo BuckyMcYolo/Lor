@@ -9,8 +9,7 @@ export function isMerlinMentioned(content: string | null | undefined): boolean {
   return extractDirectMentionUserIds(content).has(MERLIN_USER_ID)
 }
 
-// Empty message authored by Merlin that the worker streams its reply into.
-// No fanout here — notifications fire when the stream completes.
+// Empty Merlin placeholder the worker streams into; no fanout (fires on completion).
 export async function createMerlinPlaceholder(args: {
   accessibleChannel: AccessibleChannel
   channelId: string

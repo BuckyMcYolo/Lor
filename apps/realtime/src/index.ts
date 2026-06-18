@@ -512,8 +512,7 @@ io.on("connection", (socket) => {
           })
       }
 
-      // If Merlin was @mentioned, post an empty placeholder and let the worker
-      // stream the reply into it (mirrors the trigger's thread/channel context).
+      // @Merlin mentioned → post an empty placeholder for the worker to stream into.
       if (isMerlinMentioned(parsed.content)) {
         const merlinThreadRootId = parsed.threadRootId ?? null
         void createMerlinPlaceholder({

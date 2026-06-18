@@ -1,5 +1,7 @@
 # Merlin Memory & Knowledge Architecture — Implementation Spec
 
+> **As-built note (2026-06-17):** this is the north-star vision. For what's actually implemented, see **`merlin-mvp-spec.md`** — several decisions here were revised in the build: chat synthesis is lazy/on-demand (not the proactive "tutor"), chat retrieval is Postgres FTS (no chat embeddings/`conversation_chunks`), `memory_events` is dropped, edge `type` is a controlled enum (not free text), brain tables are `brain_node`/`brain_edge`, and Merlin is workspace-scoped with an autonomous write-back. Integrations + code search remain future work.
+
 **Status:** v1 design, locked. Ready to build.
 **Audience:** the engineer/coding agent implementing the Merlin memory layer.
 **Scope:** how Merlin stores, synthesizes, retrieves, and cites knowledge. This is the AI/knowledge layer that sits on top of Lor's chat substrate. Chat/messaging already exists; this document is about everything Merlin does with it and around it.

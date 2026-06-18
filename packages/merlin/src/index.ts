@@ -9,7 +9,8 @@ import {
   tool,
 } from "ai"
 import { z } from "zod"
-import { buildBrainReadTools, buildBrainWriteTools } from "./brain"
+import { buildBrainReadTools, buildBrainWriteTools, searchBrain } from "./brain"
+import { embedText } from "./embeddings"
 
 // Sonnet drives the main loop; Haiku gates the (cheap) write-back salience check.
 export const MERLIN_MODEL = "claude-sonnet-4-6"
@@ -18,6 +19,8 @@ const MERLIN_GATE_MODEL = "claude-haiku-4-5"
 // Cap the tool-use loop. Each step is one model turn (tool calls or final text).
 const MAX_STEPS = 12
 const SEARCH_DEFAULT_LIMIT = 8
+// Brain pages semantically pre-fetched into the answer prompt.
+const PREFETCH_LIMIT = 5
 const SNIPPET_MAX = 500
 const THREAD_MAX = 100
 
@@ -190,8 +193,8 @@ function buildChatTools(workspaceId: string) {
   }
 }
 
-// `onDelta` fires per streamed chunk of the final answer. Read-only: Merlin
-// consults its brain and the message history but does not write here.
+// Read-only answer loop. onDelta fires per streamed chunk; the returned
+// messages let write-back continue the same conversation.
 export async function respond(
   ctx: RespondContext,
   { onDelta }: RespondCallbacks
@@ -200,9 +203,30 @@ export async function respond(
     .map((t) => `${t.authorName}: ${t.content}`)
     .join("\n")
 
+  // Semantic pre-fetch: seed the top matching brain pages. Best-effort —
+  // the brain tools remain the fallback.
+  const question = ctx.conversation[ctx.conversation.length - 1]?.content ?? ""
+  let brainContext = ""
+  if (question.trim()) {
+    try {
+      const hits = await searchBrain(
+        ctx.workspaceId,
+        await embedText(question),
+        PREFETCH_LIMIT
+      )
+      if (hits.length > 0) {
+        brainContext = `\n\nRelevant notes from your brain:\n\n${hits
+          .map((h) => `## ${h.path}\n${h.body}`)
+          .join("\n\n")}`
+      }
+    } catch {
+      // best-effort; the brain tools remain as fallback
+    }
+  }
+
   const userMessage: ModelMessage = {
     role: "user",
-    content: `Recent conversation in this channel:\n\n${transcript}\n\n---\nAnswer the most recent message. Search the team's history with your tools if you need more than the recent messages above.`,
+    content: `Recent conversation in this channel:\n\n${transcript}${brainContext}\n\n---\nAnswer the most recent message, grounded in the brain notes and conversation above. Use your tools (brain ls/read, message search) for anything they don't cover.`,
   }
 
   const result = streamText({
@@ -226,10 +250,9 @@ export async function respond(
   return { text, messages: [userMessage, ...response.messages] }
 }
 
-// Autonomous: after the answer ships, decide whether the exchange holds durable
-// knowledge and, if so, persist it to the brain. The cheap Haiku gate skips the
-// expensive agent on trivial exchanges. Continues the answer's message history
-// so the write-back already "knows" what was found, then adds the write tools.
+// Autonomous write-back: the Haiku gate skips trivial exchanges, then a Sonnet
+// agent continues the answer's messages (already knows what it found) and
+// persists anything durable to the brain.
 export async function writeBack(
   ctx: WriteBackContext,
   { onMemoryWritten }: WriteBackCallbacks

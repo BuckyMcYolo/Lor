@@ -1,6 +1,17 @@
-import { and, asc, db, eq, isNull, schema, sql } from "@repo/db"
+import {
+  and,
+  asc,
+  cosineDistance,
+  db,
+  eq,
+  isNotNull,
+  isNull,
+  schema,
+  sql,
+} from "@repo/db"
 import { tool } from "ai"
 import { z } from "zod"
+import { embedText } from "./embeddings"
 
 // Path-addressed access to Merlin's brain (brain_node tree + brain_edge graph).
 // Paths look like "/people/alice"; "/" is the workspace root. See
@@ -168,6 +179,56 @@ export async function tree(workspaceId: string, path: string, depth: number) {
   return { path, tree: await buildTree(workspaceId, parentId, clamped) }
 }
 
+// Walk a node up to the root to reconstruct its "/a/b/c" path.
+async function pagePath(nodeId: string): Promise<string> {
+  const parts: string[] = []
+  let current: string | null = nodeId
+  while (current) {
+    const node: { name: string; parentId: string | null } | undefined = await db
+      .select({
+        name: schema.brainNode.name,
+        parentId: schema.brainNode.parentId,
+      })
+      .from(schema.brainNode)
+      .where(eq(schema.brainNode.id, current))
+      .limit(1)
+      .then((r) => r[0])
+    if (!node) break
+    parts.unshift(node.name)
+    current = node.parentId
+  }
+  return `/${parts.join("/")}`
+}
+
+// Semantic search over page embeddings (cosine, closest first). Returns top-k
+// pages with their reconstructed paths.
+export async function searchBrain(
+  workspaceId: string,
+  queryEmbedding: number[],
+  limit: number
+): Promise<{ path: string; body: string }[]> {
+  const distance = cosineDistance(schema.brainNode.embedding, queryEmbedding)
+  const rows = await db
+    .select({ id: schema.brainNode.id, body: schema.brainNode.body })
+    .from(schema.brainNode)
+    .where(
+      and(
+        eq(schema.brainNode.workspaceId, workspaceId),
+        eq(schema.brainNode.kind, "page"),
+        eq(schema.brainNode.status, "active"),
+        isNotNull(schema.brainNode.embedding)
+      )
+    )
+    .orderBy(distance)
+    .limit(limit)
+
+  const results: { path: string; body: string }[] = []
+  for (const r of rows) {
+    results.push({ path: await pagePath(r.id), body: r.body ?? "" })
+  }
+  return results
+}
+
 export async function writePage(
   workspaceId: string,
   path: string,
@@ -179,20 +240,27 @@ export async function writePage(
   if (segments.length === 0) return { error: "cannot write to the root" }
   const leaf = segments[segments.length - 1] as string
   const parentId = await ensureFolderPath(workspaceId, segments.slice(0, -1))
+  // Embed on write (best-effort); an un-embedded page is still reachable via ls/read.
+  const embedding = await embedText(`${path}\n\n${body}`).catch(() => null)
 
   const existing = await findChild(workspaceId, parentId, leaf)
   if (existing) {
     if (existing.kind === "folder") return { error: `${path} is a folder` }
     await db
       .update(schema.brainNode)
-      .set({ body, version: sql`${schema.brainNode.version} + 1` })
+      .set({ body, embedding, version: sql`${schema.brainNode.version} + 1` })
       .where(eq(schema.brainNode.id, existing.id))
     return { path, action: "updated" as const }
   }
 
-  await db
-    .insert(schema.brainNode)
-    .values({ workspaceId, kind: "page", parentId, name: leaf, body })
+  await db.insert(schema.brainNode).values({
+    workspaceId,
+    kind: "page",
+    parentId,
+    name: leaf,
+    body,
+    embedding,
+  })
   return { path, action: "created" as const }
 }
 
@@ -257,9 +325,8 @@ function wrap<T>(fn: () => Promise<T>) {
   }))
 }
 
-// Bare filesystem names — models have strong priors for ls/read/write/etc.
-// These operate on Merlin's brain, not the host filesystem (see descriptions).
-// Split read/write so the answer loop gets read-only and write-back gets both.
+// Bare filesystem names (models know ls/read/write). Split read/write so the
+// answer loop is read-only and write-back gets both.
 
 export function buildBrainReadTools(workspaceId: string) {
   return {
