@@ -161,20 +161,24 @@ Socket events (in `@repo/realtime-types`): `message:stream { channelId, messageI
 
 ---
 
-## 10. Build status
+## 10. Build status & next steps
 
-**Done (built in order 1 → 2 → 4 → 3):**
+**Done — MVP-core (built in order 1 → 2 → 4 → 3):**
 1. Schema (`brain_node`/`brain_edge`, HNSW), Merlin bot user, message FTS index.
-2. Brain tools + chat tools + the agentic answer loop.
-3. (done as #4) Autonomous write-back: Haiku gate + Sonnet agent, per-workspace lock, `merlin:memory` chip.
-4. (done as #3) Embeddings: embed-on-write + question pre-fetch (semantic retrieval).
-   Plus: realtime trigger, worker job, web streaming/chip, fanout extraction, workspace auto-membership, DM guard.
+2. Brain tools (`ls`/`read`/`tree`/`write`/`mkdir`/`move`/`link`) + chat tools + the agentic answer loop.
+3. (as #4) Autonomous write-back: Haiku salience gate + Sonnet agent, per-workspace lock, `merlin:memory` chip.
+4. (as #3) Embeddings: embed-on-write + semantic pre-fetch (top-3 full pages + their linked pages).
+   Plus: realtime trigger, worker job, web streaming/chip, fanout extraction (`@repo/messaging`), workspace auto-membership, DM guard, `summary`/`aliases` frontmatter convention.
 
-**Remaining for MVP:**
-- **Integrations (Track B):** `source` tables + per-provider connectors + `search_sources`/`fetch_source` tools.
-- Reply-placement router (thread vs. channel).
-- Citation contract + hard verification.
-- Default taxonomy seed (optional), eval set.
+**⚠️ The write-back + retrieval loop type-checks but has NOT been observed running end-to-end. Validate before building more — write-back quality is the moat and is currently unverified.**
+
+**Next steps (priority order):**
+1. **Validate the loop end-to-end (highest).** Run it with real conversations and *read the pages Merlin writes* — judge salience, update-vs-create, page quality, and retrieval. Run checklist: `ANTHROPIC_API_KEY` + `OPENAI_API_KEY` in `.env`; `vector` + `pg_trgm` installed on Railway; `db:push`; seed Merlin (`pnpm --filter @repo/db db:seed` or the SQL insert); ensure Merlin is a member of the test workspace; restart worker + realtime + web; `@Merlin` in a channel.
+2. **Eval harness.** 5–10 seeded conversations with expected memory + expected retrieval, so the write-back/grounding prompts are tunable with signal instead of vibes. (This is the instrument for tuning the moat.)
+3. **Integrations (Track B):** `merlin_source` / `merlin_page_source` / `merlin_integration_connection` tables + per-provider connectors + `search_sources`/`fetch_source` tools (§6).
+4. **Reply-placement router** — thread vs. main channel (cheap model).
+5. **Citation contract + hard verification** — verify cited message/page ids resolve.
+6. **Optional / when-needed:** default taxonomy seed; page chunking (gated on pages growing large); frontmatter → `metadata` parse (when a consumer exists, e.g. tag filtering); prompt caching; brain-browser UI.
 
 ---
 
