@@ -120,14 +120,21 @@ async function searchMessages(
   }))
 }
 
-async function readThread(messageId: string) {
+async function readThread(workspaceId: string, messageId: string) {
+  // Scope by workspace so a stray/hallucinated id can't read another tenant's thread.
   const msg = await db
     .select({
       id: schema.message.id,
       threadRootId: schema.message.threadRootId,
     })
     .from(schema.message)
-    .where(eq(schema.message.id, messageId))
+    .innerJoin(schema.channel, eq(schema.message.channelId, schema.channel.id))
+    .where(
+      and(
+        eq(schema.message.id, messageId),
+        eq(schema.channel.workspaceId, workspaceId)
+      )
+    )
     .limit(1)
     .then((r) => r[0])
   if (!msg) return []
@@ -140,9 +147,16 @@ async function readThread(messageId: string) {
       authorName: schema.user.name,
     })
     .from(schema.message)
+    .innerJoin(schema.channel, eq(schema.message.channelId, schema.channel.id))
     .innerJoin(schema.user, eq(schema.message.authorId, schema.user.id))
     .where(
-      or(eq(schema.message.id, rootId), eq(schema.message.threadRootId, rootId))
+      and(
+        eq(schema.channel.workspaceId, workspaceId),
+        or(
+          eq(schema.message.id, rootId),
+          eq(schema.message.threadRootId, rootId)
+        )
+      )
     )
     .orderBy(asc(schema.message.createdAt))
     .limit(THREAD_MAX)
@@ -161,21 +175,12 @@ function buildChatTools(workspaceId: string) {
         "Search the team's message history (all channels) by keyword. Returns matching messages with author, date, channel, and id. Call repeatedly with different keywords to investigate.",
       inputSchema: z.object({
         query: z.string().describe("keywords to search for"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .describe("max results (default 8)"),
+        limit: z.number().optional().describe("max results, 1–20 (default 8)"),
       }),
       execute: async ({ query, limit }) => {
         try {
-          return await searchMessages(
-            workspaceId,
-            query,
-            limit ?? SEARCH_DEFAULT_LIMIT
-          )
+          const n = Math.min(Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1), 20)
+          return await searchMessages(workspaceId, query, n)
         } catch {
           return { error: "search failed" }
         }
@@ -190,7 +195,7 @@ function buildChatTools(workspaceId: string) {
       }),
       execute: async ({ messageId }) => {
         try {
-          return await readThread(messageId)
+          return await readThread(workspaceId, messageId)
         } catch {
           return { error: "read failed" }
         }

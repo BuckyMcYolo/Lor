@@ -4,7 +4,7 @@
 **Audience:** anyone working on the Merlin brain + harness.
 **Relationship to `merlin-architecture.md`:** that doc is the north-star vision; this is what actually got built. Where they differ, this wins.
 
-### What this changed vs. `merlin-architecture.md`
+## What this changed vs. `merlin-architecture.md`
 
 | Topic | Architecture doc | **As built** |
 |---|---|---|
@@ -57,7 +57,7 @@ The harness is the moat: tools, context construction, steering. Retrieval behind
 
 Stateless per invocation; the only persistent state is the brain in Postgres.
 
-```
+```text
 1. TRIGGER    realtime message:send detects @Merlin (MERLIN_USER_ID in the mention) →
               creates an empty Merlin placeholder message (NO fanout) → broadcasts
               message:created → enqueues a `merlin-respond` job.

@@ -85,6 +85,9 @@ export function AttachmentPreview({
         createPortal(
           <div
             role="dialog"
+            aria-modal="true"
+            aria-label="Image preview"
+            tabIndex={-1}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
             onClick={(e) => {
               if (e.target === e.currentTarget) setLightboxUrl(null)
@@ -95,6 +98,8 @@ export function AttachmentPreview({
           >
             <button
               type="button"
+              // biome-ignore lint/a11y/noAutofocus: focus the dismiss control when the modal opens
+              autoFocus
               onClick={() => setLightboxUrl(null)}
               className="absolute right-4 top-4 rounded-md p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               aria-label="Close"

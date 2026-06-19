@@ -125,7 +125,7 @@ export async function ls(workspaceId: string, path: string) {
   const resolved = await resolvePath(workspaceId, path)
   if (resolved === null) return { error: `no such path: ${path}` }
   if (resolved !== "root" && resolved.kind === "page") {
-    return { error: `${path} is a page — use brain_read` }
+    return { error: `${path} is a page — use read` }
   }
   const parentId = resolved === "root" ? null : resolved.id
   const entries = await childrenOf(workspaceId, parentId)
@@ -136,7 +136,7 @@ export async function readPage(workspaceId: string, path: string) {
   const resolved = await resolvePath(workspaceId, path)
   if (resolved === null) return { error: `no such path: ${path}` }
   if (resolved === "root" || resolved.kind === "folder") {
-    return { error: `${path} is a folder — use brain_ls` }
+    return { error: `${path} is a folder — use ls` }
   }
   const page = await db
     .select({
@@ -178,7 +178,7 @@ export async function tree(workspaceId: string, path: string, depth: number) {
   const resolved = await resolvePath(workspaceId, path)
   if (resolved === null) return { error: `no such path: ${path}` }
   if (resolved !== "root" && resolved.kind === "page") {
-    return { error: `${path} is a page — use brain_read` }
+    return { error: `${path} is a page — use read` }
   }
   const parentId = resolved === "root" ? null : resolved.id
   const clamped = Math.max(1, Math.min(depth, TREE_MAX_DEPTH))
@@ -285,18 +285,19 @@ export async function writePage(
   const segments = segmentsOf(path)
   if (segments.length === 0) return { error: "cannot write to the root" }
   const leaf = segments[segments.length - 1] as string
+  const cpath = `/${segments.join("/")}`
   const parentId = await ensureFolderPath(workspaceId, segments.slice(0, -1))
   // Embed on write (best-effort); an un-embedded page is still reachable via ls/read.
-  const embedding = await embedText(`${path}\n\n${body}`).catch(() => null)
+  const embedding = await embedText(`${cpath}\n\n${body}`).catch(() => null)
 
   const existing = await findChild(workspaceId, parentId, leaf)
   if (existing) {
-    if (existing.kind === "folder") return { error: `${path} is a folder` }
+    if (existing.kind === "folder") return { error: `${cpath} is a folder` }
     await db
       .update(schema.brainNode)
       .set({ body, embedding, version: sql`${schema.brainNode.version} + 1` })
       .where(eq(schema.brainNode.id, existing.id))
-    return { path, action: "updated" as const }
+    return { path: cpath, action: "updated" as const }
   }
 
   await db.insert(schema.brainNode).values({
@@ -307,7 +308,7 @@ export async function writePage(
     body,
     embedding,
   })
-  return { path, action: "created" as const }
+  return { path: cpath, action: "created" as const }
 }
 
 export async function mkdir(workspaceId: string, path: string) {
@@ -340,6 +341,27 @@ export async function move(workspaceId: string, src: string, dst: string) {
     .update(schema.brainNode)
     .set({ parentId: dstParentId, name: dstLeaf })
     .where(eq(schema.brainNode.id, node.id))
+
+  // Embeddings encode the path, so a moved page's vector is now stale. Re-embed
+  // the page itself (cheap). Descendants of a moved folder keep stale paths —
+  // a minor recall cost, refreshed on their next write.
+  if (node.kind === "page") {
+    const cdst = `/${dstSegments.join("/")}`
+    const page = await db
+      .select({ body: schema.brainNode.body })
+      .from(schema.brainNode)
+      .where(eq(schema.brainNode.id, node.id))
+      .then((r) => r[0])
+    const embedding = await embedText(`${cdst}\n\n${page?.body ?? ""}`).catch(
+      () => null
+    )
+    if (embedding) {
+      await db
+        .update(schema.brainNode)
+        .set({ embedding })
+        .where(eq(schema.brainNode.id, node.id))
+    }
+  }
   return { from: src, to: dst }
 }
 
@@ -399,7 +421,7 @@ export function buildBrainReadTools(workspaceId: string) {
         "Show the brain's folder/page structure under a path, nested to a depth (default 2).",
       inputSchema: z.object({
         path: z.string().describe("root path, e.g. / or /services"),
-        depth: z.number().int().min(1).max(TREE_MAX_DEPTH).optional(),
+        depth: z.number().optional(),
       }),
       execute: ({ path, depth }) =>
         wrap(() => tree(workspaceId, path, depth ?? TREE_DEFAULT_DEPTH)),
@@ -420,14 +442,19 @@ export function buildBrainWriteTools(
         path: z.string().describe("page path, e.g. /decisions/auth"),
         body: z.string().describe("the page contents (Markdown)"),
       }),
-      execute: ({ path, body }) =>
-        wrap(async () => {
-          const result = await writePage(workspaceId, path, body)
-          if (onWrite && "action" in result) {
+      execute: async ({ path, body }) => {
+        const result = await wrap(() => writePage(workspaceId, path, body))
+        // Fire the callback outside wrap: a throwing listener must not make a
+        // committed write look failed (and trigger a retry/duplicate).
+        if (onWrite && "action" in result) {
+          try {
             onWrite({ path: result.path, action: result.action })
+          } catch {
+            // listener errors are non-fatal; the write already committed
           }
-          return result
-        }),
+        }
+        return result
+      },
       strict: true,
     }),
     mkdir: tool({

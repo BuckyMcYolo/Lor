@@ -38,8 +38,14 @@ const serverSchema = z.object({
   // at any compatible endpoint (Ollama, LocalAI, …); the model MUST output
   // 1536-dim vectors to match the brain_node.embedding column.
   OPENAI_API_KEY: z.string().min(1),
-  MERLIN_EMBED_MODEL: z.string().default("text-embedding-3-small"),
-  MERLIN_EMBED_BASE_URL: z.string().url().optional(),
+  MERLIN_EMBED_MODEL: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().default("text-embedding-3-small")
+  ),
+  MERLIN_EMBED_BASE_URL: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().url().optional()
+  ),
   NEXT_PUBLIC_SELF_HOSTED: z
     .preprocess((v) => v === "true" || v === "1", z.boolean())
     .default(false),

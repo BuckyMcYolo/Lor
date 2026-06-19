@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import {
   and,
   db,
@@ -210,8 +211,9 @@ export function createMerlinRespondProcessor(
         // Phase 3 — autonomous write-back. Per-workspace lock serializes brain
         // writes; skip if another holds it (resurfaces on a later mention).
         const lockKey = `merlin:writeback:${workspaceId}`
+        const lockToken = randomUUID()
         const acquired = await redis
-          .set(lockKey, "1", { NX: true, EX: WRITEBACK_LOCK_TTL })
+          .set(lockKey, lockToken, { NX: true, EX: WRITEBACK_LOCK_TTL })
           .catch(() => null)
         if (acquired !== "OK") {
           logger.info(
@@ -236,7 +238,14 @@ export function createMerlinRespondProcessor(
         } catch (err) {
           logger.error({ err, merlinMessageId }, "Merlin write-back failed")
         } finally {
-          await redis.del(lockKey).catch(() => {})
+          // Release only if we still own it: if write-back outran the TTL and a
+          // newer worker re-acquired, an unconditional DEL would drop its lock.
+          await redis
+            .eval(
+              "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+              { keys: [lockKey], arguments: [lockToken] }
+            )
+            .catch(() => {})
         }
       }
     )
