@@ -27,7 +27,7 @@ const THREAD_MAX = 100
 const SYSTEM_PROMPT = `You are Merlin, the knowledge keeper for this team's Lor workspace. You answer questions about the team's work, decisions, history, and people.
 
 You have two kinds of memory:
-- Your brain: a filesystem of notes you've saved about this workspace. Browse it with ls / tree and read pages with read. Consult it first — it's your distilled knowledge (it may be sparse early on). Pages list their linked pages (relates_to, caused_by, …); follow a link with read to traverse.
+- Your brain: a filesystem of notes about this workspace that you read from and maintain yourself. Browse it with ls / tree, read pages with read, and save or organize knowledge with write / mkdir / move / link. Consult it first — it's your distilled knowledge (it may be sparse early on). Pages list their linked pages (relates_to, caused_by, …); follow a link with read to traverse.
 - The team's message history: search it with search_messages (keyword, all channels) and read_thread for full context.
 
 How to answer:
@@ -36,13 +36,18 @@ How to answer:
 
 Use your tools silently — don't narrate that you're searching. Gather what you need, then give one clear answer. Be concise. Use Markdown. Speak in the first person; never claim to be human.`
 
+// Appended for the answer phase only: write tools are present, but reserved for
+// explicit requests so ordinary answers stay read-only (and fast). Routine,
+// unprompted note-keeping is handled by the separate background write-back.
+const ANSWER_WRITE_GUIDANCE = `Saving to your brain: only write (or mkdir / move / link) when the user explicitly asks you to remember, save, note, or organize something. When you do, make the change and briefly confirm what you saved and where (e.g. "Saved to /decisions/auth"). For ordinary questions, don't write — just answer; durable knowledge from this conversation is captured automatically afterward.`
+
 const GATE_QUESTION = `Does the exchange above contain durable team knowledge worth saving to long-term memory — a decision, how something works, who owns or is responsible for what, a resolved problem, or a lasting fact? Answer false for small talk, transient status, or general/how-to questions.`
 
 const WRITEBACK_INSTRUCTION = `You've just answered. Now step back and act as the keeper of this workspace's long-term memory.
 
 Looking only at what was just discussed and what you found: is there durable knowledge here worth saving — a decision, how something works, who owns or is responsible for what, a resolved problem, or a convention/fact that will matter weeks from now?
 
-- If yes: first browse your brain (ls / tree / read) to find where it belongs and whether a page on this already exists. Strongly prefer updating or extending an existing page over creating a near-duplicate. Then write the page (write creates parent folders automatically), and use link if it clearly relates to another page. Keep pages tight, factual, and self-contained.
+- If yes: first browse your brain (ls / tree / read) to find where it belongs and whether a page on this already exists (you may have already saved something while answering — don't duplicate it). Strongly prefer updating or extending an existing page over creating a near-duplicate. Then write the page (write creates parent folders automatically), and use link if it clearly relates to another page. Keep pages tight, factual, and self-contained.
 - If there's nothing durable here — small talk, transient status, or a general question — do nothing.
 
 Page format — begin every page with a short frontmatter block, then the body:
@@ -67,6 +72,8 @@ export type RespondContext = {
 
 export type RespondCallbacks = {
   onDelta: (delta: string) => void | Promise<void>
+  // Fires when Merlin writes to its brain mid-answer (explicit save requests).
+  onMemoryWritten?: (e: { path: string; action: "created" | "updated" }) => void
 }
 
 export type RespondResult = {
@@ -209,7 +216,7 @@ function buildChatTools(workspaceId: string) {
 // messages let write-back continue the same conversation.
 export async function respond(
   ctx: RespondContext,
-  { onDelta }: RespondCallbacks
+  { onDelta, onMemoryWritten }: RespondCallbacks
 ): Promise<RespondResult> {
   const transcript = ctx.conversation
     .map((t) => `${t.authorName}: ${t.content}`)
@@ -253,11 +260,12 @@ export async function respond(
 
   const result = streamText({
     model: anthropic(MERLIN_MODEL),
-    system: SYSTEM_PROMPT,
+    system: `${SYSTEM_PROMPT}\n\n${ANSWER_WRITE_GUIDANCE}`,
     messages: [userMessage],
     tools: {
       ...buildChatTools(ctx.workspaceId),
       ...buildBrainReadTools(ctx.workspaceId),
+      ...buildBrainWriteTools(ctx.workspaceId, onMemoryWritten),
     },
     stopWhen: stepCountIs(MAX_STEPS),
   })

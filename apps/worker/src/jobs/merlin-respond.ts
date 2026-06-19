@@ -133,6 +133,15 @@ export function createMerlinRespondProcessor(
                   pending = ""
                 }
               },
+              // Explicit "remember this" writes happen during the answer; surface
+              // their chip immediately like the background write-back does.
+              onMemoryWritten: ({ path, action }) =>
+                emitter.to(room).emit("merlin:memory", {
+                  channelId,
+                  messageId: merlinMessageId,
+                  path,
+                  action,
+                }),
             }
           )
           if (pending.length > 0) emit(pending, false)

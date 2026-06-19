@@ -40,7 +40,16 @@ import { Server, type Socket } from "socket.io"
 import { toErrorMessage } from "@/lib/errors"
 import { logger } from "@/lib/logger"
 import { assertUserCanAccessChannel } from "@/services/channel-access"
-import { createMerlinPlaceholder, isMerlinMentioned } from "@/services/merlin"
+import {
+  createMerlinPlaceholder,
+  isMerlinMentioned,
+  mentionsOtherUser,
+} from "@/services/merlin"
+import {
+  closeMerlinSession,
+  isMerlinSessionOpen,
+  openMerlinSession,
+} from "@/services/merlin-session"
 import {
   createMessage,
   deleteMessage,
@@ -512,8 +521,39 @@ io.on("connection", (socket) => {
           })
       }
 
-      // @Merlin mentioned → post an empty placeholder for the worker to stream into.
-      if (isMerlinMentioned(parsed.content)) {
+      // Merlin responds when explicitly @-mentioned, or when the sender has an
+      // open session (a recent @Merlin in this scope) and isn't now addressing a
+      // teammate. Session is keyed by thread root, else channel, + sender.
+      const merlinScopeId = parsed.threadRootId ?? parsed.channelId
+      const merlinMentioned = isMerlinMentioned(parsed.content)
+      const addressesTeammate = mentionsOtherUser(parsed.content)
+      let triggerMerlin = merlinMentioned
+      if (!merlinMentioned && !addressesTeammate) {
+        triggerMerlin = await isMerlinSessionOpen(
+          redisPresenceClient,
+          merlinScopeId,
+          socket.data.user.id
+        ).catch(() => false)
+      }
+
+      if (!triggerMerlin) {
+        // Addressing a teammate ends the sender's open Merlin session here.
+        if (addressesTeammate) {
+          void closeMerlinSession(
+            redisPresenceClient,
+            merlinScopeId,
+            socket.data.user.id
+          ).catch(() => {})
+        }
+      } else {
+        // Open/refresh the session so follow-ups continue without re-mentioning.
+        void openMerlinSession(
+          redisPresenceClient,
+          merlinScopeId,
+          socket.data.user.id
+        ).catch((err) => {
+          logger.error({ err }, "Failed to open Merlin session")
+        })
         const merlinThreadRootId = parsed.threadRootId ?? null
         void createMerlinPlaceholder({
           accessibleChannel,
