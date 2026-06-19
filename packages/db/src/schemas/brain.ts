@@ -68,8 +68,18 @@ export const brainNode = pgTable(
   ]
 )
 
-// Typed edges between pages. `type` is free text (taxonomy-as-data):
-// supersedes | relates_to | caused_by | decided_in | …
+// Controlled vocabulary for typed edges between pages — add values deliberately.
+export const BRAIN_EDGE_TYPES = [
+  "relates_to",
+  "supersedes",
+  "caused_by",
+  "depends_on",
+  "part_of",
+  "owned_by",
+] as const
+export const brainEdgeTypeEnum = pgEnum("brain_edge_type", BRAIN_EDGE_TYPES)
+
+// Typed edges between pages.
 export const brainEdge = pgTable(
   "brain_edge",
   {
@@ -83,7 +93,7 @@ export const brainEdge = pgTable(
     toNodeId: uuid("to_node_id")
       .notNull()
       .references(() => brainNode.id, { onDelete: "cascade" }),
-    type: text("type").notNull(),
+    type: brainEdgeTypeEnum("type").notNull(),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
       .default({})

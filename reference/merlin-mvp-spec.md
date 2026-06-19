@@ -1,24 +1,23 @@
-# Merlin MVP — Implementation Spec
+# Merlin MVP — Implementation Spec (as-built)
 
-**Status:** MVP build target. Concrete, buildable. Derived from and narrower than `merlin-architecture.md`.
-**Audience:** the engineer/agent building the Merlin brain + harness.
-**Relationship to `merlin-architecture.md`:** that document is the north-star architecture and remains the source of truth for the *vision* and the data-model rationale. This document is the *MVP cut* and **intentionally overrides** several "v1-locked" decisions in it. Where they conflict, this document wins for the MVP.
+**Status:** MVP-core **implemented** (2026-06-17) — the full loop works: `@Merlin` → answer grounded in chat + brain → autonomous write-back → semantic retrieval. Remaining for MVP: integrations (Track B) + polish (see §10).
+**Audience:** anyone working on the Merlin brain + harness.
+**Relationship to `merlin-architecture.md`:** that doc is the north-star vision; this is what actually got built. Where they differ, this wins.
 
-### What this MVP spec changes vs. `merlin-architecture.md`
+## What this changed vs. `merlin-architecture.md`
 
-| Topic | Architecture doc | **MVP decision** |
+| Topic | Architecture doc | **As built** |
 |---|---|---|
-| Chat synthesis | Proactive, compile-time, background ("the tutor") | **Lazy / on-demand** — only when `@Merlin` is mentioned |
-| Chat retrieval | Conversation chunks embedded as fallback layer | **Postgres FTS only** (no chat embeddings). Embeddings are a later, additive swap — *changes the tool, not the harness* |
-| `conversation_chunks` table | In the data model | **Dropped** from MVP |
-| `memory_events` log | Append-only, required | **Dropped** from MVP (revisit later); page updates kept non-destructive-ish via a `version` column |
-| Integration ingestion | Summary + pointer (timing unstated) | **Eager** — meaningful events summarized + embedded into `sources` as they arrive |
-| Reply placement | Not addressed | New: a cheap model decides **thread vs. main channel** |
-| Grounding | Strict citations | **Conditional**: strict for institutional/truth questions, relaxed for general questions |
-| Self-host / BYO-key | A first-class concern (AGPL) | **Out of scope** for MVP — product-first, cloud-only, our keys |
-| Brain browser UI | Human-browsable | **Deferred** — agent-only brain for MVP |
-
-Everything else in `merlin-architecture.md` (the three storage layers, pgvector-not-Qdrant, the filesystem-AND-graph brain, real folder/page nodes not path strings, taxonomy-as-data, summary-and-pointer + live-fetch for integrations, anchored code fetch, GitHub rate-limit client) carries forward unchanged.
+| Chat synthesis | Proactive, compile-time ("the tutor") | **Lazy / on-demand** — only on `@Merlin` |
+| Chat retrieval | Conversation chunks embedded | **Postgres FTS only** (expression GIN index); no chat embeddings |
+| `conversation_chunks` / `memory_events` | In the model | **Dropped**; non-destructive page updates via `status` + `version` |
+| Edge `type` | Free text (taxonomy-as-data) | **Controlled pgEnum** `brain_edge_type` — the graph needs a stable vocabulary |
+| Brain table names | `nodes` / `edges` | **`brain_node` / `brain_edge`** |
+| Brain tool names | — | bare **`ls`/`read`/`tree`/`write`/`mkdir`/`move`/`link`** (models know these) |
+| Write-back | (implied) | **Autonomous** — Merlin decides salience itself; Haiku gate + Sonnet agent |
+| Grounding | Strict citations, hard-verified | **Prompt-conditional** (institutional vs general); hard citation verification **deferred** |
+| Self-host / BYO-key | First-class (AGPL) | embeddings are **provider-swappable** via env; Claude models still ours |
+| Brain browser UI | Human-browsable | **Deferred** — agent-only brain |
 
 ---
 
@@ -28,216 +27,169 @@ Everything else in `merlin-architecture.md` (the three storage layers, pgvector-
 
 | Source | Volume | Unit | Strategy |
 |---|---|---|---|
-| Chat | high | none (stream) | live Postgres **FTS** (tsvector + trgm); no embeddings |
-| Integrations (PR/issue/page) | low | the item | **eager** summarize + embed summary; live-fetch full content on demand |
-| Code | huge | file@sha | anchored live-fetch (GitHub API) — *deferred past MVP* |
-| Brain pages | low | the page | embedded; synthesized **lazily** on `@Merlin` |
+| Chat | high | none (stream) | live Postgres **FTS** (`to_tsvector` expression index); no embeddings |
+| Brain pages | low | the page | embedded (1536-d); written **lazily** during write-back |
+| Integrations (PR/issue/page) | low | the item | **eager** summarize + embed — *Track B, not yet built* |
+| Code | huge | file@sha | anchored live-fetch — *deferred* |
 
-The harness is the moat. Tools, context construction, steering, and grounding/verification are where quality lives — not in always reaching for the strongest model. The MVP is built so the *retrieval mechanism behind a tool* can change (FTS → embeddings, API → ephemeral clone) without touching the harness.
+The harness is the moat: tools, context construction, steering. Retrieval behind a tool is swappable (FTS→embeddings, etc.) without touching the harness.
 
 ---
 
 ## 2. MVP scope
 
-**In:**
-- The brain: `nodes` (folder/page tree) + `edges` (typed graph) + pgvector embeddings on pages.
-- The harness: a model-driven tool loop (Claude) over the brain + chat + sources, with conditional grounding/verification.
-- The `@Merlin` invocation loop end-to-end: trigger → triage → retrieve → reason → answer (streamed into chat) → reply-placement → async write-back (streamed to UI as "Merlin remembered this").
-- Integration ingestion **contract + data model** (`sources`, `integration_connections`): eager summarize + embed of meaningful events. **The connectors themselves are a parallel track owned by Jacob**; this spec defines the `sources` shape both tracks meet at.
+**Built:**
+- The brain: `brain_node` (folder/page tree) + `brain_edge` (typed graph) + pgvector embeddings on pages.
+- The harness (`packages/merlin`): a Claude tool-loop over the brain + chat; read-only when answering, read+write during write-back.
+- The full `@Merlin` loop: mention → stream a grounded answer → notify like a normal message → autonomous async write-back → "🧠 remembered" chip.
+- Semantic retrieval: embed-on-write + question pre-fetch over page embeddings.
 
-**Out (deferred):**
-- Brain browser UI (agent-only brain for now).
-- Chat embeddings / `conversation_chunks` (FTS instead).
-- `memory_events` append-only log.
-- Anchored code search / repo-map / SHA-pinned code citation (§7 of the architecture doc) — GitHub enters the MVP only as a *source* (PRs/issues summarized into `sources`), not as code search.
-- Self-host / BYO-key / provider abstraction.
-- Compaction / decay job class.
-- A formal eval set. **Note:** we *will* need a seed eval set (real questions + expected citations) to validate the harness-as-moat thesis — call it out as required-soon, not MVP-blocking.
+**Deferred (not built):**
+- Integrations (`source` ingestion + connectors) — Track B, §6.
+- Reply-placement router (thread vs. channel) — Merlin replies in the trigger's context.
+- Hard citation verification — grounding is prompt-enforced only.
+- Default taxonomy seed — Merlin grows the tree organically via `mkdir`-on-write.
+- Eval set, code search, compaction/decay, brain browser UI, prompt caching.
 
 ---
 
-## 3. The invocation loop (heart of the MVP)
+## 3. The invocation loop (as built)
 
-Stateless per invocation. The only persistent state is the brain in Postgres.
+Stateless per invocation; the only persistent state is the brain in Postgres.
 
-```
-1. TRIGGER     realtime detects @Merlin mention → enqueues a `merlin-respond` job (per-workspace serialized)
-2. TRIAGE      (Haiku) classify the question:
-                 • grounding_mode: "institutional" (about this workspace) | "general" (world knowledge / how-to / chit-chat)
-                 • seed retrieval hints (keywords, entities)
-3. RETRIEVE    embed the question (OpenAI 3-small) → vector pre-fetch top-k over page + source embeddings → seed context.
-                 Also load: the thread/channel context Merlin was summoned in.
-4. HARNESS     (Sonnet; escalate to Opus for hard cases) tool loop:
-                 brain tools (ls/read/tree/write/mkdir/move/link),
-                 chat tools (search_messages/read_thread/fetch_recent_messages),
-                 source tools (search_sources/fetch_source).
-                 Drafts an answer. If grounding_mode = institutional, answer MUST cite real sources or admit "nothing in memory."
-5. VERIFY      harness validates every citation resolves to a real message/page/source id. Reject + retry on dangling cites.
-6. ANSWER      stream the answer into chat (token-by-token via realtime socket).
-7. PLACEMENT   (cheap model) decide thread vs. main channel based on question/answer complexity + broad usefulness.
-                 Default: reply in-thread. Promote to main channel when broadly useful (a decision, a team-wide FYI).
-8. WRITE-BACK  (async, after the answer ships; Sonnet) decide if anything durable should be written/updated in the brain.
-                 Do it (write/mkdir/link), re-embed changed pages, then emit a `merlin_memory_written` event to the UI.
-9. SLEEP       invocation ends. No persistent process.
+```text
+1. TRIGGER    realtime message:send detects @Merlin (MERLIN_USER_ID in the mention) →
+              creates an empty Merlin placeholder message (NO fanout) → broadcasts
+              message:created → enqueues a `merlin-respond` job.
+2. ANSWER     worker, Phase 1 (read-only): semantic pre-fetch (embed the question →
+              top-3 full brain pages + their linked pages) seeds the prompt; Sonnet tool-loop over chat
+              (search_messages/read_thread) + brain (ls/read/tree); streams tokens
+              back via `message:stream`. Grounding is conditional (see §4).
+3. PERSIST    Phase 2: write final text to the message; run the normal notification
+              fanout (so Merlin's reply notifies like any message); emit stream `done`.
+4. WRITE-BACK Phase 3 (autonomous, after the answer ships; per-workspace Redis lock):
+              Haiku gate ("anything durable here?") → if yes, a Sonnet agent CONTINUES
+              the answer's messages with brain read+write tools, decides update-vs-create,
+              and writes/links pages. Each page write emits `merlin:memory` → web chip.
+5. SLEEP      job ends. No persistent process.
 ```
 
-Key properties:
-- **Answer latency is decoupled from write-back.** Users wait only for steps 1–6. Step 8 runs after.
-- **Write-back is visible.** Step 8 emits a UI event (`merlin_memory_written`: `{ action: created|updated, path, title, learned }`) so users see "🧠 Merlin remembered: <title>" under the answer. This surfaces the compounding moat in-product.
-- **Per-workspace serialization** of write-backs avoids races on the `(workspace_id, parent_id, name)` uniqueness and conflicting page edits. Reads/answers can run in parallel.
+- **Answer latency is decoupled from write-back** — users wait only for steps 1–3.
+- **Read-only answer / write-only write-back** — the answer loop has no write tools; only the write-back phase can mutate the brain.
+- **Per-workspace lock** (`merlin:writeback:<ws>`, Redis `SET NX EX`) serializes brain writes; if held, this write-back is skipped (knowledge resurfaces on a later mention).
 
-### 3.1 Triage & the two cheap-model decisions
+### 3.1 Grounding & the cheap-model gate
 
-Two cheap (Haiku) decisions wrap the expensive loop:
-
-- **Grounding mode (pre-flight).** Institutional questions ("what did we decide about X", "who owns Y", "why did Z break") → strict grounding: cite real sources or say "I don't have anything in memory about that." General questions ("write a regex for emails", "what's a good name for this") → answer freely, grounding optional. The product must not refuse or over-hedge general questions — that makes it worse. The classifier draws this line.
-- **Reply placement (post-draft or folded into triage).** thread vs. main channel. Provisional: run it *after* the answer is drafted so it can weigh answer complexity/usefulness, not just the question. Default in-thread; promote to channel when everyone benefits.
-
-Both are provisional in *where they run* and can be tuned; what's fixed is that they exist and use a cheap model.
+- **Conditional grounding (in the system prompt, not a separate model):** for workspace questions Merlin grounds in what it finds (brain + message search) or says "I don't have it in memory yet"; general questions (how-to, chit-chat) are answered directly. Hard citation verification is deferred.
+- **Write-back salience gate (Haiku):** a cheap `generateObject` boolean over the exchange decides whether to spin up the expensive write-back agent — skips trivial mentions.
+- *Deferred:* a Haiku grounding-mode classifier and a reply-placement router (both folded away / postponed).
 
 ---
 
-## 4. The harness
+## 4. The harness (`packages/merlin`)
 
-A model-driven tool-use loop (Anthropic SDK, Claude). Built cleanly against Claude's tool API; tool *definitions* and *orchestration* kept model-agnostic in shape (no multi-provider abstraction layer in MVP).
+A Claude tool-use loop (Vercel **AI SDK v6**, `streamText` for the streamed answer, `generateText` for write-back, `generateObject` for the gate). `stopWhen: stepCountIs(12)`.
 
-**Tools** (all scoped to the invocation's `workspace_id`):
+**Answer tools (read-only):**
+- `search_messages(query, limit?)` — workspace-wide FTS (`to_tsvector` + `ts_rank`).
+- `read_thread(messageId)` — full thread around a hit.
+- `ls(path)` / `read(path)` / `tree(path, depth?)` — browse the brain. `read` and the semantic pre-fetch return each page's **linked pages** (edges: type + direction + connected path), so Merlin traverses the graph via `read` — no separate edge-query tool.
 
-*Brain (over `nodes`/`edges`):*
-- `ls(path)` → immediate children of a folder
-- `read(path)` → a page's body + metadata + provenance
-- `tree(path, depth)` → structure overview
-- `write(path, body, metadata?)` → create or update a page (re-embeds on body change)
-- `mkdir(path)` → create a folder
-- `move(src, dst)` → move a node
-- `link(fromPath, toPath, type)` → create a typed edge (`supersedes` | `relates_to` | `caused_by` | `decided_in` | …; type is free text, conventional values documented)
+**Write-back tools (answer tools + writes):** adds `write(path, body)` (mkdir-p; embeds on write), `mkdir(path)`, `move(from, to)`, `link(from, to, type)` where `type ∈ brain_edge_type`.
 
-*Chat (over `message`, via FTS):*
-- `search_messages(query, { channelId?, authorId?, before?, after?, limit? })` → ranked snippets + message ids (websearch_to_tsquery + ts_rank; trgm fuzzy fallback)
-- `read_thread(messageId | threadRootId)` → full thread
-- `fetch_recent_messages(channelId, n, { before? })` → recent N messages in a channel/thread (the conversational-context tool)
+**Models:** Sonnet (`claude-sonnet-4-6`) for both answer and write-back; Haiku (`claude-haiku-4-5`) for the salience gate. Opus reserved for later if Sonnet underperforms.
 
-*Sources (over `sources`):*
-- `search_sources(query, { provider? })` → vector + keyword over source summaries
-- `fetch_source(sourceId)` → **live-fetch** full current content by following the pointer through the integration connection (short-term cached). Embedded summary is for *recall*; live content is for *correctness*.
-
-**Loop control:** bounded tool iterations (start ~20) and a token budget; must terminate in an answer. Model tiering: Sonnet default → escalate to Opus for hard/contested cases (and swap default to Opus if Sonnet underperforms in practice); Haiku for triage/placement/summarization.
-
-**Grounding / citation contract (provisional — to be hardened):**
-- Institutional answers carry citations to real `message` / `node` / `source` ids.
-- The harness **verifies** every cited id exists before posting; dangling citations → reject and retry. This verification layer is the main thing that makes a weaker model trustworthy here.
-- Exact citation representation (inline markers? a structured `citations[]` payload?) is **not finalized** — we'll work it out during build. The fixed requirement is: real-id-backed and harness-validated for institutional answers; not required for general answers.
+**Grounding:** prompt-conditional (above). Citation *representation* + hard verification are still open — to harden later.
 
 ---
 
-## 5. Data model (MVP, indicative Drizzle shapes)
+## 5. Data model (as built)
 
-Postgres 16 + pgvector. UUID PKs (`.defaultRandom()`), matching existing tables. Embedding dim **1536** (OpenAI `text-embedding-3-small`) → `vector(1536)`, HNSW indexes. New tables prefixed `merlin_`.
+Postgres 16 + pgvector (extensions installed manually on Railway). UUID PKs. Embedding `vector(1536)` (1536-d model), HNSW cosine index.
 
-- **`merlin_node`** — the brain tree.
-  - `id`, `workspaceId` (fk → workspace, cascade), `kind` (`folder` | `page`), `parentId` (self-ref, null for roots), `name`
-  - page-only: `body` (text), `metadata` (jsonb default `{}`), `embedding` (`vector(1536)`)
-  - `status` (`active` | `archived`, default `active`) — supports archive-not-delete + future decay without a migration
-  - `version` (int, default 1) — bumps on body update; minimal door-open for versioning/audit without `memory_events`
-  - `createdAt`, `updatedAt`
-  - unique `(workspaceId, parentId, name)`; index `(workspaceId, parentId)` for `ls`; HNSW on `embedding`
-- **`merlin_edge`** — typed graph between page nodes.
-  - `id`, `workspaceId`, `fromNodeId`, `toNodeId`, `type` (text), `metadata` (jsonb), `createdAt`
-  - unique `(fromNodeId, toNodeId, type)`; indexes on `(workspaceId, fromNodeId)` and `(workspaceId, toNodeId)`
-- **`merlin_source`** — provenance / integration pointers, **embedded**.
-  - `id`, `workspaceId`, `provider` (text discriminator: `github` | `linear` | `notion` | …; drives UI icon), `externalId`, `url`, `title`, `summary`, `embedding` (`vector(1536)`), `metadata` (jsonb — provider-specific: PR review state, Linear cycle, Notion props, etc.), `lastFetchedAt`, `createdAt`, `updatedAt`
-  - unique `(workspaceId, provider, externalId)`; HNSW on `embedding`
-- **`merlin_page_source`** — polymorphic provenance join (a page has many sources).
-  - `id`, `workspaceId`, `pageId` (fk → merlin_node)
-  - exactly one of: `messageId` (fk → message) **or** `sourceId` (fk → merlin_source). (Code locations are `merlin_source` rows with `provider=github` + repo/sha/path/line_range in metadata — deferred, but the shape already supports it.)
-  - index on `pageId`
-- **`merlin_integration_connection`** — per-provider auth/config (separate from sources; **Jacob's track**).
-  - `id`, `workspaceId`, `provider`, `credentials` (jsonb, encrypted at rest), `config` (jsonb), `syncCursor`, `rateLimitState` (jsonb), `status`, `createdAt`, `updatedAt`
-  - unique `(workspaceId, provider)`
+- **`brain_node`** — the brain tree.
+  - `id`, `workspaceId` (fk → workspace, cascade), `kind` (`folder` | `page`), `parentId` (self-ref, cascade; null = top-level), `name`
+  - page payload: `body` (text), `metadata` (jsonb default `{}`), `embedding` (`vector(1536)`, null until embedded)
+  - `status` (`active` | `archived`, default `active`), `version` (int, default 1, bumps on body update)
+  - **unique `(workspaceId, parentId, name)` NULLS NOT DISTINCT** (so top-level names can't collide); HNSW on `embedding`
+- **`brain_edge`** — typed graph between page nodes.
+  - `id`, `workspaceId`, `fromNodeId`, `toNodeId`, `type` (**`brain_edge_type` enum**), `metadata` (jsonb), `createdAt`
+  - `BRAIN_EDGE_TYPES` = `relates_to | supersedes | caused_by | depends_on | part_of | owned_by` (add values deliberately)
+  - unique `(fromNodeId, toNodeId, type)`; indexes on `(workspaceId, fromNodeId)` / `(workspaceId, toNodeId)`
 
 **Existing-table touches:**
-- **`user`**: add `isBot` (boolean, default false). Seed one global **Merlin** bot user; Merlin's chat messages have `authorId = merlinUserId`. Bot bypasses workspace-membership checks (implicitly present in every workspace).
-- **`message`**: add a generated `tsvector` column (e.g. `to_tsvector('english', content)`) + GIN index for ranked FTS via `websearch_to_tsquery`. Keep the existing `message_content_trgm_idx` for fuzzy fallback.
-- **pgvector**: enable the extension (migration), add to `packages/db`.
+- **`user`**: added `isBot` (boolean, default false). One global **Merlin** bot user, fixed id `MERLIN_USER_ID` (`packages/db/src/constants.ts`, seeded via `seeds/merlin.ts`). Merlin authors messages as this user; it's a real workspace member (so it's mentionable + receives fanout) — auto-added on workspace creation (`packages/auth` `afterCreateOrganization`).
+- **`message`**: added an **expression** GIN index `to_tsvector('english', coalesce(content,''))` (not a stored tsvector column — avoids touching the message zod schemas / a table rewrite). Existing `message_content_trgm_idx` kept for fuzzy fallback.
 
-**Not in MVP:** `conversation_chunks`, `memory_events`.
-
----
-
-## 6. Integration ingestion (contract for the parallel track)
-
-Eager, event-driven, but **never indiscriminate**. Each provider adapter defines (1) its *unit* and (2) a cheap salience filter for which events on that unit are worth a Haiku summarization call.
-
-- GitHub: PR opened/merged, release → yes; force-pushes, CI pings → no.
-- Linear: issue created, moved to Done, reassigned → yes; label/typo edits → no.
-- Notion: page created / meaningfully edited (debounced) → yes; every autosave → no.
-
-Per meaningful event: summarize (Haiku) → upsert a `merlin_source` row (summary + pointer + metadata) → embed the summary. **We embed the summary, not the document.** Full current content is live-fetched on demand via `fetch_source`. Consequence to hold onto: a stale summary only ever hurts *recall* (finding the item), never *correctness* (the answer live-fetches). Re-summarize/re-embed on status-level update events; ignore noise.
-
-Cross-source synthesis into brain **pages** stays **lazy** (write-back step), even though source ingestion is eager. Eager ingestion populates the *retrieval layer*; it does not eagerly compile pages.
-
-**Permissions:** integration connections are workspace-level; synthesized understanding and stored summaries are workspace-visible regardless of the source item's own ACL. Accepted tradeoff (all channels are public-to-workspace in v1).
+**Not built (Track B):** `merlin_source`, `merlin_page_source`, `merlin_integration_connection` (see §6). `conversation_chunks`, `memory_events` — dropped.
 
 ---
 
-## 7. Topology
+## 6. Integration ingestion (Track B contract — not yet built)
 
-- **`packages/merlin`** — the core. Harness, tool implementations, retrieval, triage/placement, write-back logic, prompt assembly. Takes a `db` and a model client. No HTTP, no sockets. *This is the thing we're really building.*
-- **`apps/worker`** — runs it. New `merlin-respond` BullMQ queue (mirrors the existing `link-unfurl` pattern). Job = the full invocation loop (§3), including the async write-back as a continuation. Per-workspace serialization for write safety.
-- **`apps/realtime`** — detects `@Merlin` mentions (mention parsing + `messageMention` already exist), enqueues the job, and relays streamed output. Answer tokens and `merlin_memory_written` events flow worker → Redis pub/sub → realtime → client socket.
-- **`apps/api`** — nothing new for MVP (read-only brain-browse endpoints come with the deferred UI).
-- **Merlin bot identity** — the global `isBot` user from §5.
+Eager, event-driven, never indiscriminate. Per provider: a *unit* + a salience filter for which events warrant a Haiku summarization → upsert a `source` row (summary + pointer + metadata) → **embed the summary, not the document** (full content live-fetched on demand). Stale summary hurts recall, never correctness. Cross-source synthesis into brain pages stays lazy (write-back). Connections are workspace-level; stored summaries are workspace-visible (accepted, since all channels are public-to-workspace). The search/fetch source tools join the harness when this lands.
 
 ---
 
-## 8. Default brain taxonomy (seed)
+## 7. Topology (as built)
 
-Keep it minimal and domain-agnostic — Lor must not be locked to software teams. Seed each new workspace's brain with a tiny scaffold and let Merlin grow it (taxonomy is data, not schema):
+- **`packages/merlin`** — the harness core: `index.ts` (`respond`, `writeBack`, system prompt, chat tools), `brain.ts` (brain ops + read/write tool sets + `searchBrain`), `embeddings.ts` (`embedText`). No HTTP/sockets.
+- **`packages/messaging`** — shared message-notification fanout (`buildMessageFanout`), called by both realtime (human send) and the worker (Merlin completion).
+- **`apps/realtime`** — `message:send` detects `@Merlin`, creates the placeholder (no fanout), enqueues; relays streamed output. Blocks DM creation with Merlin (it's workspace-scoped).
+- **`apps/worker`** — `merlin-respond` BullMQ job runs the 3 phases; emits `message:stream` + `merlin:memory` through the `@socket.io/redis-emitter`.
+- **`apps/web`** — `use-merlin-stream` appends `message:stream` deltas (+ "thinking" indicator) and records `merlin:memory` as a "🧠 remembered: /path" chip on the reply (transient `streaming` / `remembered` fields on `Message`).
 
-- **Provisional seed:** `/people`, `/decisions`. Both are generic across any team.
-- Merlin may create any other top-level namespace as a workspace reveals structure (`/projects`, `/systems`, `/customers`, …).
-- This is just seed rows — trivially changeable. **Open question to settle during build:** seed `/people` + `/decisions`, or seed only `/people` and let the LLM build everything else? Lean minimal.
+Socket events (in `@repo/realtime-types`): `message:stream { channelId, messageId, delta, done }`, `merlin:memory { channelId, messageId, path, action }`.
+
+---
+
+## 8. Brain taxonomy
+
+**Not seeded.** Merlin builds the tree organically — `write` (and `mkdir`) create parent folders on demand (mkdir-p) during write-back, so structure emerges from what's actually saved. A default scaffold (`/people`, `/decisions`, …) per workspace remains an easy future addition if cold-start structure is wanted. Taxonomy is data, not schema.
 
 ---
 
 ## 9. Models & cost posture
 
-- **Embeddings:** OpenAI `text-embedding-3-small` (1536). Cheapest/fastest with good-enough quality.
-- **Main loop:** Claude **Sonnet** (`claude-sonnet-4-6`) default; **Opus** for hard/contested cases (and promote to default if Sonnet underperforms).
-- **Triage / placement / summarization:** Claude **Haiku** (`claude-haiku-4-5`).
-- **Ingestion is never metered** (product principle). Per-event integration summarization is cheap and bounded at team scale; it's the moat-builder.
-- (Prompt-caching of system prompt / tool defs / brain context is a known cost lever — **explicitly out of this spec for now**.)
+- **Embeddings:** OpenAI-compatible, env-configurable — `MERLIN_EMBED_MODEL` (default `text-embedding-3-small`) + optional `MERLIN_EMBED_BASE_URL` (self-hosters point at Ollama/LocalAI/etc.). **Must output 1536-d vectors** to match the column (making the dimension configurable is a separate schema change). Key: `OPENAI_API_KEY`.
+- **Answer + write-back:** Claude Sonnet (`claude-sonnet-4-6`), `ANTHROPIC_API_KEY`.
+- **Salience gate:** Claude Haiku (`claude-haiku-4-5`).
+- **Ingestion is never metered** (product principle); write-back cost is bounded by the Haiku gate.
+- Prompt caching: not yet wired (known cost lever).
+
+> Env note: `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are required and mirrored into `apps/api/vitest.config.ts` `TEST_ENV`.
 
 ---
 
-## 10. Build order
+## 10. Build status & next steps
 
-**Track A — brain + harness (the first real code; this spec's primary work):**
-1. pgvector extension + `merlin_node` / `merlin_edge` schema + HNSW indexes; Merlin `isBot` user; `message` tsvector column.
-2. `packages/merlin`: brain tools (`ls`/`read`/`tree`/`write`/`mkdir`/`move`/`link`) over `nodes`/`edges`.
-3. Chat tools (`search_messages` FTS, `read_thread`, `fetch_recent_messages`).
-4. Retrieval: question embedding → vector pre-fetch over pages → context assembly.
-5. The harness loop (Sonnet) with conditional grounding + citation verification → drafts/answers.
-6. Triage (Haiku grounding-mode) + reply-placement (cheap model) wrappers.
-7. Wire-up: `merlin-respond` worker job + realtime mention trigger + streamed answer.
-8. Async write-back pass + `merlin_memory_written` UI event + re-embed on page write + per-workspace serialization.
+**Done — MVP-core (built in order 1 → 2 → 4 → 3):**
+1. Schema (`brain_node`/`brain_edge`, HNSW), Merlin bot user, message FTS index.
+2. Brain tools (`ls`/`read`/`tree`/`write`/`mkdir`/`move`/`link`) + chat tools + the agentic answer loop.
+3. (as #4) Autonomous write-back: Haiku salience gate + Sonnet agent, per-workspace lock, `merlin:memory` chip.
+4. (as #3) Embeddings: embed-on-write + semantic pre-fetch (top-3 full pages + their linked pages).
+   Plus: realtime trigger, worker job, web streaming/chip, fanout extraction (`@repo/messaging`), workspace auto-membership, DM guard, `summary`/`aliases` frontmatter convention.
 
-**Track B — integrations (parallel, Jacob-owned):**
-- `merlin_integration_connection` + `merlin_source` + `merlin_page_source` schema.
-- Per-provider connectors (auth, webhooks/polling, salience filter) → eager summarize (Haiku) + embed → `sources`.
-- `search_sources` / `fetch_source` tools meet Track A at the `sources` contract (§5/§6).
+**⚠️ The write-back + retrieval loop type-checks but has NOT been observed running end-to-end. Validate before building more — write-back quality is the moat and is currently unverified.**
+
+**Next steps (priority order):**
+1. **Validate the loop end-to-end (highest).** Run it with real conversations and *read the pages Merlin writes* — judge salience, update-vs-create, page quality, and retrieval. Run checklist: `ANTHROPIC_API_KEY` + `OPENAI_API_KEY` in `.env`; `vector` + `pg_trgm` installed on Railway; `db:push`; seed Merlin (`pnpm --filter @repo/db db:seed` or the SQL insert); ensure Merlin is a member of the test workspace; restart worker + realtime + web; `@Merlin` in a channel.
+2. **Eval harness.** 5–10 seeded conversations with expected memory + expected retrieval, so the write-back/grounding prompts are tunable with signal instead of vibes. (This is the instrument for tuning the moat.)
+3. **Integrations (Track B):** `merlin_source` / `merlin_page_source` / `merlin_integration_connection` tables + per-provider connectors + `search_sources`/`fetch_source` tools (§6).
+4. **Reply-placement router** — thread vs. main channel (cheap model).
+5. **Citation contract + hard verification** — verify cited message/page ids resolve.
+6. **Optional / when-needed:** default taxonomy seed; page chunking (gated on pages growing large); frontmatter → `metadata` parse (when a consumer exists, e.g. tag filtering); prompt caching; brain-browser UI.
 
 ---
 
-## 11. Non-negotiables (MVP)
+## 11. Non-negotiables
 
-- **Never embed individual messages.** MVP embeds only pages + source summaries; chat is FTS.
+- **Never embed individual messages** — chat is FTS; only pages (and later source summaries) are embedded.
 - **pgvector, embedding-as-column.** No second datastore.
-- **Tree (`parent_id`) and graph (`edges`) stay separate.** Folders/pages are real node kinds.
-- **Taxonomy is data, not schema.**
-- **Integration data = summary + pointer + live-fetch**, eager-ingested, never mirrored. One shared `sources` table + `provider` discriminator + JSONB.
-- **Lazy synthesis** — no compile-time background synthesis of chat; it happens on `@Merlin`.
-- **Institutional answers are grounded + harness-verified; general answers are answered freely.**
-- **Write-back is async and visible** ("Merlin remembered this").
-- **Never hard-delete brain content** — `status=archived`, `version` bumps. (Full event log deferred.)
-- **The retrieval behind a tool is swappable without touching the harness** (FTS→embeddings, API→clone).
+- **Tree (`parent_id`) and graph (`brain_edge`) are separate.** Folders/pages are real node kinds.
+- **Edge `type` is a controlled enum**, not free text.
+- **Lazy, autonomous write-back** — no proactive chat synthesis; Merlin decides what to remember, after answering, async.
+- **Conditional grounding** — workspace answers grounded or "not in memory"; general questions answered freely. (Hard verification: later.)
+- **Never hard-delete brain content** — `status=archived`, `version` bumps.
+- **Retrieval behind a tool is swappable without touching the harness.**
+- **Merlin is workspace-scoped** — never in DMs; a member of every workspace.

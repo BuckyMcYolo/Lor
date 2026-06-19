@@ -5,8 +5,7 @@ import type {
   UnreadNotification,
 } from "@repo/realtime-types"
 
-// Minimal shapes so this works for both a human message (realtime) and Merlin's
-// completed reply (worker) without depending on app-specific types.
+// Minimal shapes so both realtime (human send) and worker (Merlin reply) can call this.
 type FanoutChannel = {
   id: string
   workspaceId: string | null

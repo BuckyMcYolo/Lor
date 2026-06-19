@@ -343,6 +343,13 @@ export interface ServerToClientEvents {
     delta: string
     done: boolean
   }) => void
+  // Merlin saved/updated a brain page during write-back (messageId = its reply).
+  "merlin:memory": (payload: {
+    channelId: string
+    messageId: string
+    path: string
+    action: "created" | "updated"
+  }) => void
   "message:pin:toggled": (payload: RealtimeMessagePinToggled) => void
   "message:thread:updated": (payload: RealtimeMessageThreadUpdated) => void
   "notification:bootstrap": (payload: NotificationBootstrap) => void

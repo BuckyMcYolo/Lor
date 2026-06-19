@@ -354,6 +354,18 @@ export function MessageItem({
               editedAt={message.editedAt}
             />
           )}
+          {message.remembered && message.remembered.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {message.remembered.map((r) => (
+                <span
+                  key={r.path}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                >
+                  🧠 {r.action === "created" ? "saved" : "updated"} {r.path}
+                </span>
+              ))}
+            </div>
+          )}
           {message.attachments && message.attachments.length > 0 && (
             <AttachmentGrid attachments={message.attachments} />
           )}

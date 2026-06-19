@@ -25,10 +25,11 @@ export type ListMessagesResponse = InferResponseType<
   MessagesClient["$get"],
   200
 >
-// `streaming` is a client-only transient flag, set while Merlin streams its
-// reply into this message. Never present on server payloads.
+// Client-only transient fields (never on server payloads): `streaming` while
+// Merlin streams its reply, `remembered` for brain pages it saved during write-back.
 export type Message = ListMessagesResponse["data"][number] & {
   streaming?: boolean
+  remembered?: { path: string; action: "created" | "updated" }[]
 }
 export type MessageAuthor = Message["author"]
 

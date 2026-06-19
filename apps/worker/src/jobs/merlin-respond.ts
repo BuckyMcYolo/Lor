@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import {
   and,
   db,
@@ -11,21 +12,26 @@ import {
   schema,
 } from "@repo/db"
 import { withContext } from "@repo/logger"
-import { respond } from "@repo/merlin"
+import { respond, writeBack } from "@repo/merlin"
 import { buildMessageFanout } from "@repo/messaging"
 import type { MerlinRespondJobData } from "@repo/realtime-types"
 import type { ServerToClientEvents } from "@repo/realtime-types/events"
 import { channelRoom, threadRoom, userRoom } from "@repo/realtime-types/rooms"
 import type { Emitter } from "@socket.io/redis-emitter"
 import type { Job } from "bullmq"
+import type { createClient } from "redis"
 import { logger } from "@/lib/logger"
+
+// Matches the worker's createClient (bare RedisClientType mismatches its generics).
+type RedisClient = ReturnType<typeof createClient>
 
 // Batch streamed tokens so we publish ~every 24 chars, not per chunk.
 const FLUSH_THRESHOLD = 24
 const CONTEXT_LIMIT = 30
+// Write-back lock TTL (s); auto-releases if the worker crashes.
+const WRITEBACK_LOCK_TTL = 120
 
-// Recent messages of the channel (or thread), oldest→newest, with author
-// names — excluding the empty placeholder and content-less system messages.
+// Recent channel/thread messages, oldest→newest; skips the placeholder + empties.
 async function loadConversation(args: {
   channelId: string
   threadRootId: string | null
@@ -64,7 +70,8 @@ async function loadConversation(args: {
 }
 
 export function createMerlinRespondProcessor(
-  emitter: Emitter<ServerToClientEvents>
+  emitter: Emitter<ServerToClientEvents>,
+  redis: RedisClient
 ) {
   return (job: Job<MerlinRespondJobData>) =>
     withContext(
@@ -86,10 +93,11 @@ export function createMerlinRespondProcessor(
         // Register the stream so clients can show a thinking indicator.
         emit("", false)
 
-        // Phase 1 — generation + streaming. A failure here means no complete
-        // answer was streamed, so replacing the client's (partial) text with a
-        // fallback is correct.
-        let text: string
+        // Phase 1 — generate + stream. On failure, replace the partial text
+        // with a fallback.
+        let answer: Awaited<ReturnType<typeof respond>>
+        let workspaceId: string
+        let gateText: string
         try {
           const conversation = await loadConversation({
             channelId,
@@ -97,18 +105,41 @@ export function createMerlinRespondProcessor(
             merlinMessageId,
           })
 
+          const channel = await db
+            .select({ workspaceId: schema.channel.workspaceId })
+            .from(schema.channel)
+            .where(eq(schema.channel.id, channelId))
+            .then((r) => r[0])
+
+          // Merlin only answers in workspace channels (it's never in a DM).
+          if (!channel?.workspaceId) {
+            logger.warn(
+              { channelId, merlinMessageId },
+              "Merlin invoked outside a workspace channel; skipping"
+            )
+            emit("", true)
+            return
+          }
+          workspaceId = channel.workspaceId
+
           let pending = ""
-          const result = await respond(conversation, {
-            onDelta: (d) => {
-              pending += d
-              if (pending.length >= FLUSH_THRESHOLD) {
-                emit(pending, false)
-                pending = ""
-              }
-            },
-          })
+          answer = await respond(
+            { workspaceId, conversation },
+            {
+              onDelta: (d) => {
+                pending += d
+                if (pending.length >= FLUSH_THRESHOLD) {
+                  emit(pending, false)
+                  pending = ""
+                }
+              },
+            }
+          )
           if (pending.length > 0) emit(pending, false)
-          text = result.text
+
+          gateText = `${conversation
+            .map((t) => `${t.authorName}: ${t.content}`)
+            .join("\n")}\n\nMerlin: ${answer.text}`
         } catch (err) {
           logger.error({ err, merlinMessageId }, "Merlin response failed")
           const fallback =
@@ -122,18 +153,15 @@ export function createMerlinRespondProcessor(
           return
         }
 
-        // Phase 2 — persistence + fanout. The reply is already fully streamed
-        // to clients, so a failure here must NOT clobber it with a fallback:
-        // log it, still emit the final signal so clients finalize the streamed
-        // text, and leave the DB row for a later retry to reconcile.
+        // Phase 2 — persist + fan out. Already streamed, so on failure just log
+        // and emit the final signal (never clobber the shown text).
         try {
           await db
             .update(schema.message)
-            .set({ content: text })
+            .set({ content: answer.text })
             .where(eq(schema.message.id, merlinMessageId))
 
-          // Notify like a normal message now the reply is final: fan out
-          // unread/mention notifications to recipients' user rooms.
+          // Notify like a normal message: fan out unread/mention to recipients.
           const channelRow = await db
             .select({
               id: schema.channel.id,
@@ -150,7 +178,7 @@ export function createMerlinRespondProcessor(
               channel: channelRow,
               message: {
                 id: merlinMessageId,
-                content: text,
+                content: answer.text,
                 author: { name: "Merlin" },
                 attachments: [],
               },
@@ -169,7 +197,7 @@ export function createMerlinRespondProcessor(
 
           emit("", true)
           logger.info(
-            { merlinMessageId, length: text.length },
+            { merlinMessageId, length: answer.text.length },
             "Merlin reply complete"
           )
         } catch (err) {
@@ -178,6 +206,46 @@ export function createMerlinRespondProcessor(
             "Merlin reply persistence/fanout failed after streaming"
           )
           emit("", true)
+        }
+
+        // Phase 3 — autonomous write-back. Per-workspace lock serializes brain
+        // writes; skip if another holds it (resurfaces on a later mention).
+        const lockKey = `merlin:writeback:${workspaceId}`
+        const lockToken = randomUUID()
+        const acquired = await redis
+          .set(lockKey, lockToken, { NX: true, EX: WRITEBACK_LOCK_TTL })
+          .catch(() => null)
+        if (acquired !== "OK") {
+          logger.info(
+            { workspaceId, merlinMessageId },
+            "Write-back skipped; another is in progress"
+          )
+          return
+        }
+        try {
+          await writeBack(
+            { workspaceId, priorMessages: answer.messages, gateText },
+            {
+              onMemoryWritten: ({ path, action }) =>
+                emitter.to(room).emit("merlin:memory", {
+                  channelId,
+                  messageId: merlinMessageId,
+                  path,
+                  action,
+                }),
+            }
+          )
+        } catch (err) {
+          logger.error({ err, merlinMessageId }, "Merlin write-back failed")
+        } finally {
+          // Release only if we still own it: if write-back outran the TTL and a
+          // newer worker re-acquired, an unconditional DEL would drop its lock.
+          await redis
+            .eval(
+              "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+              { keys: [lockKey], arguments: [lockToken] }
+            )
+            .catch(() => {})
         }
       }
     )
