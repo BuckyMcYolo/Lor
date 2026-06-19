@@ -287,12 +287,15 @@ export async function writePage(
   const leaf = segments[segments.length - 1] as string
   const cpath = `/${segments.join("/")}`
   const parentId = await ensureFolderPath(workspaceId, segments.slice(0, -1))
+
+  // Reject a folder collision before paying for the embedding call.
+  const existing = await findChild(workspaceId, parentId, leaf)
+  if (existing?.kind === "folder") return { error: `${cpath} is a folder` }
+
   // Embed on write (best-effort); an un-embedded page is still reachable via ls/read.
   const embedding = await embedText(`${cpath}\n\n${body}`).catch(() => null)
 
-  const existing = await findChild(workspaceId, parentId, leaf)
   if (existing) {
-    if (existing.kind === "folder") return { error: `${cpath} is a folder` }
     await db
       .update(schema.brainNode)
       .set({ body, embedding, version: sql`${schema.brainNode.version} + 1` })
