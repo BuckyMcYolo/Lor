@@ -45,6 +45,13 @@ Looking only at what was just discussed and what you found: is there durable kno
 - If yes: first browse your brain (ls / tree / read) to find where it belongs and whether a page on this already exists. Strongly prefer updating or extending an existing page over creating a near-duplicate. Then write the page (write creates parent folders automatically), and use link if it clearly relates to another page. Keep pages tight, factual, and self-contained.
 - If there's nothing durable here — small talk, transient status, or a general question — do nothing.
 
+Page format — begin every page with a short frontmatter block, then the body:
+---
+summary: one line on what this page is
+aliases: [terms or synonyms someone might search for this by]
+---
+(the markdown body)
+
 Decide for yourself. Don't reply to the user; just maintain memory. End with one short line of what you saved, or "nothing to save".`
 
 export type ConversationTurn = {
