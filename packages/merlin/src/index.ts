@@ -20,14 +20,14 @@ const MERLIN_GATE_MODEL = "claude-haiku-4-5"
 const MAX_STEPS = 12
 const SEARCH_DEFAULT_LIMIT = 8
 // Brain pages semantically pre-fetched into the answer prompt.
-const PREFETCH_LIMIT = 5
+const PREFETCH_LIMIT = 3
 const SNIPPET_MAX = 500
 const THREAD_MAX = 100
 
 const SYSTEM_PROMPT = `You are Merlin, the knowledge keeper for this team's Lor workspace. You answer questions about the team's work, decisions, history, and people.
 
 You have two kinds of memory:
-- Your brain: a filesystem of notes you've saved about this workspace. Browse it with ls / tree and read pages with read. Consult it first — it's your distilled knowledge (it may be sparse early on).
+- Your brain: a filesystem of notes you've saved about this workspace. Browse it with ls / tree and read pages with read. Consult it first — it's your distilled knowledge (it may be sparse early on). Pages list their linked pages (relates_to, caused_by, …); follow a link with read to traverse.
 - The team's message history: search it with search_messages (keyword, all channels) and read_thread for full context.
 
 How to answer:
@@ -216,7 +216,17 @@ export async function respond(
       )
       if (hits.length > 0) {
         brainContext = `\n\nRelevant notes from your brain:\n\n${hits
-          .map((h) => `## ${h.path}\n${h.body}`)
+          .map((h) => {
+            const links = h.links.length
+              ? `\nLinked: ${h.links
+                  .map(
+                    (l) =>
+                      `${l.type} ${l.direction === "out" ? "→" : "←"} ${l.path}`
+                  )
+                  .join("; ")}`
+              : ""
+            return `## ${h.path}\n${h.body}${links}`
+          })
           .join("\n\n")}`
       }
     } catch {

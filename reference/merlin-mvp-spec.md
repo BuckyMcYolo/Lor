@@ -62,7 +62,7 @@ Stateless per invocation; the only persistent state is the brain in Postgres.
               creates an empty Merlin placeholder message (NO fanout) → broadcasts
               message:created → enqueues a `merlin-respond` job.
 2. ANSWER     worker, Phase 1 (read-only): semantic pre-fetch (embed the question →
-              top-5 brain pages) seeds the prompt; Sonnet tool-loop over chat
+              top-3 full brain pages + their linked pages) seeds the prompt; Sonnet tool-loop over chat
               (search_messages/read_thread) + brain (ls/read/tree); streams tokens
               back via `message:stream`. Grounding is conditional (see §4).
 3. PERSIST    Phase 2: write final text to the message; run the normal notification
@@ -93,7 +93,7 @@ A Claude tool-use loop (Vercel **AI SDK v6**, `streamText` for the streamed answ
 **Answer tools (read-only):**
 - `search_messages(query, limit?)` — workspace-wide FTS (`to_tsvector` + `ts_rank`).
 - `read_thread(messageId)` — full thread around a hit.
-- `ls(path)` / `read(path)` / `tree(path, depth?)` — browse the brain.
+- `ls(path)` / `read(path)` / `tree(path, depth?)` — browse the brain. `read` and the semantic pre-fetch return each page's **linked pages** (edges: type + direction + connected path), so Merlin traverses the graph via `read` — no separate edge-query tool.
 
 **Write-back tools (answer tools + writes):** adds `write(path, body)` (mkdir-p; embeds on write), `mkdir(path)`, `move(from, to)`, `link(from, to, type)` where `type ∈ brain_edge_type`.
 

@@ -6,6 +6,7 @@ import {
   eq,
   isNotNull,
   isNull,
+  or,
   schema,
   sql,
 } from "@repo/db"
@@ -146,7 +147,12 @@ export async function readPage(workspaceId: string, path: string) {
     .where(eq(schema.brainNode.id, resolved.id))
     .limit(1)
     .then((r) => r[0])
-  return { path, body: page?.body ?? "", metadata: page?.metadata ?? {} }
+  return {
+    path,
+    body: page?.body ?? "",
+    metadata: page?.metadata ?? {},
+    links: await pageLinks(workspaceId, resolved.id),
+  }
 }
 
 type TreeEntry = { name: string; kind: NodeKind; children?: TreeEntry[] }
@@ -200,13 +206,49 @@ async function pagePath(nodeId: string): Promise<string> {
   return `/${parts.join("/")}`
 }
 
+export type BrainLink = { type: string; direction: "out" | "in"; path: string }
+
+// Typed edges touching a page: the relationship + the connected page's path.
+async function pageLinks(
+  workspaceId: string,
+  nodeId: string
+): Promise<BrainLink[]> {
+  const rows = await db
+    .select({
+      type: schema.brainEdge.type,
+      fromNodeId: schema.brainEdge.fromNodeId,
+      toNodeId: schema.brainEdge.toNodeId,
+    })
+    .from(schema.brainEdge)
+    .where(
+      and(
+        eq(schema.brainEdge.workspaceId, workspaceId),
+        or(
+          eq(schema.brainEdge.fromNodeId, nodeId),
+          eq(schema.brainEdge.toNodeId, nodeId)
+        )
+      )
+    )
+
+  const links: BrainLink[] = []
+  for (const e of rows) {
+    const outgoing = e.fromNodeId === nodeId
+    links.push({
+      type: e.type,
+      direction: outgoing ? "out" : "in",
+      path: await pagePath(outgoing ? e.toNodeId : e.fromNodeId),
+    })
+  }
+  return links
+}
+
 // Semantic search over page embeddings (cosine, closest first). Returns top-k
-// pages with their reconstructed paths.
+// pages with their reconstructed paths and linked pages.
 export async function searchBrain(
   workspaceId: string,
   queryEmbedding: number[],
   limit: number
-): Promise<{ path: string; body: string }[]> {
+): Promise<{ path: string; body: string; links: BrainLink[] }[]> {
   const distance = cosineDistance(schema.brainNode.embedding, queryEmbedding)
   const rows = await db
     .select({ id: schema.brainNode.id, body: schema.brainNode.body })
@@ -222,9 +264,13 @@ export async function searchBrain(
     .orderBy(distance)
     .limit(limit)
 
-  const results: { path: string; body: string }[] = []
+  const results: { path: string; body: string; links: BrainLink[] }[] = []
   for (const r of rows) {
-    results.push({ path: await pagePath(r.id), body: r.body ?? "" })
+    results.push({
+      path: await pagePath(r.id),
+      body: r.body ?? "",
+      links: await pageLinks(workspaceId, r.id),
+    })
   }
   return results
 }
@@ -340,7 +386,8 @@ export function buildBrainReadTools(workspaceId: string) {
       strict: true,
     }),
     read: tool({
-      description: "Read a brain page's contents by path.",
+      description:
+        "Read a brain page's contents and its linked pages, by path.",
       inputSchema: z.object({
         path: z.string().describe("page path, e.g. /people/alice"),
       }),
