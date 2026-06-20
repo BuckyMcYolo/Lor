@@ -5,6 +5,7 @@ import { z } from "zod"
 // Standalone (no brain/embedding imports) so the realtime gateway can call it
 // without pulling in the full harness.
 const PLACEMENT_MODEL = "claude-haiku-4-5"
+const PLACEMENT_TIMEOUT_MS = 15_000
 
 export type PlacementTurn = { authorName: string; content: string }
 export type ReplyPlacement = "channel" | "thread"
@@ -29,6 +30,9 @@ export async function decideReplyPlacement(
     model: anthropic(PLACEMENT_MODEL),
     schema: z.object({ placement: z.enum(["channel", "thread"]) }),
     prompt: `${PLACEMENT_PROMPT}\n\nRecent conversation:\n${transcript}`,
+    // Bound the call: this runs inline in the realtime message path, so a hung
+    // model would block Merlin's placeholder. On abort the caller defaults to channel.
+    abortSignal: AbortSignal.timeout(PLACEMENT_TIMEOUT_MS),
   })
 
   return result.object.placement
