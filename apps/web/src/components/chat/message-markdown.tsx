@@ -15,6 +15,8 @@ const USER_MENTION_TOKEN_REGEX =
 const TIPTAP_MENTION_REGEX =
   /\[@[^\]]*?\bid="([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})"[^\]]*]/gi
 const EVERYONE_MENTION_REGEX = /(^|\s)@everyone\b/gi
+// Merlin cites brain pages it grounded in as [[/path]] (verified server-side).
+const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
 
 // Shared Shiki highlighter instance; loads languages lazily as code streams in.
 const codePlugin = createCodePlugin({
@@ -58,6 +60,10 @@ function toRenderableMarkdown(
       const label = mention ? getMentionLabel(mention) : "unknown-user"
       return `<mention data-id="${userId}">@${escapeHtml(label)}</mention>`
     })
+    .replace(
+      CITATION_REGEX,
+      (_match, path: string) => `<pageref>${escapeHtml(path.trim())}</pageref>`
+    )
 }
 
 interface MentionProps {
@@ -108,6 +114,14 @@ export function MessageMarkdown({
         >
           {children}
         </a>
+      ),
+      // Verified brain-page citation ([[/path]]). Subtle, non-clickable for now
+      // (no brain browser yet); the path is the children text.
+      // biome-ignore lint/suspicious/noExplicitAny: streamdown types custom tags loosely
+      pageref: (props: any) => (
+        <span className="inline-flex items-center rounded bg-muted px-1 py-0.5 font-mono text-[0.82em] text-muted-foreground">
+          {props.children}
+        </span>
       ),
       // biome-ignore lint/suspicious/noExplicitAny: streamdown types custom tags loosely
       mention: (props: any) => {
@@ -174,8 +188,8 @@ export function MessageMarkdown({
     >
       <Streamdown
         plugins={{ code: codePlugin }}
-        allowedTags={{ mention: ["data-id"] }}
-        literalTagContent={["mention"]}
+        allowedTags={{ mention: ["data-id"], pageref: [] }}
+        literalTagContent={["mention", "pageref"]}
         components={components}
       >
         {markdown}

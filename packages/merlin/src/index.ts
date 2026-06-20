@@ -9,7 +9,12 @@ import {
   tool,
 } from "ai"
 import { z } from "zod"
-import { buildBrainReadTools, buildBrainWriteTools, searchBrain } from "./brain"
+import {
+  buildBrainReadTools,
+  buildBrainWriteTools,
+  pageExists,
+  searchBrain,
+} from "./brain"
 import { embedText } from "./embeddings"
 
 // Sonnet drives the main loop; Haiku gates the (cheap) write-back salience check.
@@ -33,7 +38,7 @@ You have two kinds of memory:
 You can also see images people share in the channel — they're included inline in the conversation below.
 
 How to answer:
-- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. If nothing turns up, say you don't have it in memory yet — never invent specifics.
+- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. When your answer relies on a brain page, cite it inline with its exact path in double brackets, e.g. [[/decisions/auth]]. If nothing turns up, say you don't have it in memory yet — never invent specifics or cite pages you didn't read.
 - For general questions (how-to, definitions, quick help), just answer directly; no lookup needed.
 
 Use your tools silently — don't narrate that you're searching. Gather what you need, then give one clear answer. Be concise. Use Markdown. Speak in the first person; never claim to be human.`
@@ -382,4 +387,42 @@ export async function writeBack(
     },
     stopWhen: stepCountIs(MAX_STEPS),
   })
+}
+
+// Matches [[/brain/page/path]] citations Merlin emits when grounding an answer.
+const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
+
+// Verify brain-page citations resolve. Valid ones are kept (normalized);
+// hallucinated ones are unwrapped to plain text so a fabricated citation can't
+// masquerade as a real source. Best-effort and never throws.
+export async function groundCitations(
+  workspaceId: string,
+  text: string
+): Promise<{ text: string; valid: number; invalid: number }> {
+  const paths = new Set<string>()
+  for (const m of text.matchAll(CITATION_REGEX)) {
+    const p = m[1]?.trim()
+    if (p) paths.add(p)
+  }
+  if (paths.size === 0) return { text, valid: 0, invalid: 0 }
+
+  const isValid = new Map<string, boolean>()
+  await Promise.all(
+    [...paths].map(async (p) => {
+      isValid.set(p, await pageExists(workspaceId, p).catch(() => false))
+    })
+  )
+
+  let valid = 0
+  let invalid = 0
+  const cleaned = text.replace(CITATION_REGEX, (_full, rawPath: string) => {
+    const p = rawPath.trim()
+    if (isValid.get(p)) {
+      valid++
+      return `[[${p}]]`
+    }
+    invalid++
+    return p
+  })
+  return { text: cleaned, valid, invalid }
 }

@@ -90,6 +90,24 @@ async function addMerlinToWorkspace(workspaceId: string) {
   })
 }
 
+// A minimal cold-start scaffold for Merlin's brain so it has obvious places to
+// file knowledge. Folders only; pages/structure still emerge from write-back.
+const DEFAULT_BRAIN_FOLDERS = ["people", "projects", "decisions"]
+
+async function seedBrainTaxonomy(workspaceId: string) {
+  await db
+    .insert(schema.brainNode)
+    .values(
+      DEFAULT_BRAIN_FOLDERS.map((name) => ({
+        workspaceId,
+        kind: "folder" as const,
+        parentId: null,
+        name,
+      }))
+    )
+    .onConflictDoNothing()
+}
+
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_API_URL,
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -279,6 +297,15 @@ export const auth = betterAuth({
             logger.error(
               { err: error, workspaceId: organization.id },
               "Failed to add Merlin to workspace"
+            )
+          }
+
+          try {
+            await seedBrainTaxonomy(organization.id)
+          } catch (error) {
+            logger.error(
+              { err: error, workspaceId: organization.id },
+              "Failed to seed brain taxonomy for workspace"
             )
           }
 
