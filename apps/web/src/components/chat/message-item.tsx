@@ -352,6 +352,7 @@ export function MessageItem({
               content={message.content}
               mentions={message.mentions}
               editedAt={message.editedAt}
+              onCitationJump={onJumpToMessage}
             />
           )}
           {message.remembered && message.remembered.length > 0 && (

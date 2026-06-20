@@ -60,10 +60,14 @@ function toRenderableMarkdown(
       const label = mention ? getMentionLabel(mention) : "unknown-user"
       return `<mention data-id="${userId}">@${escapeHtml(label)}</mention>`
     })
-    .replace(
-      CITATION_REGEX,
-      (_match, path: string) => `<pageref>${escapeHtml(path.trim())}</pageref>`
-    )
+    .replace(CITATION_REGEX, (_match, raw: string) => {
+      const token = raw.trim()
+      if (token.startsWith("msg:")) {
+        const id = token.slice(4).trim()
+        return `<msgref data-id="${escapeHtml(id)}">↗ message</msgref>`
+      }
+      return `<pageref>${escapeHtml(token)}</pageref>`
+    })
 }
 
 interface MentionProps {
@@ -85,6 +89,8 @@ interface MessageMarkdownProps {
   mentions: Message["mentions"]
   className?: string
   editedAt?: string | null
+  // Jump to a cited message ([[msg:<id>]]); resolves cross-channel.
+  onCitationJump?: (messageId: string) => void
 }
 
 export function MessageMarkdown({
@@ -92,6 +98,7 @@ export function MessageMarkdown({
   mentions,
   className,
   editedAt,
+  onCitationJump,
 }: MessageMarkdownProps) {
   const mentionById = useMemo(
     () => new Map(mentions.map((mention) => [mention.id, mention])),
@@ -123,6 +130,22 @@ export function MessageMarkdown({
           {props.children}
         </span>
       ),
+      // Verified message citation ([[msg:<id>]]). Clickable — jumps to the
+      // message (resolving its channel if elsewhere in the workspace).
+      // biome-ignore lint/suspicious/noExplicitAny: streamdown types custom tags loosely
+      msgref: (props: any) => {
+        const id = mentionId(props)
+        return (
+          <button
+            type="button"
+            disabled={!(id && onCitationJump)}
+            onClick={() => id && onCitationJump?.(id)}
+            className="inline-flex items-center rounded bg-primary/10 px-1 py-0.5 text-[0.82em] text-primary hover:bg-primary/20 disabled:cursor-default disabled:opacity-70"
+          >
+            {props.children}
+          </button>
+        )
+      },
       // biome-ignore lint/suspicious/noExplicitAny: streamdown types custom tags loosely
       mention: (props: any) => {
         const id = mentionId(props)
@@ -170,7 +193,7 @@ export function MessageMarkdown({
         )
       },
     }),
-    [mentionById]
+    [mentionById, onCitationJump]
   )
 
   if (markdown.trim().length === 0) {
@@ -188,8 +211,8 @@ export function MessageMarkdown({
     >
       <Streamdown
         plugins={{ code: codePlugin }}
-        allowedTags={{ mention: ["data-id"], pageref: [] }}
-        literalTagContent={["mention", "pageref"]}
+        allowedTags={{ mention: ["data-id"], pageref: [], msgref: ["data-id"] }}
+        literalTagContent={["mention", "pageref", "msgref"]}
         components={components}
       >
         {markdown}

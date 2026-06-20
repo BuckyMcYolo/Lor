@@ -160,10 +160,31 @@ function ChannelView() {
 
   const handleJumpToMessage = useCallback(
     (messageId: string) => {
+      // Already on screen — just scroll. (Common for replies + same-channel.)
       if (scrollToMessage(messageId)) return
-      void navigate({ search: { msgId: messageId } })
+      // Otherwise resolve the message's channel (it may live elsewhere — e.g. a
+      // Merlin citation to another channel) and navigate there to anchor on it.
+      void (async () => {
+        try {
+          const res = await apiClient.v1.workspaces[":workspaceSlug"].messages[
+            ":messageId"
+          ].$get({ param: { workspaceSlug, messageId } })
+          if (res.ok) {
+            const loc = await res.json()
+            await navigate({
+              to: "/$workspaceSlug/$channelId",
+              params: { workspaceSlug, channelId: loc.channelId },
+              search: { msgId: messageId },
+            })
+            return
+          }
+        } catch {
+          // fall through to a best-effort anchor in the current channel
+        }
+        void navigate({ search: { msgId: messageId } })
+      })()
     },
-    [navigate]
+    [navigate, workspaceSlug]
   )
 
   const handleOpenThread = useCallback(

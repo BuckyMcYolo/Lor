@@ -15,6 +15,7 @@ import type {
   CreateChannelRoute,
   DeleteChannelRoute,
   GetChannelRoute,
+  GetMessageLocationRoute,
   ListChannelMessagesRoute,
   ListChannelsRoute,
   ListPinnedMessagesRoute,
@@ -546,4 +547,36 @@ export const listThreadReplies: AppRouteHandler<
     }),
     HttpStatusCodes.OK
   )
+}
+
+export const getMessageLocation: AppRouteHandler<
+  GetMessageLocationRoute
+> = async (c) => {
+  const workspace = c.var.workspace
+  const { messageId } = c.req.valid("param")
+
+  // All channels are public to the workspace, so workspace membership (enforced
+  // by the middleware) is sufficient access; just confirm the message is here.
+  const row = await db
+    .select({
+      messageId: message.id,
+      channelId: message.channelId,
+      threadRootId: message.threadRootId,
+    })
+    .from(message)
+    .innerJoin(channel, eq(message.channelId, channel.id))
+    .where(
+      and(eq(message.id, messageId), eq(channel.workspaceId, workspace.id))
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!row) {
+    return c.json(
+      { success: false, message: "Message not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  return c.json(row, HttpStatusCodes.OK)
 }

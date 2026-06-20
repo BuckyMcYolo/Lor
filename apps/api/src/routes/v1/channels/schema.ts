@@ -100,6 +100,24 @@ export const togglePinResponseSchema = z.object({
   pinned: z.boolean(),
 })
 
+// ── Message location (jump-to-message) ──────────────────────────────────────
+
+export const messageLocationParamsSchema = workspaceSlugParamsSchema.extend({
+  messageId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "messageId", in: "path", required: true },
+      example: "00000000-0000-0000-0000-000000000000",
+    }),
+})
+
+export const messageLocationResponseSchema = z.object({
+  messageId: z.string().uuid(),
+  channelId: z.string().uuid(),
+  threadRootId: z.string().uuid().nullable(),
+})
+
 export const listPinnedMessagesResponseSchema = z.object({
   data: z.array(messageWithAuthorSchema),
 })

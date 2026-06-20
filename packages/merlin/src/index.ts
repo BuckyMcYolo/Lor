@@ -38,7 +38,7 @@ You have two kinds of memory:
 You can also see images people share in the channel — they're included inline in the conversation below.
 
 How to answer:
-- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. When your answer relies on a brain page, cite it inline with its exact path in double brackets, e.g. [[/decisions/auth]]. If nothing turns up, say you don't have it in memory yet — never invent specifics or cite pages you didn't read.
+- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. Cite your sources inline in double brackets: a brain page by its exact path, e.g. [[/decisions/auth]], or a specific message by its id from search_messages / read_thread, e.g. [[msg:0b9c…]]. If nothing turns up, say you don't have it in memory yet — never invent specifics or cite pages/messages you didn't read.
 - For general questions (how-to, definitions, quick help), just answer directly; no lookup needed.
 
 Use your tools silently — don't narrate that you're searching. Gather what you need, then give one clear answer. Be concise. Use Markdown. Speak in the first person; never claim to be human.`
@@ -190,6 +190,7 @@ async function readThread(workspaceId: string, messageId: string) {
   const rootId = msg.threadRootId ?? msg.id
   const rows = await db
     .select({
+      id: schema.message.id,
       content: schema.message.content,
       createdAt: schema.message.createdAt,
       authorName: schema.user.name,
@@ -210,10 +211,35 @@ async function readThread(workspaceId: string, messageId: string) {
     .limit(THREAD_MAX)
 
   return rows.map((r) => ({
+    messageId: r.id,
     author: r.authorName,
     when: r.createdAt.toISOString(),
     text: r.content ?? "",
   }))
+}
+
+// Does a message with this id exist in the workspace? Used to verify citations.
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+async function messageExists(
+  workspaceId: string,
+  messageId: string
+): Promise<boolean> {
+  if (!UUID_REGEX.test(messageId)) return false
+  const row = await db
+    .select({ id: schema.message.id })
+    .from(schema.message)
+    .innerJoin(schema.channel, eq(schema.message.channelId, schema.channel.id))
+    .where(
+      and(
+        eq(schema.message.id, messageId),
+        eq(schema.channel.workspaceId, workspaceId)
+      )
+    )
+    .limit(1)
+    .then((r) => r[0])
+  return !!row
 }
 
 function buildChatTools(workspaceId: string) {
@@ -389,40 +415,51 @@ export async function writeBack(
   })
 }
 
-// Matches [[/brain/page/path]] citations Merlin emits when grounding an answer.
+// Matches Merlin's inline citations: [[/brain/page/path]] or [[msg:<id>]].
 const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
 
-// Verify brain-page citations resolve. Valid ones are kept (normalized);
-// hallucinated ones are unwrapped to plain text so a fabricated citation can't
-// masquerade as a real source. Best-effort and never throws.
+async function citationResolves(
+  workspaceId: string,
+  token: string
+): Promise<boolean> {
+  if (token.startsWith("msg:")) {
+    return messageExists(workspaceId, token.slice(4).trim()).catch(() => false)
+  }
+  return pageExists(workspaceId, token).catch(() => false)
+}
+
+// Verify citations resolve. Valid ones are kept (normalized); hallucinated ones
+// are unwrapped — pages to their plain path text, messages dropped entirely
+// (a bare id is noise) — so a fabricated citation can't pose as a source.
+// Best-effort and never throws.
 export async function groundCitations(
   workspaceId: string,
   text: string
 ): Promise<{ text: string; valid: number; invalid: number }> {
-  const paths = new Set<string>()
+  const tokens = new Set<string>()
   for (const m of text.matchAll(CITATION_REGEX)) {
-    const p = m[1]?.trim()
-    if (p) paths.add(p)
+    const t = m[1]?.trim()
+    if (t) tokens.add(t)
   }
-  if (paths.size === 0) return { text, valid: 0, invalid: 0 }
+  if (tokens.size === 0) return { text, valid: 0, invalid: 0 }
 
   const isValid = new Map<string, boolean>()
   await Promise.all(
-    [...paths].map(async (p) => {
-      isValid.set(p, await pageExists(workspaceId, p).catch(() => false))
+    [...tokens].map(async (t) => {
+      isValid.set(t, await citationResolves(workspaceId, t))
     })
   )
 
   let valid = 0
   let invalid = 0
-  const cleaned = text.replace(CITATION_REGEX, (_full, rawPath: string) => {
-    const p = rawPath.trim()
-    if (isValid.get(p)) {
+  const cleaned = text.replace(CITATION_REGEX, (_full, raw: string) => {
+    const t = raw.trim()
+    if (isValid.get(t)) {
       valid++
-      return `[[${p}]]`
+      return `[[${t}]]`
     }
     invalid++
-    return p
+    return t.startsWith("msg:") ? "" : t
   })
   return { text: cleaned, valid, invalid }
 }
