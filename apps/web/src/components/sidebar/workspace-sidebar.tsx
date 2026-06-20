@@ -46,6 +46,7 @@ import { useEffect, useMemo, useState } from "react"
 import { CreateInviteDialog } from "@/components/invite/create-invite-dialog"
 import { WorkspaceSettingsDialog } from "@/components/workspace/workspace-settings-dialog"
 import { apiClient } from "@/lib/api-client"
+import { writeLastWorkspaceSlug } from "@/lib/last-location"
 import { canCreateChannels } from "@/lib/permissions"
 import { ChannelList } from "./channel-panel/channel-list"
 import {
@@ -54,8 +55,6 @@ import {
 } from "./channel-panel/create-channel-context"
 import { WorkspaceCommand } from "./channel-panel/workspace-command"
 import { CreateWorkspaceDialog } from "./create-workspace-dialog"
-
-const LAST_WORKSPACE_KEY = "lor:last-workspace-slug"
 
 /**
  * Full standalone workspace sidebar (Sidebar shell + content). Kept for
@@ -145,11 +144,7 @@ function WorkspaceSidebarInner() {
   // can return here.
   useEffect(() => {
     if (!workspaceSlug) return
-    try {
-      window.localStorage.setItem(LAST_WORKSPACE_KEY, workspaceSlug)
-    } catch {
-      // ignore quota / private-mode failures
-    }
+    writeLastWorkspaceSlug(workspaceSlug)
   }, [workspaceSlug])
 
   const initial = (activeWorkspace?.name ?? "L").charAt(0).toUpperCase()

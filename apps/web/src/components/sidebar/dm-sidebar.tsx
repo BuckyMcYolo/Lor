@@ -16,20 +16,10 @@ import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Plus } from "lucide-react"
 import { useMemo, useState } from "react"
+import { readLastWorkspaceSlug } from "@/lib/last-location"
 import { SearchBar } from "./channel-panel/search-bar"
 import { DMList } from "./dm-panel/dm-list"
 import { NewDMDialog } from "./dm-panel/new-dm-dialog"
-
-const LAST_WORKSPACE_KEY = "lor:last-workspace-slug"
-
-function readLastWorkspace(): string | null {
-  if (typeof window === "undefined") return null
-  try {
-    return window.localStorage.getItem(LAST_WORKSPACE_KEY)
-  } catch {
-    return null
-  }
-}
 
 function useReturnWorkspace() {
   const { data: workspaces, isPending } = useQuery({
@@ -42,7 +32,7 @@ function useReturnWorkspace() {
   })
 
   return useMemo(() => {
-    const stored = readLastWorkspace()
+    const stored = readLastWorkspaceSlug()
     if (stored && workspaces?.some((w) => w.slug === stored)) {
       const target = workspaces.find((w) => w.slug === stored)
       return {

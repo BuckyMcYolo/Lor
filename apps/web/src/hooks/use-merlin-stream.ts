@@ -30,28 +30,30 @@ export function useMerlinStream({
 
     const handleStream = (payload: {
       channelId: string
+      threadRootId: string | null
       messageId: string
       delta: string
       done: boolean
     }) => {
       if (payload.channelId !== channelId) return
-      queryClient.setQueryData<InfiniteData<MessagePage>>(
-        ["messages", channelId],
-        (old) => {
-          if (!old) return old
-          return updateMessagesAcrossPages(old, (msgs) =>
-            msgs.map((m) =>
-              m.id === payload.messageId
-                ? {
-                    ...m,
-                    content: (m.content ?? "") + payload.delta,
-                    streaming: !payload.done,
-                  }
-                : m
-            )
+      // Patch the thread cache when the reply lives in a thread, else the channel feed.
+      const key = payload.threadRootId
+        ? ["thread", payload.threadRootId]
+        : ["messages", channelId]
+      queryClient.setQueryData<InfiniteData<MessagePage>>(key, (old) => {
+        if (!old) return old
+        return updateMessagesAcrossPages(old, (msgs) =>
+          msgs.map((m) =>
+            m.id === payload.messageId
+              ? {
+                  ...m,
+                  content: (m.content ?? "") + payload.delta,
+                  streaming: !payload.done,
+                }
+              : m
           )
-        }
-      )
+        )
+      })
     }
 
     socket.on("message:stream", handleStream)
@@ -65,32 +67,33 @@ export function useMerlinStream({
 
     const handleMemory = (payload: {
       channelId: string
+      threadRootId: string | null
       messageId: string
       path: string
       action: "created" | "updated"
     }) => {
       if (payload.channelId !== channelId) return
-      queryClient.setQueryData<InfiniteData<MessagePage>>(
-        ["messages", channelId],
-        (old) => {
-          if (!old) return old
-          return updateMessagesAcrossPages(old, (msgs) =>
-            msgs.map((m) =>
-              m.id === payload.messageId
-                ? {
-                    ...m,
-                    remembered: [
-                      ...(m.remembered ?? []).filter(
-                        (r) => r.path !== payload.path
-                      ),
-                      { path: payload.path, action: payload.action },
-                    ],
-                  }
-                : m
-            )
+      const key = payload.threadRootId
+        ? ["thread", payload.threadRootId]
+        : ["messages", channelId]
+      queryClient.setQueryData<InfiniteData<MessagePage>>(key, (old) => {
+        if (!old) return old
+        return updateMessagesAcrossPages(old, (msgs) =>
+          msgs.map((m) =>
+            m.id === payload.messageId
+              ? {
+                  ...m,
+                  remembered: [
+                    ...(m.remembered ?? []).filter(
+                      (r) => r.path !== payload.path
+                    ),
+                    { path: payload.path, action: payload.action },
+                  ],
+                }
+              : m
           )
-        }
-      )
+        )
+      })
     }
 
     socket.on("merlin:memory", handleMemory)

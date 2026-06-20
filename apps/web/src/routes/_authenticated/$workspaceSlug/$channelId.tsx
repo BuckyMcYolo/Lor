@@ -24,6 +24,7 @@ import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
 import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
+import { writeLastChannelId } from "@/lib/last-location"
 import { canPinMessages } from "@/lib/permissions"
 
 type ChannelSearchParams = {
@@ -54,13 +55,7 @@ function ChannelView() {
 
   useEffect(() => {
     if (!workspaceSlug || !channelId) return
-    try {
-      if (typeof window !== "undefined") {
-        localStorage.setItem(`last-channel:${workspaceSlug}`, channelId)
-      }
-    } catch {
-      // localStorage may be unavailable in restricted environments
-    }
+    writeLastChannelId(workspaceSlug, channelId)
   }, [workspaceSlug, channelId])
 
   useEffect(() => {

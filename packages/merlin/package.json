@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./placement": "./src/placement.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

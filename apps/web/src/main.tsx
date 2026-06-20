@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import "@repo/ui/globals.css"
+import "streamdown/styles.css"
 import "./styles/fonts.css"
 import { routeTree } from "./routeTree.gen"
 

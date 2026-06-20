@@ -51,6 +51,7 @@ async function loadConversation(args: {
     .select({
       content: schema.message.content,
       authorName: schema.user.name,
+      attachments: schema.message.attachments,
     })
     .from(schema.message)
     .innerJoin(schema.user, eq(schema.message.authorId, schema.user.id))
@@ -64,9 +65,21 @@ async function loadConversation(args: {
     .orderBy(desc(schema.message.createdAt))
     .limit(CONTEXT_LIMIT)
 
-  return rows
-    .reverse()
-    .map((r) => ({ authorName: r.authorName, content: r.content ?? "" }))
+  return rows.reverse().map((r) => {
+    const images = (r.attachments ?? [])
+      .filter((a) => a.contentType.startsWith("image/"))
+      .map((a) => ({
+        url: a.url,
+        filename: a.filename,
+        mediaType: a.contentType,
+        size: a.size,
+      }))
+    return {
+      authorName: r.authorName,
+      content: r.content ?? "",
+      ...(images.length > 0 ? { images } : {}),
+    }
+  })
 }
 
 export function createMerlinRespondProcessor(
@@ -77,7 +90,12 @@ export function createMerlinRespondProcessor(
     withContext(
       { jobId: job.id, jobName: job.name, channelId: job.data.channelId },
       async () => {
-        const { merlinMessageId, channelId, threadRootId } = job.data
+        const {
+          merlinMessageId,
+          channelId,
+          threadRootId,
+          contextThreadRootId,
+        } = job.data
         const room = threadRootId
           ? threadRoom(threadRootId)
           : channelRoom(channelId)
@@ -85,6 +103,7 @@ export function createMerlinRespondProcessor(
         const emit = (delta: string, done: boolean) =>
           emitter.to(room).emit("message:stream", {
             channelId,
+            threadRootId,
             messageId: merlinMessageId,
             delta,
             done,
@@ -101,7 +120,7 @@ export function createMerlinRespondProcessor(
         try {
           const conversation = await loadConversation({
             channelId,
-            threadRootId,
+            threadRootId: contextThreadRootId,
             merlinMessageId,
           })
 
@@ -133,6 +152,16 @@ export function createMerlinRespondProcessor(
                   pending = ""
                 }
               },
+              // Explicit "remember this" writes happen during the answer; surface
+              // their chip immediately like the background write-back does.
+              onMemoryWritten: ({ path, action }) =>
+                emitter.to(room).emit("merlin:memory", {
+                  channelId,
+                  threadRootId,
+                  messageId: merlinMessageId,
+                  path,
+                  action,
+                }),
             }
           )
           if (pending.length > 0) emit(pending, false)
@@ -229,6 +258,7 @@ export function createMerlinRespondProcessor(
               onMemoryWritten: ({ path, action }) =>
                 emitter.to(room).emit("merlin:memory", {
                   channelId,
+                  threadRootId,
                   messageId: merlinMessageId,
                   path,
                   action,

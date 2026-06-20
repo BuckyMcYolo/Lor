@@ -337,8 +337,11 @@ export interface ServerToClientEvents {
   "message:embeds:updated": (payload: RealtimeMessageEmbedsUpdated) => void
   // Merlin streaming its reply into an existing (placeholder) message.
   // delta = new text chunk; done = final chunk (content now persisted in DB).
+  // threadRootId is set when Merlin's reply lives in a thread (else null), so
+  // the client patches the right message cache.
   "message:stream": (payload: {
     channelId: string
+    threadRootId: string | null
     messageId: string
     delta: string
     done: boolean
@@ -346,6 +349,7 @@ export interface ServerToClientEvents {
   // Merlin saved/updated a brain page during write-back (messageId = its reply).
   "merlin:memory": (payload: {
     channelId: string
+    threadRootId: string | null
     messageId: string
     path: string
     action: "created" | "updated"
