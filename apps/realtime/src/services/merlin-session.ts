@@ -35,3 +35,35 @@ export async function closeMerlinSession(
 ) {
   await redis.del(sessionKey(scopeId, userId))
 }
+
+// Threads default to "Merlin responds" once it's posted there. Mentioning a
+// teammate (not Merlin) mutes that — humans have taken the thread over — until
+// someone @Merlins again. Long TTL just garbage-collects abandoned threads.
+const THREAD_MUTE_TTL_SECONDS = 7 * 24 * 60 * 60
+
+function threadMuteKey(threadRootId: string) {
+  return `merlin:thread:muted:${threadRootId}`
+}
+
+export async function muteMerlinThread(
+  redis: RedisClient,
+  threadRootId: string
+) {
+  await redis.set(threadMuteKey(threadRootId), "1", {
+    EX: THREAD_MUTE_TTL_SECONDS,
+  })
+}
+
+export async function unmuteMerlinThread(
+  redis: RedisClient,
+  threadRootId: string
+) {
+  await redis.del(threadMuteKey(threadRootId))
+}
+
+export async function isMerlinThreadMuted(
+  redis: RedisClient,
+  threadRootId: string
+): Promise<boolean> {
+  return (await redis.exists(threadMuteKey(threadRootId))) === 1
+}

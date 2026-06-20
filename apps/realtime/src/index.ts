@@ -3,6 +3,7 @@ import { auth, type Session } from "@repo/auth"
 import { and, db, eq, schema } from "@repo/db"
 import { env } from "@repo/env/server"
 import { enterContext } from "@repo/logger"
+import { decideReplyPlacement } from "@repo/merlin/placement"
 import { buildMessageFanout } from "@repo/messaging"
 import type {
   ClientToServerEvents,
@@ -43,12 +44,17 @@ import { assertUserCanAccessChannel } from "@/services/channel-access"
 import {
   createMerlinPlaceholder,
   isMerlinMentioned,
+  isMerlinThread,
+  loadRecentChannelMessages,
   mentionsOtherUser,
 } from "@/services/merlin"
 import {
   closeMerlinSession,
   isMerlinSessionOpen,
+  isMerlinThreadMuted,
+  muteMerlinThread,
   openMerlinSession,
+  unmuteMerlinThread,
 } from "@/services/merlin-session"
 import {
   createMessage,
@@ -529,23 +535,55 @@ io.on("connection", (socket) => {
       const addressesTeammate = mentionsOtherUser(parsed.content)
       let triggerMerlin = merlinMentioned
       if (!merlinMentioned && !addressesTeammate) {
-        triggerMerlin = await isMerlinSessionOpen(
-          redisPresenceClient,
-          merlinScopeId,
-          socket.data.user.id
-        ).catch(() => false)
+        // Inside a thread Merlin is part of, plain replies always go to it (the
+        // thread is the conversation) — no session window — unless the thread
+        // was muted by someone addressing a teammate. Elsewhere, fall back to
+        // the timed session opened by a recent @Merlin.
+        if (parsed.threadRootId) {
+          const inMerlinThread = await isMerlinThread(
+            parsed.threadRootId
+          ).catch(() => false)
+          const muted =
+            inMerlinThread &&
+            (await isMerlinThreadMuted(
+              redisPresenceClient,
+              parsed.threadRootId
+            ).catch(() => false))
+          triggerMerlin = inMerlinThread && !muted
+        }
+        if (!triggerMerlin) {
+          triggerMerlin = await isMerlinSessionOpen(
+            redisPresenceClient,
+            merlinScopeId,
+            socket.data.user.id
+          ).catch(() => false)
+        }
       }
 
       if (!triggerMerlin) {
-        // Addressing a teammate ends the sender's open Merlin session here.
+        // Addressing a teammate ends the sender's open Merlin session, and in a
+        // thread mutes Merlin there until someone @Merlins again.
         if (addressesTeammate) {
           void closeMerlinSession(
             redisPresenceClient,
             merlinScopeId,
             socket.data.user.id
           ).catch(() => {})
+          if (parsed.threadRootId) {
+            void muteMerlinThread(
+              redisPresenceClient,
+              parsed.threadRootId
+            ).catch(() => {})
+          }
         }
       } else {
+        // A fresh @Merlin in a thread un-mutes it (Merlin is back in).
+        if (merlinMentioned && parsed.threadRootId) {
+          void unmuteMerlinThread(
+            redisPresenceClient,
+            parsed.threadRootId
+          ).catch(() => {})
+        }
         // Open/refresh the session so follow-ups continue without re-mentioning.
         void openMerlinSession(
           redisPresenceClient,
@@ -554,7 +592,22 @@ io.on("connection", (socket) => {
         ).catch((err) => {
           logger.error({ err }, "Failed to open Merlin session")
         })
-        const merlinThreadRootId = parsed.threadRootId ?? null
+
+        // Decide where Merlin replies. A mention already in a thread stays
+        // there; a main-channel mention may answer in-channel (broadly useful)
+        // or duck into a thread rooted at the triggering message (narrow/noisy).
+        let merlinThreadRootId = parsed.threadRootId ?? null
+        if (merlinThreadRootId === null) {
+          try {
+            const recent = await loadRecentChannelMessages(parsed.channelId)
+            if ((await decideReplyPlacement(recent)) === "thread") {
+              merlinThreadRootId = createdMessage.message.id
+            }
+          } catch (err) {
+            logger.error({ err }, "Merlin placement decision failed")
+          }
+        }
+
         void createMerlinPlaceholder({
           accessibleChannel,
           channelId: parsed.channelId,
@@ -584,6 +637,7 @@ io.on("connection", (socket) => {
               merlinMessageId: merlinMessage.id,
               channelId: parsed.channelId,
               threadRootId: merlinThreadRootId,
+              contextThreadRootId: parsed.threadRootId ?? null,
               triggerMessageId: createdMessage.message.id,
             })
           })

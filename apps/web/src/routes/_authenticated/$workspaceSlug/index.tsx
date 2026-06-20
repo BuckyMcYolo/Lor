@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { LeftSidebarToggle } from "@/components/sidebar/sidebar-toggle"
+import { readLastChannelId } from "@/lib/last-location"
 
 export const Route = createFileRoute("/_authenticated/$workspaceSlug/")({
   component: WorkspaceHome,
@@ -11,14 +12,7 @@ function WorkspaceHome() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    let lastChannelId: string | null = null
-    try {
-      if (typeof window !== "undefined") {
-        lastChannelId = localStorage.getItem(`last-channel:${workspaceSlug}`)
-      }
-    } catch {
-      // localStorage may be unavailable in restricted environments
-    }
+    const lastChannelId = readLastChannelId(workspaceSlug)
     if (lastChannelId) {
       void navigate({
         to: "/$workspaceSlug/$channelId",

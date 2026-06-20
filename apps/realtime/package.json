@@ -14,6 +14,7 @@
     "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
     "@repo/logger": "workspace:^",
+    "@repo/merlin": "workspace:^",
     "@repo/messaging": "workspace:^",
     "@repo/realtime-types": "workspace:*",
     "@socket.io/redis-adapter": "^8.3.0",
