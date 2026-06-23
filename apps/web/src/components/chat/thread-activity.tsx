@@ -101,7 +101,7 @@ function ThreadActivityCard({
         type="button"
         aria-label="Dismiss thread activity"
         onClick={() => onDismiss(activity.threadRootId)}
-        className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+        className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
       >
         <X className="size-3.5" />
       </button>

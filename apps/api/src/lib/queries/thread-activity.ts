@@ -78,9 +78,12 @@ export async function fetchChannelThreadActivity({
     .limit(1)
   const lastReadAt = readRows[0]?.lastReadAt ?? null
 
-  // Roots with a reply from someone else since we last read the channel.
+  // Roots with a reply from someone else since we last read the channel,
+  // bounded to the `limit` most-recently-active so the follow-up queries below
+  // stay proportional to what we actually render (newest fresh reply == the
+  // thread's last reply, so this matches the final ordering).
   const freshRootRows = await db
-    .selectDistinct({ threadRootId: message.threadRootId })
+    .select({ threadRootId: message.threadRootId })
     .from(message)
     .where(
       and(
@@ -90,6 +93,9 @@ export async function fetchChannelThreadActivity({
         lastReadAt ? gt(message.createdAt, lastReadAt) : undefined
       )
     )
+    .groupBy(message.threadRootId)
+    .orderBy(desc(max(message.createdAt)))
+    .limit(limit)
   const rootIds = freshRootRows
     .map((r) => r.threadRootId)
     .filter((id): id is string => id !== null)

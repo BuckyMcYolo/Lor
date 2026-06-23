@@ -80,7 +80,7 @@ Stateless per invocation; the only persistent state is the brain in Postgres.
 
 ### 3.1 Grounding & the cheap-model gate
 
-- **Conditional grounding (in the system prompt, not a separate model):** for workspace questions Merlin grounds in what it finds (brain + message search) or says "I don't have it in memory yet"; general questions (how-to, chit-chat) are answered directly. **Brain-page citations are verified** (§4): Merlin cites pages it relied on as `[[/path]]`, and the worker strips any that don't resolve. Message-id citations remain deferred (no permalink target yet).
+- **Conditional grounding (in the system prompt, not a separate model):** for workspace questions Merlin grounds in what it finds (brain + message search) or says "I don't have it in memory yet"; general questions (how-to, chit-chat) are answered directly. **Citations are verified** (§4): Merlin cites brain pages it relied on as `[[/path]]` and specific messages as `[[msg:<id>]]`; the worker strips any that don't resolve. Message-id citations are clickable (jump-to-message).
 - **Write-back salience gate (Haiku):** a cheap `generateObject` boolean over the exchange decides whether to spin up the expensive write-back agent — skips trivial mentions.
 - *Deferred:* a Haiku grounding-mode classifier and a reply-placement router (both folded away / postponed).
 
@@ -99,7 +99,7 @@ A Claude tool-use loop (Vercel **AI SDK v6**, `streamText` for the streamed answ
 
 **Models:** Sonnet (`claude-sonnet-4-6`) for both answer and write-back; Haiku (`claude-haiku-4-5`) for the salience gate. Opus reserved for later if Sonnet underperforms.
 
-**Grounding:** prompt-conditional (above). **Citation verification built** (brain pages): Merlin cites grounding pages inline as `[[/path]]`; `groundCitations(workspaceId, text)` (exported from `packages/merlin`) extracts each, verifies it resolves to an active page (`pageExists`), keeps valid ones (rendered as a pill in the web client) and unwraps unresolved ones to plain text so a hallucinated citation can't pose as a source. The worker runs it before persist/fanout and logs stripped citations. Message-id citations + clickable navigation (needs a brain browser) are the remaining open pieces.
+**Grounding:** prompt-conditional (above). **Citation verification built:** Merlin cites grounding sources inline — brain pages as `[[/path]]`, messages as `[[msg:<id>]]`; `groundCitations(workspaceId, text)` (exported from `packages/merlin`) extracts each, verifies it resolves (`pageExists` for pages, `messageExists` for messages), keeps valid ones, and unwraps unresolved pages to plain text / drops unresolved message ids so a hallucinated citation can't pose as a source. The worker runs it before persist/fanout and logs stripped citations. In the web client, page citations render as a pill and message citations are clickable (jump-to-message, resolving the channel cross-workspace). Making brain-page citations clickable (needs a brain browser) is the remaining open piece.
 
 ---
 
@@ -180,9 +180,8 @@ Socket events (in `@repo/realtime-types`): `message:stream { channelId, messageI
 **Next steps (priority order):**
 1. **Eval harness (highest).** 5–10 seeded conversations with expected memory + expected retrieval, so the write-back/grounding/placement prompts are tunable with signal instead of vibes. (This is the instrument for tuning the moat — everything prompt-driven now depends on it.)
 2. **Integrations (Track B):** `merlin_source` / `merlin_page_source` / `merlin_integration_connection` tables + per-provider connectors + `search_sources`/`fetch_source` tools (§6).
-3. **Message-id citations** — extend verification to messages once a permalink/jump-to-message target exists.
-4. **Image-aware write-back** — the salience gate is text-only, so knowledge living only in an image never gets saved.
-5. **Optional / when-needed:** page chunking (gated on pages growing large); frontmatter → `metadata` parse (when a consumer exists, e.g. tag filtering); prompt caching; brain-browser UI (makes citations clickable); streamdown `@source` decoupling from `apps/web/node_modules`.
+3. **Image-aware write-back** — the salience gate is text-only, so knowledge living only in an image never gets saved.
+4. **Optional / when-needed:** page chunking (gated on pages growing large); frontmatter → `metadata` parse (when a consumer exists, e.g. tag filtering); prompt caching; brain-browser UI (makes brain-page citations clickable); streamdown `@source` decoupling from `apps/web/node_modules`.
 
 ---
 

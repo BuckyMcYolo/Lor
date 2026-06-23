@@ -23,11 +23,15 @@ const codePlugin = createCodePlugin({
   themes: ["github-light", "github-dark-dimmed"],
 })
 
+// Escapes for both text and double-quoted attribute contexts (data-id below),
+// so a citation token can't break out of its attribute.
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
 }
 
 function getMentionLabel(mention: Message["mentions"][number]) {
@@ -124,16 +128,14 @@ export function MessageMarkdown({
       ),
       // Verified brain-page citation ([[/path]]). Subtle, non-clickable for now
       // (no brain browser yet); the path is the children text.
-      // biome-ignore lint/suspicious/noExplicitAny: streamdown types custom tags loosely
-      pageref: (props: any) => (
+      pageref: (props: MentionProps) => (
         <span className="inline-flex items-center rounded bg-muted px-1 py-0.5 font-mono text-[0.82em] text-muted-foreground">
           {props.children}
         </span>
       ),
       // Verified message citation ([[msg:<id>]]). Clickable — jumps to the
       // message (resolving its channel if elsewhere in the workspace).
-      // biome-ignore lint/suspicious/noExplicitAny: streamdown types custom tags loosely
-      msgref: (props: any) => {
+      msgref: (props: MentionProps) => {
         const id = mentionId(props)
         return (
           <button
@@ -146,10 +148,9 @@ export function MessageMarkdown({
           </button>
         )
       },
-      // biome-ignore lint/suspicious/noExplicitAny: streamdown types custom tags loosely
-      mention: (props: any) => {
+      mention: (props: MentionProps) => {
         const id = mentionId(props)
-        const children = props.children as ReactNode
+        const children = props.children
         if (id === "everyone") {
           return (
             <span className="inline-flex cursor-default rounded bg-primary/15 px-1 py-0.5 font-medium text-primary">
