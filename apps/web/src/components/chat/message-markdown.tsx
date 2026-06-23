@@ -117,7 +117,7 @@ export function MessageMarkdown({
           href={href}
           target="_blank"
           rel="noreferrer noopener"
-          className="text-primary underline-offset-2 hover:underline"
+          className="break-words text-primary underline-offset-2 hover:underline"
         >
           {children}
         </a>
@@ -203,8 +203,7 @@ export function MessageMarkdown({
   return (
     <div
       className={cn(
-        "break-words text-sm leading-snug text-foreground/90",
-        "[&_p]:my-0 [&_a]:break-words [&_:not(pre)>code]:rounded-[4px] [&_:not(pre)>code]:border [&_:not(pre)>code]:border-border/70 [&_:not(pre)>code]:bg-primary/10 [&_:not(pre)>code]:px-0.75 [&_:not(pre)>code]:py-0.25 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-[0.92em] [&_:not(pre)>code]:text-foreground [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
+        "message-markdown break-words text-sm leading-snug text-foreground/90",
         editedAt && "[&>p:last-of-type]:inline",
         className
       )}
