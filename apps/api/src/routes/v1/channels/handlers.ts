@@ -10,6 +10,7 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { assertWorkspacePermission } from "@/lib/permissions"
 import { fetchMessages } from "@/lib/queries/messages"
+import { fetchChannelThreadActivity } from "@/lib/queries/thread-activity"
 import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
   CreateChannelRoute,
@@ -19,6 +20,7 @@ import type {
   ListChannelMessagesRoute,
   ListChannelsRoute,
   ListPinnedMessagesRoute,
+  ListThreadActivityRoute,
   ListThreadRepliesRoute,
   ReorderChannelsRoute,
   ToggleMessagePinRoute,
@@ -259,6 +261,37 @@ export const listChannelMessages: AppRouteHandler<
     }),
     HttpStatusCodes.OK
   )
+}
+
+export const listThreadActivity: AppRouteHandler<
+  ListThreadActivityRoute
+> = async (c) => {
+  const workspace = c.var.workspace
+  const currentUser = c.var.user
+  const { channelId } = c.req.valid("param")
+
+  const ch = await db
+    .select({ id: channel.id })
+    .from(channel)
+    .where(
+      and(eq(channel.id, channelId), eq(channel.workspaceId, workspace.id))
+    )
+    .limit(1)
+    .then((rows) => rows[0])
+
+  if (!ch) {
+    return c.json(
+      { success: false, message: "Channel not found" },
+      HttpStatusCodes.NOT_FOUND
+    )
+  }
+
+  const data = await fetchChannelThreadActivity({
+    channelId,
+    currentUserId: currentUser.id,
+  })
+
+  return c.json({ data }, HttpStatusCodes.OK)
 }
 
 export const toggleMessagePin: AppRouteHandler<ToggleMessagePinRoute> = async (

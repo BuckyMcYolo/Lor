@@ -18,6 +18,7 @@ import {
   listMessagesQuerySchema,
   listMessagesResponseSchema,
   listPinnedMessagesResponseSchema,
+  listThreadActivityResponseSchema,
   messageIdParamsSchema,
   messageLocationParamsSchema,
   messageLocationResponseSchema,
@@ -265,6 +266,29 @@ export const listThreadReplies = createRoute({
   },
 })
 
+export const listThreadActivity = createRoute({
+  path: "/workspaces/{workspaceSlug}/channels/{channelId}/thread-activity",
+  method: "get",
+  summary: "List unread thread activity",
+  description:
+    "Returns threads in the channel that received replies from others since the caller last read the channel, for the activity cards at the bottom of the feed.",
+  tags: ["Channels"],
+  middleware: [workspaceAuthMiddleware] as const,
+  request: {
+    params: channelParamsSchema,
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent({
+      schema: listThreadActivityResponseSchema,
+      description: "Unread thread activity",
+    }),
+    [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
+    [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
+  },
+})
+
 export const getMessageLocation = createRoute({
   path: "/workspaces/{workspaceSlug}/messages/{messageId}",
   method: "get",
@@ -298,4 +322,5 @@ export type ListChannelMessagesRoute = typeof listChannelMessages
 export type ToggleMessagePinRoute = typeof toggleMessagePin
 export type ListPinnedMessagesRoute = typeof listPinnedMessages
 export type ListThreadRepliesRoute = typeof listThreadReplies
+export type ListThreadActivityRoute = typeof listThreadActivity
 export type GetMessageLocationRoute = typeof getMessageLocation
