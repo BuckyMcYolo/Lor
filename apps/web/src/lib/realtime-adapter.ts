@@ -23,6 +23,7 @@ export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
     reactions: rm.reactions,
     threadRootId: rm.threadRootId ?? null,
     threadSummary: null,
+    ...(rm.streaming ? { streaming: true } : {}),
   }
 }
 

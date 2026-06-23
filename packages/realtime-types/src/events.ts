@@ -149,6 +149,9 @@ export type RealtimeMessage = {
   threadRootId?: string | null
   editedAt?: string
   nonce?: string
+  // Set on Merlin's empty placeholder so the client shows the "thinking"
+  // indicator immediately, without waiting for the first stream event.
+  streaming?: boolean
 }
 
 export type RealtimeMessagePinToggled = {
@@ -284,12 +287,16 @@ export type WorkspaceMemberJoinedAck = (result: OkResult | ErrorResult) => void
 
 export const typingStartPayloadSchema = z.object({
   channelId: z.string().uuid(),
+  // Set when typing inside a thread reply so the indicator scopes to the
+  // thread panel instead of leaking into the main channel.
+  threadRootId: z.string().uuid().optional(),
 })
 
 export type TypingStartPayload = z.infer<typeof typingStartPayloadSchema>
 
 export type TypingIndicatorEvent = {
   channelId: string
+  threadRootId?: string | null
   userId: string
   name: string
 }

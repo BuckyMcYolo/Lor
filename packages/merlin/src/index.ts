@@ -382,6 +382,28 @@ export async function respond(
   }
 
   const response = await result.response
+
+  // The tool loop occasionally ends on a tool call at the step cap without
+  // emitting any answer text. Run one no-tools synthesis pass continuing the
+  // same conversation so Merlin produces a real reply from what it gathered,
+  // rather than posting a blank message.
+  if (!text.trim()) {
+    const retry = streamText({
+      model: anthropic(MERLIN_MODEL),
+      system: `${SYSTEM_PROMPT}\n\n${ANSWER_WRITE_GUIDANCE}`,
+      messages: [userMessage, ...response.messages],
+    })
+    for await (const delta of retry.textStream) {
+      text += delta
+      await onDelta(delta)
+    }
+    const retryResponse = await retry.response
+    return {
+      text,
+      messages: [userMessage, ...response.messages, ...retryResponse.messages],
+    }
+  }
+
   return { text, messages: [userMessage, ...response.messages] }
 }
 

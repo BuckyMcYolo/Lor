@@ -16,6 +16,9 @@ export type ThreadPage = {
   afterCursor: string | null
   reachedOldest: boolean
   reachedNewest: boolean
+  // The thread root message, returned on every page so the panel can render it
+  // even when it's scrolled out of the channel feed.
+  root?: Message | null
 }
 
 type FetchPageParams = {
@@ -125,15 +128,29 @@ export function useThreadMessages({
     }
   }, [socket, channelId, threadRootId, queryClient, pendingNoncesRef])
 
-  const messages = useMemo(
-    () => query.data?.pages.flatMap((page) => page.data) ?? [],
-    [query.data]
-  )
+  // Dedupe by id to guard against the same reply landing in two pages (e.g. a
+  // page refetch racing a live insert), mirroring the channel feed.
+  const messages = useMemo(() => {
+    const seen = new Set<string>()
+    const deduped: Message[] = []
+    for (const page of query.data?.pages ?? []) {
+      for (const m of page.data) {
+        if (seen.has(m.id)) continue
+        seen.add(m.id)
+        deduped.push(m)
+      }
+    }
+    return deduped
+  }, [query.data])
+
+  // pages[0] is the initial (newest) page; older pages append after it.
+  const root = query.data?.pages[0]?.root ?? null
 
   const fetchOlder = useCallback(() => query.fetchNextPage(), [query])
 
   return {
     messages,
+    root,
     isLoading: query.isPending,
     isError: query.isError,
     error: query.error,

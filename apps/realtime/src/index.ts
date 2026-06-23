@@ -614,14 +614,18 @@ io.on("connection", (socket) => {
           threadRootId: merlinThreadRootId,
         })
           .then(async (merlinMessage) => {
-            if (merlinMessage.threadRootId) {
-              io.to(threadRoom(merlinMessage.threadRootId)).emit(
+            // Flag the placeholder as streaming so the "Merlin is thinking"
+            // indicator shows the instant it lands (independent of the worker's
+            // first stream event arriving).
+            const placeholder = { ...merlinMessage, streaming: true }
+            if (placeholder.threadRootId) {
+              io.to(threadRoom(placeholder.threadRootId)).emit(
                 "message:created",
-                merlinMessage
+                placeholder
               )
               const summary = await loadThreadSummary(
                 parsed.channelId,
-                merlinMessage.threadRootId
+                placeholder.threadRootId
               )
               io.to(channelRoom(parsed.channelId)).emit(
                 "message:thread:updated",
@@ -630,7 +634,7 @@ io.on("connection", (socket) => {
             } else {
               io.to(channelRoom(parsed.channelId)).emit(
                 "message:created",
-                merlinMessage
+                placeholder
               )
             }
             await merlinRespondQueue.add("respond", {
@@ -757,8 +761,14 @@ io.on("connection", (socket) => {
       const parsed = typingStartPayloadSchema.parse(payload)
       await assertUserCanAccessChannel(socket.data.user.id, parsed.channelId)
 
-      socket.to(channelRoom(parsed.channelId)).emit("typing:update", {
+      // Scope to the thread room when typing in a thread reply, else the
+      // channel — keeps thread typing out of the channel feed and vice-versa.
+      const room = parsed.threadRootId
+        ? threadRoom(parsed.threadRootId)
+        : channelRoom(parsed.channelId)
+      socket.to(room).emit("typing:update", {
         channelId: parsed.channelId,
+        threadRootId: parsed.threadRootId ?? null,
         userId: socket.data.user.id,
         name: socket.data.user.name,
       })

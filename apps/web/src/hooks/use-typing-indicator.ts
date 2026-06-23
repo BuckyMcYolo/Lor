@@ -15,11 +15,15 @@ export function useTypingIndicator({
   socket,
   channelId,
   currentUserId,
+  threadRootId,
   blockedUserIds,
 }: {
   socket: AppSocket | null
   channelId: string
   currentUserId: string | undefined
+  // When set, the hook scopes to a thread: it emits + only listens for typing
+  // in that thread, ignoring channel-level typing (and vice-versa).
+  threadRootId?: string
   blockedUserIds?: Set<string>
 }) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
@@ -32,8 +36,8 @@ export function useTypingIndicator({
     const now = Date.now()
     if (now - lastEmitRef.current < TYPING_THROTTLE_MS) return
     lastEmitRef.current = now
-    socket.emit("typing:start", { channelId })
-  }, [socket, channelId])
+    socket.emit("typing:start", { channelId, threadRootId })
+  }, [socket, channelId, threadRootId])
 
   // Listen for typing events from others
   useEffect(() => {
@@ -41,6 +45,9 @@ export function useTypingIndicator({
 
     const onTypingUpdate = (payload: TypingIndicatorEvent) => {
       if (payload.channelId !== channelId) return
+      // Match scope: thread hook accepts only its thread's events; channel hook
+      // accepts only channel-level (no threadRootId) events.
+      if ((payload.threadRootId ?? undefined) !== threadRootId) return
       if (payload.userId === currentUserId) return
       if (blockedUserIds?.has(payload.userId)) return
 
@@ -72,7 +79,7 @@ export function useTypingIndicator({
     return () => {
       socket.off("typing:update", onTypingUpdate)
     }
-  }, [socket, channelId, currentUserId, blockedUserIds])
+  }, [socket, channelId, currentUserId, threadRootId, blockedUserIds])
 
   // Cleanup expired entries
   useEffect(() => {
@@ -90,11 +97,11 @@ export function useTypingIndicator({
     }
   }, [])
 
-  // Reset when channel changes
+  // Reset when channel or thread scope changes
   useEffect(() => {
     setTypingUsers([])
     lastEmitRef.current = 0
-  }, [channelId])
+  }, [channelId, threadRootId])
 
   return {
     typingUsers,

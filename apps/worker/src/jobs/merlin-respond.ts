@@ -194,7 +194,21 @@ export function createMerlinRespondProcessor(
               "Stripped unresolved Merlin citations"
             )
           }
-          const finalText = grounded.text
+
+          // Safety net: if generation (and its no-tools retry) still yielded
+          // nothing, post a graceful note instead of a blank message that
+          // would persist across reloads.
+          let finalText = grounded.text
+          let emptyFallback = false
+          if (!finalText.trim()) {
+            finalText =
+              "I couldn't pull together an answer for that — could you add a bit more detail or rephrase?"
+            emptyFallback = true
+            logger.warn(
+              { merlinMessageId },
+              "Merlin produced no answer text; using empty fallback"
+            )
+          }
 
           await db
             .update(schema.message)
@@ -235,9 +249,12 @@ export function createMerlinRespondProcessor(
             }
           }
 
-          emit("", true)
+          // Normal case streamed the answer already, so just end the stream.
+          // For the empty-fallback case nothing was streamed, so push the
+          // fallback text as the final delta before ending.
+          emit(emptyFallback ? finalText : "", true)
           logger.info(
-            { merlinMessageId, length: answer.text.length },
+            { merlinMessageId, length: finalText.length },
             "Merlin reply complete"
           )
         } catch (err) {

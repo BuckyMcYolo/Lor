@@ -10,11 +10,16 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { useNavigate } from "@tanstack/react-router"
+import { ArrowLeft, CornerUpRight, Loader2 } from "lucide-react"
 import { motion } from "motion/react"
 import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useDropzone } from "react-dropzone"
 import { MessageInput } from "@/components/chat/composer/message-input"
+import { DropZoneOverlay } from "@/components/chat/drop-zone-overlay"
 import { MessageItem } from "@/components/chat/message-item"
+import { scrollToMessage } from "@/components/chat/message-list"
+import { TypingIndicator } from "@/components/chat/typing-indicator"
 import { useSocket } from "@/context/socket-context"
 import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
@@ -23,6 +28,7 @@ import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
 import { useThreadMessages } from "@/hooks/use-thread-messages"
+import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
 import type { Message } from "@/lib/api-types"
 import { useRightSidebar } from "./right-sidebar-context"
@@ -59,6 +65,8 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
   const { data: session } = authClient.useSession()
   const currentUserId = session?.user.id
 
+  const navigate = useNavigate()
+
   const goBack = () => {
     setView({
       type: "workspace-members",
@@ -67,6 +75,21 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
     })
   }
 
+  // Jump the main channel feed to the thread root. Scroll in place if it's
+  // already rendered; otherwise anchor the feed on it via ?msgId (the channel
+  // refetches around it). Leaves the thread open so both stay in view.
+  const handleViewInChannel = useCallback(() => {
+    if (scrollToMessage(view.threadRootId)) return
+    void navigate({
+      to: "/$workspaceSlug/$channelId",
+      params: {
+        workspaceSlug: view.workspaceSlug,
+        channelId: view.channelId,
+      },
+      search: (prev) => ({ ...prev, msgId: view.threadRootId }),
+    })
+  }, [navigate, view.workspaceSlug, view.channelId, view.threadRootId])
+
   // Subscribe to the channel cache so the root reflects edits, reactions,
   // and embed unfurls while the thread panel is open. The channel feed hook
   // (in the main view) owns the actual fetch — we just read here.
@@ -74,7 +97,10 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
     queryKey: ["messages", view.channelId],
     enabled: false,
   })
-  const rootMessage = useMemo(
+  // Prefer the channel cache copy (stays live with edits/reactions/unfurls);
+  // fall back to the API root (below) when the root isn't loaded in the feed —
+  // e.g. an old thread reopened from the URL on refresh.
+  const channelCacheRoot = useMemo(
     () => findMessageInChannelCache(channelCache, view.threadRootId),
     [channelCache, view.threadRootId]
   )
@@ -108,14 +134,22 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
     threadRootId: view.threadRootId,
   })
 
-  const { messages, isLoading, fetchOlder, hasOlder, isFetchingOlder } =
-    useThreadMessages({
-      channelId: view.channelId,
-      threadRootId: view.threadRootId,
-      fetchPage: fetchThreadPage,
-      socket,
-      pendingNoncesRef: pendingNonces,
-    })
+  const {
+    messages,
+    root: threadApiRoot,
+    isLoading,
+    fetchOlder,
+    hasOlder,
+    isFetchingOlder,
+  } = useThreadMessages({
+    channelId: view.channelId,
+    threadRootId: view.threadRootId,
+    fetchPage: fetchThreadPage,
+    socket,
+    pendingNoncesRef: pendingNonces,
+  })
+
+  const rootMessage = channelCacheRoot ?? threadApiRoot
 
   const { handleReact } = useMessageReactions({
     socket,
@@ -136,6 +170,28 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
   })
 
   const fileUpload = useFileUpload(view.channelId)
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) {
+        void fileUpload.addFiles(acceptedFiles)
+      }
+    },
+    [fileUpload.addFiles]
+  )
+
+  const { getRootProps, isDragActive } = useDropzone({
+    onDrop,
+    noClick: true,
+    noKeyboard: true,
+  })
+
+  const { typingUsers, emitTyping } = useTypingIndicator({
+    socket,
+    channelId: view.channelId,
+    currentUserId,
+    threadRootId: view.threadRootId,
+  })
 
   const { replyingTo, setReplyingTo, clearReply } = useReplyState()
 
@@ -259,7 +315,8 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
     dividerCount > 0
 
   return (
-    <div className="relative flex h-full w-full flex-col">
+    <div {...getRootProps()} className="relative flex h-full w-full flex-col">
+      <DropZoneOverlay isDragActive={isDragActive} />
       <div className="flex h-12 shrink-0 items-center gap-2 px-4">
         <button
           type="button"
@@ -279,9 +336,18 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
         </span>
         <button
           type="button"
+          onClick={handleViewInChannel}
+          aria-label="Go to message in channel"
+          className="ml-auto flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+        >
+          <CornerUpRight className="size-3.5" />
+          <span className="hidden sm:inline">Go to message</span>
+        </button>
+        <button
+          type="button"
           onClick={isMobile ? clearView : toggleCollapsed}
           aria-label={isMobile ? "Close thread panel" : "Collapse thread panel"}
-          className="-mr-1.5 ml-auto flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+          className="-mr-1.5 flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
         >
           <SidebarToggleIcon
             isOpen={true}
@@ -419,6 +485,7 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
             thread is short the extra space falls below the composer instead
             of between it and the last reply. */}
         <div className="mt-2">
+          <TypingIndicator users={typingUsers} />
           <MessageInput
             context={channelContext}
             placeholder="Reply…"
@@ -433,6 +500,7 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
             clearAttachments={fileUpload.clearAttachments}
             getUploadedAttachments={fileUpload.getUploadedAttachments}
             isUploading={fileUpload.isUploading}
+            onTyping={emitTyping}
           />
         </div>
       </motion.div>

@@ -568,8 +568,11 @@ export const listThreadReplies: AppRouteHandler<
     )
   }
 
-  return c.json(
-    await fetchMessages({
+  // Fetch the replies and the root message in parallel. The root is fetched as
+  // a single channel-level message (around + limit 1 returns just the anchor)
+  // so the panel can show it even when it's scrolled out of the channel feed.
+  const [replies, rootResult] = await Promise.all([
+    fetchMessages({
       channelId,
       currentUserId: currentUser.id,
       limit,
@@ -578,6 +581,16 @@ export const listThreadReplies: AppRouteHandler<
       after,
       threadRootId: messageId,
     }),
+    fetchMessages({
+      channelId,
+      currentUserId: currentUser.id,
+      limit: 1,
+      around: messageId,
+    }),
+  ])
+
+  return c.json(
+    { ...replies, root: rootResult.data[0] ?? null },
     HttpStatusCodes.OK
   )
 }
