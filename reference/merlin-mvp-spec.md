@@ -80,7 +80,7 @@ Stateless per invocation; the only persistent state is the brain in Postgres.
 
 ### 3.1 Grounding & the cheap-model gate
 
-- **Conditional grounding (in the system prompt, not a separate model):** for workspace questions Merlin grounds in what it finds (brain + message search) or says "I don't have it in memory yet"; general questions (how-to, chit-chat) are answered directly. Hard citation verification is deferred.
+- **Conditional grounding (in the system prompt, not a separate model):** for workspace questions Merlin grounds in what it finds (brain + message search) or says "I don't have it in memory yet"; general questions (how-to, chit-chat) are answered directly. **Citations are verified** (§4): Merlin cites brain pages it relied on as `[[/path]]` and specific messages as `[[msg:<id>]]`; the worker strips any that don't resolve. Message-id citations are clickable (jump-to-message).
 - **Write-back salience gate (Haiku):** a cheap `generateObject` boolean over the exchange decides whether to spin up the expensive write-back agent — skips trivial mentions.
 - *Deferred:* a Haiku grounding-mode classifier and a reply-placement router (both folded away / postponed).
 
@@ -99,7 +99,7 @@ A Claude tool-use loop (Vercel **AI SDK v6**, `streamText` for the streamed answ
 
 **Models:** Sonnet (`claude-sonnet-4-6`) for both answer and write-back; Haiku (`claude-haiku-4-5`) for the salience gate. Opus reserved for later if Sonnet underperforms.
 
-**Grounding:** prompt-conditional (above). Citation *representation* + hard verification are still open — to harden later.
+**Grounding:** prompt-conditional (above). **Citation verification built:** Merlin cites grounding sources inline — brain pages as `[[/path]]`, messages as `[[msg:<id>]]`; `groundCitations(workspaceId, text)` (exported from `packages/merlin`) extracts each, verifies it resolves (`pageExists` for pages, `messageExists` for messages), keeps valid ones, and unwraps unresolved pages to plain text / drops unresolved message ids so a hallucinated citation can't pose as a source. The worker runs it before persist/fanout and logs stripped citations. In the web client, page citations render as a pill and message citations are clickable (jump-to-message, resolving the channel cross-workspace). Making brain-page citations clickable (needs a brain browser) is the remaining open piece.
 
 ---
 
@@ -145,7 +145,7 @@ Socket events (in `@repo/realtime-types`): `message:stream { channelId, messageI
 
 ## 8. Brain taxonomy
 
-**Not seeded.** Merlin builds the tree organically — `write` (and `mkdir`) create parent folders on demand (mkdir-p) during write-back, so structure emerges from what's actually saved. A default scaffold (`/people`, `/decisions`, …) per workspace remains an easy future addition if cold-start structure is wanted. Taxonomy is data, not schema.
+**Minimal scaffold seeded; structure still emerges.** On workspace creation (`packages/auth` `seedBrainTaxonomy`, alongside Merlin membership) three top-level folders are inserted — **`/people`, `/projects`, `/decisions`** — so Merlin has obvious places to file knowledge cold-start. Beyond that the tree grows organically: `write` (and `mkdir`) create parent folders on demand (mkdir-p) during write-back. Seed is folders only, idempotent, best-effort, and only on creation (existing workspaces are unaffected — mkdir-p covers them). Taxonomy is data, not schema.
 
 ---
 
@@ -170,15 +170,18 @@ Socket events (in `@repo/realtime-types`): `message:stream { channelId, messageI
 4. (as #3) Embeddings: embed-on-write + semantic pre-fetch (top-3 full pages + their linked pages).
    Plus: realtime trigger, worker job, web streaming/chip, fanout extraction (`@repo/messaging`), workspace auto-membership, DM guard, `summary`/`aliases` frontmatter convention.
 
-**⚠️ The write-back + retrieval loop type-checks but has NOT been observed running end-to-end. Validate before building more — write-back quality is the moat and is currently unverified.**
+**Since validated end-to-end (loop observed working: answers grounded in chat + brain, autonomous write-back writing real pages, retrieval, threaded streaming). Also built since MVP-core:**
+- **Vision** — image attachments downloaded and sent inline (base64) to the answer model; supported types only, 5MB/8-image caps.
+- **Reply-placement router** — Haiku decides channel vs. thread for main-channel mentions (`packages/merlin/placement`, called from realtime); thread session + per-thread mute rules; `contextThreadRootId` so threaded replies still read channel context.
+- **Brain-page citation verification** — `[[/path]]` contract + `groundCitations` strips unresolved citations (§3.1/§4).
+- **Default taxonomy seed** — `/people` `/projects` `/decisions` on workspace creation (§8).
+- **Streamdown** markdown renderer (sanitized, shiki, streaming-aware); **login redirect** to last workspace/channel.
 
 **Next steps (priority order):**
-1. **Validate the loop end-to-end (highest).** Run it with real conversations and *read the pages Merlin writes* — judge salience, update-vs-create, page quality, and retrieval. Run checklist: `ANTHROPIC_API_KEY` + `OPENAI_API_KEY` in `.env`; `vector` + `pg_trgm` installed on Railway; `db:push`; seed Merlin (`pnpm --filter @repo/db db:seed` or the SQL insert); ensure Merlin is a member of the test workspace; restart worker + realtime + web; `@Merlin` in a channel.
-2. **Eval harness.** 5–10 seeded conversations with expected memory + expected retrieval, so the write-back/grounding prompts are tunable with signal instead of vibes. (This is the instrument for tuning the moat.)
-3. **Integrations (Track B):** `merlin_source` / `merlin_page_source` / `merlin_integration_connection` tables + per-provider connectors + `search_sources`/`fetch_source` tools (§6).
-4. **Reply-placement router** — thread vs. main channel (cheap model).
-5. **Citation contract + hard verification** — verify cited message/page ids resolve.
-6. **Optional / when-needed:** default taxonomy seed; page chunking (gated on pages growing large); frontmatter → `metadata` parse (when a consumer exists, e.g. tag filtering); prompt caching; brain-browser UI.
+1. **Eval harness (highest).** 5–10 seeded conversations with expected memory + expected retrieval, so the write-back/grounding/placement prompts are tunable with signal instead of vibes. (This is the instrument for tuning the moat — everything prompt-driven now depends on it.)
+2. **Integrations (Track B):** `merlin_source` / `merlin_page_source` / `merlin_integration_connection` tables + per-provider connectors + `search_sources`/`fetch_source` tools (§6).
+3. **Image-aware write-back** — the salience gate is text-only, so knowledge living only in an image never gets saved.
+4. **Optional / when-needed:** page chunking (gated on pages growing large); frontmatter → `metadata` parse (when a consumer exists, e.g. tag filtering); prompt caching; brain-browser UI (makes brain-page citations clickable); streamdown `@source` decoupling from `apps/web/node_modules`.
 
 ---
 

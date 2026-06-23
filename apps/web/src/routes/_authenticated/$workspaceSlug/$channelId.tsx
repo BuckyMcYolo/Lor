@@ -22,6 +22,7 @@ import { useMessagePinning } from "@/hooks/use-message-pinning"
 import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
 import { useReplyState } from "@/hooks/use-reply-state"
+import { useThreadActivity } from "@/hooks/use-thread-activity"
 import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
 import { writeLastChannelId } from "@/lib/last-location"
@@ -160,10 +161,31 @@ function ChannelView() {
 
   const handleJumpToMessage = useCallback(
     (messageId: string) => {
+      // Already on screen — just scroll. (Common for replies + same-channel.)
       if (scrollToMessage(messageId)) return
-      void navigate({ search: { msgId: messageId } })
+      // Otherwise resolve the message's channel (it may live elsewhere — e.g. a
+      // Merlin citation to another channel) and navigate there to anchor on it.
+      void (async () => {
+        try {
+          const res = await apiClient.v1.workspaces[":workspaceSlug"].messages[
+            ":messageId"
+          ].$get({ param: { workspaceSlug, messageId } })
+          if (res.ok) {
+            const loc = await res.json()
+            await navigate({
+              to: "/$workspaceSlug/$channelId",
+              params: { workspaceSlug, channelId: loc.channelId },
+              search: { msgId: messageId },
+            })
+            return
+          }
+        } catch {
+          // fall through to a best-effort anchor in the current channel
+        }
+        void navigate({ search: { msgId: messageId } })
+      })()
     },
-    [navigate]
+    [navigate, workspaceSlug]
   )
 
   const handleOpenThread = useCallback(
@@ -266,6 +288,64 @@ function ChannelView() {
 
   const { replyingTo, setReplyingTo, clearReply } = useReplyState()
 
+  const { data: threadActivityData } = useQuery({
+    queryKey: ["thread-activity", channelId],
+    enabled: !!data,
+    // Seed on channel open; don't resurrect dismissed cards on tab refocus.
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const res = await apiClient.v1.workspaces[":workspaceSlug"].channels[
+        ":channelId"
+      ]["thread-activity"].$get({
+        param: { workspaceSlug, channelId },
+      })
+      if (!res.ok) throw new Error("Failed to fetch thread activity")
+      return res.json()
+    },
+  })
+
+  // On leaving a channel, drop its cached thread activity so a just-read card
+  // doesn't flash on return — the next visit refetches fresh from the server.
+  useEffect(() => {
+    return () => {
+      queryClient.removeQueries({ queryKey: ["thread-activity", channelId] })
+    }
+  }, [channelId, queryClient])
+
+  const threadActivitySeed = useMemo(
+    () =>
+      threadActivityData?.data.map((item) => ({
+        threadRootId: item.threadRootId,
+        replyCount: item.replyCount,
+        lastReplyAt: item.lastReplyAt,
+        participants: item.participants,
+        lastReply: {
+          content: item.lastReply.content,
+          authorName:
+            item.lastReply.author.displayUsername ?? item.lastReply.author.name,
+          hasAttachments: item.lastReply.hasAttachments,
+          mentions: item.lastReply.mentions,
+        },
+      })),
+    [threadActivityData]
+  )
+
+  const { activities: threadActivities, dismiss: dismissThreadActivity } =
+    useThreadActivity({
+      socket,
+      channelId,
+      seed: threadActivitySeed,
+      suppressThreadRootId: view?.type === "thread" ? view.threadRootId : null,
+    })
+
+  const handleOpenThreadActivity = useCallback(
+    (threadRootId: string) => {
+      handleOpenThread(threadRootId)
+      dismissThreadActivity(threadRootId)
+    },
+    [handleOpenThread, dismissThreadActivity]
+  )
+
   const { typingUsers, emitTyping } = useTypingIndicator({
     socket,
     channelId,
@@ -367,6 +447,9 @@ function ChannelView() {
         onJumpToMessage={handleJumpToMessage}
         onReplyInThread={(msg) => handleOpenThread(msg.id)}
         onOpenThread={handleOpenThread}
+        threadActivities={isAtPresent ? threadActivities : []}
+        onOpenThreadActivity={handleOpenThreadActivity}
+        onDismissThreadActivity={dismissThreadActivity}
         replyingToId={replyingTo?.id ?? null}
         currentUserId={currentUserId}
         onReact={handleReact}

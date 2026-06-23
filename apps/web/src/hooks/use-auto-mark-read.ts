@@ -66,4 +66,26 @@ export function useAutoMarkRead(channelId: string | undefined) {
       socket.off("message:created", onMessageCreated)
     }
   }, [socket, channelId])
+
+  // Thread replies broadcast to the thread room only, so they never hit
+  // `message:created` here. Advance the channel read state on the lightweight
+  // `message:thread:updated` too — otherwise a thread reply seen during a
+  // visit stays "unread" and the activity card re-surfaces on every return.
+  useEffect(() => {
+    if (!socket || !channelId) return
+
+    const onThreadUpdated = (payload: { channelId: string }) => {
+      if (
+        payload.channelId === channelIdRef.current &&
+        document.visibilityState === "visible"
+      ) {
+        debouncedMarkRead()
+      }
+    }
+
+    socket.on("message:thread:updated", onThreadUpdated)
+    return () => {
+      socket.off("message:thread:updated", onThreadUpdated)
+    }
+  }, [socket, channelId])
 }

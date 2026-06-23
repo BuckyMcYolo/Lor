@@ -188,6 +188,14 @@ export type RealtimeMessageThreadUpdated = {
     displayUsername: string | null
     image: string | null
   }>
+  // Preview of the newest reply, for the channel-feed activity card. Null when
+  // the thread is empty (last reply deleted).
+  lastReply: {
+    content: string | null
+    author: RealtimeAuthor
+    mentions: RealtimeMessageMention[]
+    hasAttachments: boolean
+  } | null
 }
 
 export type SendMessageAck = (

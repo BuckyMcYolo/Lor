@@ -15,17 +15,23 @@ const USER_MENTION_TOKEN_REGEX =
 const TIPTAP_MENTION_REGEX =
   /\[@[^\]]*?\bid="([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})"[^\]]*]/gi
 const EVERYONE_MENTION_REGEX = /(^|\s)@everyone\b/gi
+// Merlin cites brain pages it grounded in as [[/path]] (verified server-side).
+const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
 
 // Shared Shiki highlighter instance; loads languages lazily as code streams in.
 const codePlugin = createCodePlugin({
   themes: ["github-light", "github-dark-dimmed"],
 })
 
+// Escapes for both text and double-quoted attribute contexts (data-id below),
+// so a citation token can't break out of its attribute.
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
 }
 
 function getMentionLabel(mention: Message["mentions"][number]) {
@@ -58,6 +64,14 @@ function toRenderableMarkdown(
       const label = mention ? getMentionLabel(mention) : "unknown-user"
       return `<mention data-id="${userId}">@${escapeHtml(label)}</mention>`
     })
+    .replace(CITATION_REGEX, (_match, raw: string) => {
+      const token = raw.trim()
+      if (token.startsWith("msg:")) {
+        const id = token.slice(4).trim()
+        return `<msgref data-id="${escapeHtml(id)}">↗ message</msgref>`
+      }
+      return `<pageref>${escapeHtml(token)}</pageref>`
+    })
 }
 
 interface MentionProps {
@@ -79,6 +93,8 @@ interface MessageMarkdownProps {
   mentions: Message["mentions"]
   className?: string
   editedAt?: string | null
+  // Jump to a cited message ([[msg:<id>]]); resolves cross-channel.
+  onCitationJump?: (messageId: string) => void
 }
 
 export function MessageMarkdown({
@@ -86,6 +102,7 @@ export function MessageMarkdown({
   mentions,
   className,
   editedAt,
+  onCitationJump,
 }: MessageMarkdownProps) {
   const mentionById = useMemo(
     () => new Map(mentions.map((mention) => [mention.id, mention])),
@@ -104,15 +121,36 @@ export function MessageMarkdown({
           href={href}
           target="_blank"
           rel="noreferrer noopener"
-          className="text-primary underline-offset-2 hover:underline"
+          className="break-words text-primary underline-offset-2 hover:underline"
         >
           {children}
         </a>
       ),
-      // biome-ignore lint/suspicious/noExplicitAny: streamdown types custom tags loosely
-      mention: (props: any) => {
+      // Verified brain-page citation ([[/path]]). Subtle, non-clickable for now
+      // (no brain browser yet); the path is the children text.
+      pageref: (props: MentionProps) => (
+        <span className="inline-flex items-center rounded bg-muted px-1 py-0.5 font-mono text-[0.82em] text-muted-foreground">
+          {props.children}
+        </span>
+      ),
+      // Verified message citation ([[msg:<id>]]). Clickable — jumps to the
+      // message (resolving its channel if elsewhere in the workspace).
+      msgref: (props: MentionProps) => {
         const id = mentionId(props)
-        const children = props.children as ReactNode
+        return (
+          <button
+            type="button"
+            disabled={!(id && onCitationJump)}
+            onClick={() => id && onCitationJump?.(id)}
+            className="inline-flex items-center rounded bg-primary/10 px-1 py-0.5 text-[0.82em] text-primary hover:bg-primary/20 disabled:cursor-default disabled:opacity-70"
+          >
+            {props.children}
+          </button>
+        )
+      },
+      mention: (props: MentionProps) => {
+        const id = mentionId(props)
+        const children = props.children
         if (id === "everyone") {
           return (
             <span className="inline-flex cursor-default rounded bg-primary/15 px-1 py-0.5 font-medium text-primary">
@@ -156,7 +194,7 @@ export function MessageMarkdown({
         )
       },
     }),
-    [mentionById]
+    [mentionById, onCitationJump]
   )
 
   if (markdown.trim().length === 0) {
@@ -166,16 +204,15 @@ export function MessageMarkdown({
   return (
     <div
       className={cn(
-        "break-words text-sm leading-snug text-foreground/90",
-        "[&_p]:my-0 [&_a]:break-words [&_:not(pre)>code]:rounded-[4px] [&_:not(pre)>code]:border [&_:not(pre)>code]:border-border/70 [&_:not(pre)>code]:bg-primary/10 [&_:not(pre)>code]:px-0.75 [&_:not(pre)>code]:py-0.25 [&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-[0.92em] [&_:not(pre)>code]:text-foreground [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5",
+        "message-markdown break-words text-sm leading-snug text-foreground/90",
         editedAt && "[&>p:last-of-type]:inline",
         className
       )}
     >
       <Streamdown
         plugins={{ code: codePlugin }}
-        allowedTags={{ mention: ["data-id"] }}
-        literalTagContent={["mention"]}
+        allowedTags={{ mention: ["data-id"], pageref: [], msgref: ["data-id"] }}
+        literalTagContent={["mention", "pageref", "msgref"]}
         components={components}
       >
         {markdown}

@@ -132,6 +132,15 @@ export async function ls(workspaceId: string, path: string) {
   return { path, entries: entries.map((e) => ({ name: e.name, kind: e.kind })) }
 }
 
+// Does an active brain page exist at this path? Used to verify citations.
+export async function pageExists(
+  workspaceId: string,
+  path: string
+): Promise<boolean> {
+  const node = await resolvePath(workspaceId, path)
+  return node !== null && node !== "root" && node.kind === "page"
+}
+
 export async function readPage(workspaceId: string, path: string) {
   const resolved = await resolvePath(workspaceId, path)
   if (resolved === null) return { error: `no such path: ${path}` }

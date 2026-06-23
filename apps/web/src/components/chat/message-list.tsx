@@ -4,11 +4,13 @@ import { cn } from "@repo/ui/lib/utils"
 import { differenceInMinutes, isSameDay } from "@repo/utils/date"
 import { ArrowDown, Hash, Loader2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import type { ThreadActivity } from "@/hooks/use-thread-activity"
 import type { Message } from "@/lib/api-types"
 import type { MentionCandidate } from "./composer/mention-types"
 import { DateDivider } from "./date-divider"
 import type { ChatContext } from "./header"
 import { MessageItem } from "./message-item"
+import { ThreadActivityStack } from "./thread-activity"
 
 interface MessageListProps {
   context: ChatContext
@@ -45,6 +47,13 @@ interface MessageListProps {
    * forwards the click.
    */
   onJumpToMessage?: (messageId: string) => void
+  /**
+   * Fresh thread replies surfaced as collapsed cards at the bottom of the feed.
+   * Clicking a card opens the thread (and the parent dismisses it).
+   */
+  threadActivities?: ThreadActivity[]
+  onOpenThreadActivity?: (threadRootId: string) => void
+  onDismissThreadActivity?: (threadRootId: string) => void
 }
 
 function nameInitial(name: string) {
@@ -125,6 +134,9 @@ export function MessageList({
   onJumpToPresent,
   onJumpToMessage,
   replyingToId,
+  threadActivities,
+  onOpenThreadActivity,
+  onDismissThreadActivity,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const olderSentinelRef = useRef<HTMLDivElement>(null)
@@ -260,6 +272,20 @@ export function MessageList({
         data-message-scroll
         className="flex flex-1 select-text flex-col-reverse overflow-y-auto py-4"
       >
+        {/* Thread-activity cards sit at the visual bottom (DOM-first because
+            col-reverse), just below the newest message. */}
+        {threadActivities &&
+          threadActivities.length > 0 &&
+          onOpenThreadActivity &&
+          onDismissThreadActivity && (
+            <div className="pt-1.5">
+              <ThreadActivityStack
+                activities={threadActivities}
+                onOpen={onOpenThreadActivity}
+                onDismiss={onDismissThreadActivity}
+              />
+            </div>
+          )}
         {/* Sentinel at the visual bottom (DOM-first because col-reverse). */}
         {hasNewer && (
           <div ref={newerSentinelRef} className="flex justify-center py-3">

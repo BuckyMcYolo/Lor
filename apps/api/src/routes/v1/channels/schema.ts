@@ -100,8 +100,66 @@ export const togglePinResponseSchema = z.object({
   pinned: z.boolean(),
 })
 
+// ── Message location (jump-to-message) ──────────────────────────────────────
+
+export const messageLocationParamsSchema = workspaceSlugParamsSchema.extend({
+  messageId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "messageId", in: "path", required: true },
+      example: "00000000-0000-0000-0000-000000000000",
+    }),
+})
+
+export const messageLocationResponseSchema = z.object({
+  messageId: z.string().uuid(),
+  channelId: z.string().uuid(),
+  threadRootId: z.string().uuid().nullable(),
+})
+
 export const listPinnedMessagesResponseSchema = z.object({
   data: z.array(messageWithAuthorSchema),
+})
+
+// ── Thread activity (unread thread replies surfaced at feed bottom) ──────────
+
+const threadActivityMentionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  username: z.string().nullable(),
+  displayUsername: z.string().nullable(),
+  image: z.string().nullable(),
+})
+
+export const threadActivityItemSchema = z.object({
+  threadRootId: z.string().uuid(),
+  replyCount: z.number().int(),
+  lastReplyAt: z.string(),
+  participants: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      displayUsername: z.string().nullable(),
+      image: z.string().nullable(),
+    })
+  ),
+  lastReply: z.object({
+    content: z.string().nullable(),
+    author: z.object({
+      id: z.string(),
+      name: z.string(),
+      username: z.string().nullable(),
+      displayUsername: z.string().nullable(),
+      image: z.string().nullable(),
+    }),
+    hasAttachments: z.boolean(),
+    mentions: z.array(threadActivityMentionSchema),
+  }),
+})
+
+export const listThreadActivityResponseSchema = z.object({
+  data: z.array(threadActivityItemSchema),
 })
 
 // ── Reorder ──────────────────────────────────────────

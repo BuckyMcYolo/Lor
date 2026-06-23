@@ -260,13 +260,18 @@ export async function loadThreadSummary(
       replyCount: 0,
       lastReplyAt: null,
       participants: [],
+      lastReply: null,
     }
   }
 
   const recentReplies = await db
     .select({
+      messageId: schema.message.id,
+      content: schema.message.content,
+      attachments: schema.message.attachments,
       authorId: schema.message.authorId,
       userName: schema.user.name,
+      userUsername: schema.user.username,
       userDisplayUsername: schema.user.displayUsername,
       userImage: schema.user.image,
     })
@@ -290,12 +295,50 @@ export async function loadThreadSummary(
     if (participants.length >= 3) break
   }
 
+  // Newest reply preview for the channel-feed activity card.
+  const newest = recentReplies[0]
+  let lastReply: RealtimeMessageThreadUpdated["lastReply"] = null
+  if (newest) {
+    const mentionRows = await db
+      .select({
+        id: schema.user.id,
+        name: schema.user.name,
+        username: schema.user.username,
+        displayUsername: schema.user.displayUsername,
+        image: schema.user.image,
+      })
+      .from(schema.messageMention)
+      .innerJoin(
+        schema.user,
+        eq(schema.messageMention.mentionedUserId, schema.user.id)
+      )
+      .where(
+        and(
+          eq(schema.messageMention.messageId, newest.messageId),
+          eq(schema.messageMention.mentionType, "direct")
+        )
+      )
+    lastReply = {
+      content: newest.content,
+      author: {
+        id: newest.authorId,
+        name: newest.userName,
+        username: newest.userUsername,
+        displayUsername: newest.userDisplayUsername,
+        image: newest.userImage,
+      },
+      mentions: mentionRows,
+      hasAttachments: (newest.attachments ?? []).length > 0,
+    }
+  }
+
   return {
     channelId,
     threadRootId,
     replyCount: Number(summary.replyCount),
     lastReplyAt: summary.lastReplyAt.toISOString(),
     participants,
+    lastReply,
   }
 }
 

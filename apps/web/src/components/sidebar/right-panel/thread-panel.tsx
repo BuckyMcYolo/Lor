@@ -21,6 +21,7 @@ import { useMessageDeletion } from "@/hooks/use-message-deletion"
 import { useMessageEditing } from "@/hooks/use-message-editing"
 import { useMessageReactions } from "@/hooks/use-message-reactions"
 import { useMessageSending } from "@/hooks/use-message-sending"
+import { useReplyState } from "@/hooks/use-reply-state"
 import { useThreadMessages } from "@/hooks/use-thread-messages"
 import { apiClient } from "@/lib/api-client"
 import type { Message } from "@/lib/api-types"
@@ -136,6 +137,13 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
 
   const fileUpload = useFileUpload(view.channelId)
 
+  const { replyingTo, setReplyingTo, clearReply } = useReplyState()
+
+  // Drop the quote-reply draft when switching to a different thread.
+  useEffect(() => {
+    clearReply()
+  }, [view.threadRootId, clearReply])
+
   const { data: workspaceMembersData } = useQuery({
     queryKey: ["workspace-members", view.workspaceSlug],
     queryFn: async () => {
@@ -181,6 +189,25 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
     if (!el) return
     isNearBottomRef.current =
       el.scrollHeight - el.scrollTop - el.clientHeight < 150
+  }, [])
+
+  // Scoped to this panel's scroll container so it never grabs the channel
+  // feed's copy of the same message id (the root appears in both).
+  const handleJumpWithinThread = useCallback((messageId: string) => {
+    const container = scrollRef.current
+    if (!container) return
+    const el = container.querySelector(
+      `[data-message-id="${CSS.escape(messageId)}"]`
+    ) as HTMLElement | null
+    if (!el) return
+    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    el.style.transition = "background-color 0.3s ease"
+    el.style.backgroundColor =
+      "color-mix(in oklch, var(--primary) 15%, transparent)"
+    window.setTimeout(() => {
+      el.style.transition = "background-color 1200ms ease-out"
+      el.style.backgroundColor = ""
+    }, 2000)
   }, [])
   const lastNewestIdRef = useRef<string | null>(null)
   useEffect(() => {
@@ -291,9 +318,12 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
               message={{ ...rootMessage, threadSummary: null }}
               showHeader={true}
               currentUserId={currentUserId}
+              isReplyTarget={replyingTo?.id === rootMessage.id}
               onReact={handleReact}
+              onReply={setReplyingTo}
               onDelete={handleDelete}
               onEdit={handleEdit}
+              onJumpToMessage={handleJumpWithinThread}
               mentionCandidates={mentionCandidates}
             />
           </motion.div>
@@ -372,9 +402,12 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
                   message={msg}
                   showHeader={showHeader}
                   currentUserId={currentUserId}
+                  isReplyTarget={replyingTo?.id === msg.id}
                   onReact={handleReact}
+                  onReply={setReplyingTo}
                   onDelete={handleDelete}
                   onEdit={handleEdit}
+                  onJumpToMessage={handleJumpWithinThread}
                   mentionCandidates={mentionCandidates}
                 />
               </motion.div>
@@ -391,6 +424,8 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
             placeholder="Reply…"
             onSend={handleSend}
             currentUserId={currentUserId}
+            replyingTo={replyingTo}
+            onCancelReply={clearReply}
             mentionCandidates={mentionCandidates}
             pendingAttachments={fileUpload.attachments}
             addFiles={fileUpload.addFiles}

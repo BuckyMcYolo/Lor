@@ -12,7 +12,7 @@ import {
   schema,
 } from "@repo/db"
 import { withContext } from "@repo/logger"
-import { respond, writeBack } from "@repo/merlin"
+import { groundCitations, respond, writeBack } from "@repo/merlin"
 import { buildMessageFanout } from "@repo/messaging"
 import type { MerlinRespondJobData } from "@repo/realtime-types"
 import type { ServerToClientEvents } from "@repo/realtime-types/events"
@@ -185,9 +185,20 @@ export function createMerlinRespondProcessor(
         // Phase 2 — persist + fan out. Already streamed, so on failure just log
         // and emit the final signal (never clobber the shown text).
         try {
+          // Verify [[/path]] citations; strip any that don't resolve so a
+          // hallucinated source can't masquerade as real (settles on reload).
+          const grounded = await groundCitations(workspaceId, answer.text)
+          if (grounded.invalid > 0) {
+            logger.warn(
+              { merlinMessageId, invalid: grounded.invalid },
+              "Stripped unresolved Merlin citations"
+            )
+          }
+          const finalText = grounded.text
+
           await db
             .update(schema.message)
-            .set({ content: answer.text })
+            .set({ content: finalText })
             .where(eq(schema.message.id, merlinMessageId))
 
           // Notify like a normal message: fan out unread/mention to recipients.
@@ -207,7 +218,7 @@ export function createMerlinRespondProcessor(
               channel: channelRow,
               message: {
                 id: merlinMessageId,
-                content: answer.text,
+                content: finalText,
                 author: { name: "Merlin" },
                 attachments: [],
               },

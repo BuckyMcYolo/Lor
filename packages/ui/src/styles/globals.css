@@ -4,6 +4,7 @@
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 @source "../../../../apps/web/node_modules/streamdown/dist/*.js";
+@source "../../../../apps/web/node_modules/@streamdown/code/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -199,6 +200,25 @@
   [role="button"] {
     @apply cursor-pointer;
   }
+}
+
+/* Chat-message markdown: tighten Streamdown's prose defaults for chat density.
+   Targets Streamdown's data-streamdown elements; scoped to .message-markdown so
+   it only affects message bubbles. Same utilities as the old wrapper classes. */
+.message-markdown p {
+  @apply my-0;
+}
+
+.message-markdown [data-streamdown="inline-code"] {
+  @apply rounded-[4px] border border-border/70 bg-primary/10 px-0.75 py-0.25 font-mono text-[0.92em] text-foreground;
+}
+
+.message-markdown [data-streamdown="unordered-list"] {
+  @apply my-1 list-disc pl-5;
+}
+
+.message-markdown [data-streamdown="ordered-list"] {
+  @apply my-1 list-decimal pl-5;
 }
 
 @keyframes shimmer {
