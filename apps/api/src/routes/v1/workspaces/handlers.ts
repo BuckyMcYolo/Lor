@@ -62,10 +62,13 @@ function toWorkspaceMemberPresence(
     displayUsername: string | null
     image: string | null
     role: string
+    isBot: boolean
   },
   ownerId: string,
   onlineUserIds: Set<string>
 ) {
+  // Bots (Merlin) have no socket presence — they're always reachable, so always online.
+  const isOnline = member.isBot || onlineUserIds.has(member.userId)
   return {
     userId: member.userId,
     name: member.name,
@@ -74,9 +77,8 @@ function toWorkspaceMemberPresence(
     image: member.image,
     role: member.role,
     isOwner: ownerId === member.userId,
-    status: onlineUserIds.has(member.userId)
-      ? ("online" as const)
-      : ("offline" as const),
+    isBot: member.isBot,
+    status: isOnline ? ("online" as const) : ("offline" as const),
   }
 }
 
@@ -89,6 +91,7 @@ async function getWorkspaceMemberRow(workspaceId: string, userId: string) {
       username: schema.user.username,
       displayUsername: schema.user.displayUsername,
       image: schema.user.image,
+      isBot: schema.user.isBot,
     })
     .from(schema.workspaceMember)
     .innerJoin(schema.user, eq(schema.workspaceMember.userId, schema.user.id))
@@ -115,6 +118,7 @@ export const listWorkspaceMembers: AppRouteHandler<
       username: schema.user.username,
       displayUsername: schema.user.displayUsername,
       image: schema.user.image,
+      isBot: schema.user.isBot,
     })
     .from(schema.workspaceMember)
     .innerJoin(schema.user, eq(schema.workspaceMember.userId, schema.user.id))

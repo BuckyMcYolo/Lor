@@ -20,6 +20,7 @@ export const getUserProfile: AppRouteHandler<GetUserProfileRoute> = async (
       bio: schema.user.bio,
       status: schema.user.status,
       createdAt: schema.user.createdAt,
+      isBot: schema.user.isBot,
     })
     .from(schema.user)
     .where(eq(schema.user.id, userId))
@@ -33,16 +34,20 @@ export const getUserProfile: AppRouteHandler<GetUserProfileRoute> = async (
     )
   }
 
-  // Check online status
+  // Check online status. Bots (Merlin) have no socket presence — always online.
   let presenceStatus: "online" | "offline" = "offline"
-  try {
-    const redis = await getRedisClient()
-    const [isOnline] = await redis.smIsMember(PRESENCE_ONLINE_USERS_SET_KEY, [
-      userId,
-    ])
-    if (isOnline) presenceStatus = "online"
-  } catch {
-    // fail open — default to offline
+  if (targetUser.isBot) {
+    presenceStatus = "online"
+  } else {
+    try {
+      const redis = await getRedisClient()
+      const [isOnline] = await redis.smIsMember(PRESENCE_ONLINE_USERS_SET_KEY, [
+        userId,
+      ])
+      if (isOnline) presenceStatus = "online"
+    } catch {
+      // fail open — default to offline
+    }
   }
 
   return c.json(
