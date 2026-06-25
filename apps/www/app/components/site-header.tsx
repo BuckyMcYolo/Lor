@@ -9,9 +9,9 @@ import {
   MotionNavigationMenuTrigger,
 } from "@repo/ui/components/unlumen-ui/motion-navigation-menu"
 import { ArrowUpRight } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
+import { LorMark } from "./lor-mark"
 
 const EASE = "cubic-bezier(0.16,1,0.3,1)"
 // Shared transition: 500ms on every animated property so the whole header
@@ -62,21 +62,15 @@ export function SiteHeader() {
               scrolled ? "gap-1.5" : "gap-2"
             }`}
           >
-            <Image
-              src="/lor-bg-removed-lg.png"
-              alt=""
-              width={25}
-              height={40}
-              priority
-              className={`w-auto ${T} group-hover:-translate-y-[1px] ${
-                scrolled ? "h-5" : "h-6"
+            <LorMark
+              className={`text-foreground mb-1 ${
+                scrolled ? "size-5" : "size-6"
               }`}
             />
             <span
-              className={`leading-none tracking-[-0.015em] text-foreground ${T} ${
+              className={`font-cinzel font-medium text-foreground ${T} ${
                 scrolled ? "text-[19px]" : "text-[23px]"
               }`}
-              style={{ fontFamily: "var(--font-fraunces)" }}
             >
               Lor
             </span>
