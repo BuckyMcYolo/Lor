@@ -315,7 +315,10 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
     dividerCount > 0
 
   return (
-    <div {...getRootProps()} className="relative flex h-full w-full flex-col">
+    <div
+      {...getRootProps()}
+      className="@container relative flex h-full w-full flex-col"
+    >
       <DropZoneOverlay isDragActive={isDragActive} />
       <div className="flex h-12 shrink-0 items-center gap-2 px-4">
         <button
@@ -341,7 +344,7 @@ export function ThreadPanel({ view }: { view: ThreadSidebarView }) {
           className="ml-auto flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
         >
           <CornerUpRight className="size-3.5" />
-          <span className="hidden sm:inline">Go to message</span>
+          <span className="hidden @min-[20rem]:inline">Go to message</span>
         </button>
         <button
           type="button"
