@@ -20,4 +20,10 @@ export interface SourceProvider {
     source: SourceRef,
     connection: ConnectionRef
   ): Promise<string | null>
+
+  // Verify a connection handle is real and return a display label for the
+  // connected account. Null when unverifiable (not configured or invalid).
+  verifyConnection(
+    connection: ConnectionRef
+  ): Promise<{ accountLabel: string | null } | null>
 }

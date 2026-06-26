@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./placement": "./src/placement.ts",
+    "./providers": "./src/providers/index.ts",
     "./sources": "./src/sources.ts"
   },
   "scripts": {

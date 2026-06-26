@@ -90,4 +90,21 @@ export const githubProvider: SourceProvider = {
 
     return null
   },
+
+  async verifyConnection(connection) {
+    const app = getApp()
+    if (!app) return null
+    const installationId = Number(connection.externalId)
+    if (!Number.isFinite(installationId)) return null
+    try {
+      const { data } = await app.octokit.rest.apps.getInstallation({
+        installation_id: installationId,
+      })
+      const account = data.account
+      const accountLabel = account && "login" in account ? account.login : null
+      return { accountLabel }
+    } catch {
+      return null
+    }
+  },
 }
