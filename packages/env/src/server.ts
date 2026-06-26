@@ -46,8 +46,6 @@ const serverSchema = z.object({
     (v) => (v === "" ? undefined : v),
     z.string().url().optional()
   ),
-  // GitHub App webhook HMAC secret. Optional so only the webhook path needs it
-  // (the receiver 503s when unset).
   GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
   // GitHub App identity for installation-authed REST (fetch_source). Optional:
   // fetch_source falls back to the stored summary when unset.
