@@ -16,6 +16,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hugeicons/core-free-icons": "^4.2.0",
     "@hugeicons/react": "^1.1.6",
+    "@radix-ui/react-focus-scope": "^1.1.10",
     "@repo/api-client": "workspace:*",
     "@repo/auth": "workspace:*",
     "@repo/env": "workspace:*",

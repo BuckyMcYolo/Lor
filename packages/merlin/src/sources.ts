@@ -97,7 +97,7 @@ export function buildSourceTools(workspaceId: string) {
     }),
     fetch_source: tool({
       description:
-        "Fetch a source's full content (the complete PR/issue/release body and discussion), beyond the summary from search_sources. Pass a source id.",
+        "Fetch a source's full content (the complete PR/issue/release body and discussion), beyond the summary from search_sources. Pass a source id. Returns a `live` flag: when false the integration was unreachable and `content` falls back to the stored summary.",
       inputSchema: z.object({
         id: z.string().describe("a source id from search_sources"),
       }),
@@ -136,6 +136,7 @@ export async function fetchSourceContent(workspaceId: string, id: string) {
       and(
         eq(schema.source.id, id),
         eq(schema.source.workspaceId, workspaceId),
+        eq(schema.source.status, "active"),
         eq(schema.integrationConnection.status, "active")
       )
     )

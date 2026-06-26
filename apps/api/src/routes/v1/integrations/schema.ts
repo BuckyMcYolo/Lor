@@ -30,7 +30,8 @@ export const listIntegrationsResponseSchema = z.object({
 })
 
 export const connectGithubRequestSchema = z.object({
-  installationId: z.string().min(1),
+  // GitHub App installation ids are numeric; reject anything else up front.
+  installationId: z.string().regex(/^\d+$/),
 })
 
 export const connectGithubResponseSchema = z.object({

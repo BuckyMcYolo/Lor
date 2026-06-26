@@ -58,6 +58,13 @@ export const notFoundSchema = jsonContent({
   description: "Not found",
 })
 
+export const conflictSchema = jsonContent({
+  schema: errorSchema.openapi({
+    example: { success: false, message: "Conflict" },
+  }),
+  description: "Conflict",
+})
+
 export const internalServerErrorSchema = jsonContent({
   schema: z
     .object({

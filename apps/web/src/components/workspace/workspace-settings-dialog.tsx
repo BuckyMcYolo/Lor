@@ -1,3 +1,4 @@
+import { FocusScope } from "@radix-ui/react-focus-scope"
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar"
 import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
@@ -88,68 +89,71 @@ export function WorkspaceSettingsDialog({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
           />
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Workspace settings"
-            className="fixed inset-x-3 inset-y-3 z-50 flex overflow-hidden rounded-2xl border border-border bg-background shadow-2xl sm:inset-x-8 sm:inset-y-8"
-            initial={{ opacity: 0, scale: 0.96, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            transition={{ type: "spring", stiffness: 420, damping: 30 }}
-          >
-            {/* Section nav */}
-            <nav className="flex w-52 shrink-0 flex-col gap-1 border-r border-border bg-sidebar p-3">
-              <div className="truncate px-2 pb-2 text-sm font-semibold text-foreground">
-                {workspace.name}
-              </div>
-              {SECTIONS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => onSectionChange(s.id)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                    section === s.id
-                      ? "bg-accent font-medium text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-                  )}
-                >
-                  <s.icon className="size-4" />
-                  {s.label}
-                </button>
-              ))}
-            </nav>
+          {/* Trap + restore focus (no Radix Dialog here, so wire it ourselves). */}
+          <FocusScope asChild loop trapped>
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Workspace settings"
+              className="fixed inset-x-3 inset-y-3 z-50 flex overflow-hidden rounded-2xl border border-border bg-background shadow-2xl sm:inset-x-8 sm:inset-y-8"
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 8 }}
+              transition={{ type: "spring", stiffness: 420, damping: 30 }}
+            >
+              {/* Section nav */}
+              <nav className="flex w-52 shrink-0 flex-col gap-1 border-r border-border bg-sidebar p-3">
+                <div className="truncate px-2 pb-2 text-sm font-semibold text-foreground">
+                  {workspace.name}
+                </div>
+                {SECTIONS.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onSectionChange(s.id)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                      section === s.id
+                        ? "bg-accent font-medium text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                    )}
+                  >
+                    <s.icon className="size-4" />
+                    {s.label}
+                  </button>
+                ))}
+              </nav>
 
-            {/* Content */}
-            <div className="flex min-w-0 flex-1 flex-col">
-              <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-5">
-                <span className="text-sm font-semibold">
-                  {SECTIONS.find((s) => s.id === section)?.label}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onOpenChange(false)}
-                  aria-label="Close"
-                  className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                <div className="mx-auto max-w-2xl">
-                  {section === "general" ? (
-                    <GeneralSection
-                      workspace={workspace}
-                      onClose={() => onOpenChange(false)}
-                    />
-                  ) : (
-                    <IntegrationsSection workspaceSlug={workspace.slug} />
-                  )}
+              {/* Content */}
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-5">
+                  <span className="text-sm font-semibold">
+                    {SECTIONS.find((s) => s.id === section)?.label}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenChange(false)}
+                    aria-label="Close"
+                    className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                  <div className="mx-auto max-w-2xl">
+                    {section === "general" ? (
+                      <GeneralSection
+                        workspace={workspace}
+                        onClose={() => onOpenChange(false)}
+                      />
+                    ) : (
+                      <IntegrationsSection workspaceSlug={workspace.slug} />
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </FocusScope>
         </>
       )}
     </AnimatePresence>,
@@ -356,7 +360,7 @@ const PROVIDER_ICONS: Record<string, typeof Github> = { github: Github }
 function IntegrationsSection({ workspaceSlug }: { workspaceSlug: string }) {
   const queryClient = useQueryClient()
 
-  const { data, isPending } = useQuery({
+  const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["integrations", workspaceSlug],
     queryFn: async () => {
       const res = await apiClient.v1.workspaces[
@@ -387,6 +391,19 @@ function IntegrationsSection({ workspaceSlug }: { workspaceSlug: string }) {
     return (
       <div className="flex justify-center py-10">
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-10 text-center">
+        <p className="text-sm text-muted-foreground">
+          Couldn't load integrations.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Try again
+        </Button>
       </div>
     )
   }

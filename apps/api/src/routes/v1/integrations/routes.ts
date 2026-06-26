@@ -2,6 +2,8 @@ import { createRoute } from "@hono/zod-openapi"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import jsonContent from "@/lib/helpers/openapi/json-content"
 import {
+  badRequestSchema,
+  conflictSchema,
   forbiddenSchema,
   internalServerErrorSchema,
   notFoundSchema,
@@ -32,6 +34,7 @@ export const listIntegrations = createRoute({
     }),
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
     [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
   },
 })
@@ -56,8 +59,11 @@ export const connectGithub = createRoute({
       schema: connectGithubResponseSchema,
       description: "Connected",
     }),
+    [HttpStatusCodes.BAD_REQUEST]: badRequestSchema,
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
     [HttpStatusCodes.FORBIDDEN]: forbiddenSchema,
+    [HttpStatusCodes.NOT_FOUND]: notFoundSchema,
+    [HttpStatusCodes.CONFLICT]: conflictSchema,
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: internalServerErrorSchema,
   },
 })

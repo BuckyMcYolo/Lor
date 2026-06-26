@@ -46,9 +46,22 @@ export const githubProvider: SourceProvider = {
         pull_number: ref.id,
       })
       const state = data.merged ? "merged" : data.state
-      return clip(
-        `# ${data.title}\nState: ${state} · by ${data.user?.login ?? "unknown"}\n\n${data.body ?? "(no description)"}`
-      )
+      let out = `# ${data.title}\nState: ${state} · by ${data.user?.login ?? "unknown"}\n\n${data.body ?? "(no description)"}`
+      // PRs are issues under the hood — the conversation thread is the bulk of
+      // the discussion we want as institutional memory.
+      const comments = await octokit.rest.issues
+        .listComments({
+          owner: ref.owner,
+          repo: ref.repo,
+          issue_number: ref.id,
+          per_page: MAX_COMMENTS,
+        })
+        .then((r) => r.data)
+        .catch(() => [])
+      for (const cm of comments) {
+        out += `\n\n— ${cm.user?.login ?? "unknown"}: ${cm.body ?? ""}`
+      }
+      return clip(out)
     }
 
     if (source.kind === "issue") {

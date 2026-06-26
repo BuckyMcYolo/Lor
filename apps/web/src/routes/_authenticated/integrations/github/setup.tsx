@@ -16,15 +16,19 @@ export const Route = createFileRoute(
   "/_authenticated/integrations/github/setup"
 )({
   component: GithubSetup,
-  validateSearch: (search: Record<string, unknown>): SetupSearch => ({
-    installation_id:
+  validateSearch: (search: Record<string, unknown>): SetupSearch => {
+    // GitHub sends a numeric installation id; ignore anything that isn't one.
+    const raw =
       typeof search.installation_id === "string"
         ? search.installation_id
         : typeof search.installation_id === "number"
           ? String(search.installation_id)
-          : undefined,
-    state: typeof search.state === "string" ? search.state : undefined,
-  }),
+          : undefined
+    return {
+      installation_id: raw && /^\d+$/.test(raw) ? raw : undefined,
+      state: typeof search.state === "string" ? search.state : undefined,
+    }
+  },
 })
 
 function GithubSetup() {
@@ -42,6 +46,7 @@ function GithubSetup() {
         await navigate({ to: "/" })
         return
       }
+      let connected = false
       try {
         const res = await apiClient.v1.workspaces[
           ":workspaceSlug"
@@ -49,16 +54,19 @@ function GithubSetup() {
           param: { workspaceSlug: state },
           json: { installationId: installation_id },
         })
+        connected = res.ok
         toast[res.ok ? "success" : "error"](
           res.ok ? "GitHub connected" : "Couldn't connect GitHub"
         )
       } catch {
         toast.error("Couldn't connect GitHub")
       }
+      // Only deep-link into the Integrations tab on success; on failure just
+      // return to the workspace.
       await navigate({
         to: "/$workspaceSlug",
         params: { workspaceSlug: state },
-        search: { settings: "workspace", tab: "integrations" },
+        search: connected ? { settings: "workspace", tab: "integrations" } : {},
         replace: true,
       })
     })()
