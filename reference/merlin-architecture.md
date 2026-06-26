@@ -2,6 +2,8 @@
 
 > **As-built note (2026-06-17):** this is the north-star vision. For what's actually implemented, see **`merlin-mvp-spec.md`** — several decisions here were revised in the build: chat synthesis is lazy/on-demand (not the proactive "tutor"), chat retrieval is Postgres FTS (no chat embeddings/`conversation_chunks`), `memory_events` is dropped, edge `type` is a controlled enum (not free text), brain tables are `brain_node`/`brain_edge`, and Merlin is workspace-scoped with an autonomous write-back. Integrations + code search remain future work.
 
+> **Direction update (2026-06-26):** integrations and code are now actively being built. New since the as-built note: a three-mode **connector taxonomy** (§2.4); the GitHub **code** path moves to ephemeral **Railway sandboxes** running real agentic coding tools — §7.4 flips from "defer" to adopted, plus the incident→code→PR loop (§7.4–7.5); per-channel **agent tool/context profiles** + live **tool-call streaming** to the client (§8); and a layered execution plan (§11.1). The summary-and-pointer / don't-mirror / don't-embed-code principles are **unchanged** — what changed is the *mechanism* for code (sandbox, not REST file-fetch) and the *runtime* (channel-scoped tools, streamed status).
+
 **Status:** v1 design, locked. Ready to build.
 **Audience:** the engineer/coding agent implementing the Merlin memory layer.
 **Scope:** how Merlin stores, synthesizes, retrieves, and cites knowledge. This is the AI/knowledge layer that sits on top of Lor's chat substrate. Chat/messaging already exists; this document is about everything Merlin does with it and around it.
@@ -56,6 +58,23 @@ Tradeoff accepted: live-fetch adds latency and depends on source API uptime/limi
 Logs, analytics events. Volume is too high and signal-per-item too low to ingest or embed. Merlin pulls a relevant *window* on demand (e.g. the log window around an incident) and may synthesize an aggregated summary into the brain, but raw logs/events are never stored or embedded wholesale.
 
 **Logs/analytics philosophy:** never embed raw logs or raw analytics events — volume too high, signal too low. Embed aggregated summaries and incident windows; retrieve raw data on demand.
+
+### 2.4 Connector mode taxonomy (per-provider)
+
+The three layers above are *storage strategies*. Concretely, every connector we build picks one of **three modes**. Classify a new integration first, then wire it.
+
+| Mode | What we store | Providers | Pattern |
+|---|---|---|---|
+| **A. Embed-summary** | summary row + embedding (§2.2) | Linear, Notion, GitHub PRs/issues/releases | backfill-on-connect + webhook + embed; semantic recall via `search_sources` |
+| **B. Live-query** | nothing (§2.3) | Datadog | query the source API at question time; never ingested |
+| **C. Sandbox/execution** | synthesized page + SHA pointers only (§7) | GitHub **codebase** | ephemeral clone in a sandbox, agentic exploration, tear down |
+
+Notes that keep this honest:
+
+- **Linear is A *and* B.** Webhook→summarize→embed is the steady state, but Linear also needs live-fetch: backfill recent issues on connect, and resolve the long tail (old tickets, or an org that asks a question before its first ingested ticket) on demand. Treat mode-A providers as "embed the high-signal recent set, live-fetch the rest." Linear is the canonical document-provider template; **Notion reuses it** (with pull-based backfill, since Notion's webhook story is weaker).
+- **Slack resists pure mode B — give it a selective-embed carve-out.** Slack is simultaneously the highest-signal institutional-memory source *and* the one whose native search is too weak to live-query well — decisions buried in threads are exactly what keyword search misses. So Slack gets **selective embed** (designated channels / pins / canvases → mode A), not "store nothing." Do not model Slack as pure live-query.
+- **Datadog is genuinely mode B.** Monitors, logs, incidents, dashboards are not documents to embed — they're precise queries answered at incident time. Right fit for live-query, and the natural partner to mode C (see §7.5).
+- **Mode C is its own beast** — see §7.
 
 ---
 
@@ -202,22 +221,84 @@ Cursor-style indexing (AST/tree-sitter chunking → code-aware embeddings → ve
 ### 7.2 The model: anchored live-fetch, validated by Claude Code / Codex CLI
 Frontier agentic coding tools (Claude Code, Codex CLI) **do not pre-index** the repo. They give the agent filesystem/search tools (`grep`/ripgrep, glob, `read`, `bash`) and let it explore *on demand* at query time — agentic search, not retrieval from an embedding index. Two well-resourced teams independently concluded that for agentic code reasoning, on-demand exploration beats a pre-built index (no staleness, no sync, works on any repo instantly, exact symbol lookup via grep). This is strong precedent for our approach.
 
-Note the one difference: those tools run **locally** (grep is microseconds, free). Merlin works over the **GitHub API** (slower, rate-limited), so Merlin's exploration must be **anchored and shallow** (a handful of targeted fetches guided by incident anchors), not a broad local-speed crawl.
+Note the one difference — and how we close it: Claude Code / Codex run **locally** (grep is microseconds, free). Two ways to give Merlin that: (a) work over the **GitHub API** — slower, rate-limited, so exploration must be **anchored and shallow** (targeted fetches guided by incident anchors); or (b) give Merlin the same local filesystem the tools expect by cloning into an **ephemeral sandbox** and running the real agent there. **We choose (b) as the primary path (§7.4);** (a) remains the lightweight fallback for one-off anchored citations that don't justify a sandbox spin-up.
 
-### 7.3 The v1 mechanism
+### 7.3 The mechanism (artifact-invariant)
+These steps define *what gets produced* (a repo-map page, anchored citations) and are **mechanism-invariant** — identical whether executed via GitHub API calls or via local `grep`/`read` inside the sandbox (§7.4). Default execution is the sandbox; the API path (the "fetch"/"contents API" steps) is the fallback. The output — a synthesized page + SHA pointers in the `nodes` tree — is the same either way.
+
 1. **Repo map at integration time** — a one-time background job generates a synthesized overview page (`/services/<repo>/overview`): what the project is, high-level directory structure, main modules, entry points, stack, conventions. Built from the tree (`git/trees?recursive=1`, ~1 call) + targeted reads of entry points/manifests/READMEs (tens of reads, not the whole repo). This is the orientation layer (the `CLAUDE.md` analog) — it lets Merlin go straight to likely files instead of crawling, which is the biggest lever on API call count. It's just another synthesized page; embedded and citeable like everything else. Refresh periodically.
 2. **Per-incident anchored fetch** — use the anchors the incident already provides (paths, symbols, errors) to live-fetch specific files at a specific SHA via the contents API. Cite `repo@sha:path#L140-160` — precise, permanent (SHA-pinned, doesn't rot), permission-correct.
-3. **GitHub Code Search API** for the rare "no anchor, need to find a symbol" step — GitHub's grep, server-side. We pull no files to search them. **Use sparingly** — it's on a much tighter rate-limit bucket (see §8).
+3. **GitHub Code Search API** for the rare "no anchor, need to find a symbol" step — GitHub's grep, server-side. We pull no files to search them. **Use sparingly** — it's on a much tighter rate-limit bucket (see §9).
 4. **Short-term cache** keyed by `repo@sha:path`. Code at a given SHA is immutable, so the cache is trivially safe and never stale; repeated reads in one investigation cost one fetch.
 5. **Durable artifact = the synthesized page**, not the code. "Auth service had an incident on date X caused by a token-expiry bug in `jwt.ts`; here's the fix PR" lives in the brain with SHA pointers. The code stays in GitHub. Each incident enriches the repo map → future investigations need *fewer* fetches. (This compounding is the moat showing up in the code layer — a static clone never gets cheaper.)
 
-### 7.4 What we explicitly reject and defer
-- **Persistent clone stored at rest per workspace — NO.** Reintroduces system-of-record/staleness/liability (storing customer source at rest is a serious security surface for our privacy/compliance-focused ICP) and the per-workspace-storage economics we already rejected.
-- **Ephemeral SHA-pinned sandbox clone — DEFER, not v1.** If/when we build ephemeral sandboxes for code execution anyway, route both the initial repo-map crawl and deeper investigations through a short-lived shallow clone at a SHA → local grep-and-read (Claude-Code parity, no per-grep API cost) → extract the page → tear down → persist nothing but page + SHA pointers. This is defensible (nothing at rest, never stale) but it is a later optimization. **It does not change the data model** — whether the map is built via API calls or local grep in an ephemeral clone, the output is identical (a synthesized page + SHA pointers in the same `nodes` tree). The mechanism is hot-swappable behind the same artifact, which is exactly why we can ship the API version now and swap later without touching the schema.
+### 7.4 Execution environment: ephemeral Railway sandboxes (v1 direction)
+
+**Decision (2026-06-26): code work runs in ephemeral Railway sandboxes, driving a real agentic coding tool (Claude Code / Codex CLI) against a short-lived clone.** This flips the earlier "defer the sandbox, ship API-fetch first" stance — Railway's agent sandboxes make the sandbox the *cheaper and better* path now, and it lets us lean on proven coding-agent frameworks instead of reinventing repo reasoning over the REST API.
+
+**Still rejected — persistent clone at rest per workspace.** Storing customer source at rest reintroduces system-of-record/staleness/liability (a serious security surface for our privacy/compliance ICP) and the per-workspace-storage economics we already rejected. Nothing code-related persists except synthesized pages + SHA pointers.
+
+**Two-tier model:**
+
+1. **Connect-time orientation (cheap, always-on).** When a repo is connected, spin a sandbox, shallow-clone at default-branch HEAD, run the coding agent once to produce the repo-map overview (`/services/<repo>/overview`: what it is, structure, entry points, stack, conventions), write that page to the brain, tear the sandbox down. This answers most "how does X work" questions from memory with **zero** sandbox spin-up, and it's the first thing we build — it de-risks the whole sandbox pipeline.
+2. **Query-time investigation (expensive, on-demand, gated).** When a question genuinely needs live code, spin a sandbox at a specific SHA, hand the agent the question plus any anchors (paths, symbols, a stack trace, a Datadog log), let it `grep`/`read`/explore locally at full speed, stream its progress to the channel (§8.2), then tear down. This is **the most expensive operation in the product by an order of magnitude** — gated behind per-channel tool profiles (§8.1) and per-workspace rate/budget limits, never run on every `@Merlin`.
+
+**Trust & security requirements (designed in, not bolted on — this is the gate, not the plumbing):**
+- **Ephemeral & SHA-pinned** — a sandbox exists for one task, pinned to a SHA, then destroyed. Nothing at rest.
+- **Egress allowlist** — the sandbox reaches GitHub (scoped, least-privilege installation token) and our own services only; no open-internet egress from a box holding customer source.
+- **Per-tenant isolation** — one workspace's sandbox can never see another's.
+- **Full audit log** — every agent action (files read, commands run, PRs opened) is recorded to `memory_events`, so a human can answer "what did Merlin touch in our code."
+- **Writes are proposals, not autonomous merges** — Merlin opens a **draft PR** with the patch + its reasoning, linked in the thread; a human reviews and merges. Never auto-merge (see §7.5). Done right, "ephemeral, nothing at rest, audited, human-in-the-loop on writes" is a *sales asset*, not just a safeguard.
+
+**Sandbox as a general execution primitive.** Build the sandbox layer as a generic short-lived execution environment with "analyze this repo" as its *first* consumer — not a GitHub-specific hack. The same primitive later powers arbitrary code execution for artifacts (charts, data analysis, scripts) — a platform multiplier well beyond code search.
+
+**Data model is unchanged.** Whether the repo map is built via API calls or local grep in the sandbox, the output is identical (a synthesized page + SHA pointers in the same `nodes` tree). The mechanism is hot-swappable behind the same artifact — which is exactly why the schema doesn't move when we swap fallback-API for sandbox.
+
+### 7.5 Cross-source agentic flow: incident → code → draft PR
+
+The payoff of mode B (Datadog) + mode C (sandbox) together is an investigation loop no single integration delivers:
+
+1. A user drops a production error / Datadog alert into a channel.
+2. Merlin live-queries Datadog (mode B) for the surrounding log/trace window — no ingestion, just the relevant slice.
+3. It extracts anchors (file paths, symbols, error strings) and spins a SHA-pinned sandbox (§7.4) to trace the error into the actual code.
+4. It identifies the likely cause and — *if asked* — opens a **draft PR** with a proposed fix plus its reasoning, linked back in the same thread.
+
+The whole loop runs in one session, streamed to the channel (§8.2), and leaves a durable synthesized incident page (`caused_by` edge to the code citation, `decided_in` edge to the thread). **Autonomous merge is out of scope** — the PR is a reviewable proposal artifact; a human ships it. This is the single most differentiated demo and the clearest expression of the moat at the code layer.
 
 ---
 
-## 8. GitHub API rate limits — constraints for the client
+## 8. Agent runtime: per-channel scoping & live tool-call streaming
+
+Merlin doesn't get one global tool/context surface across the whole workspace. Two runtime concerns shape every answer: *which tools and sources a given channel grants*, and *what the user sees while a slow tool runs*.
+
+### 8.1 Per-channel tool & context profiles
+
+An engineering channel and a design channel should not have the same Merlin. Scope Merlin's capability per **channel** (or group of channels) via named **profiles**, not a flat workspace-wide grant. This solves three problems at once:
+
+- **Grounding** — narrowing the retrieval/tool surface per channel kills cross-domain noise (a question in #design shouldn't pull Datadog incidents or trigger a code sandbox). Fewer wrong-domain retrievals → more grounded answers.
+- **Cost & latency gating** — the expensive operations (code sandbox §7.4, live Datadog) only exist where they belong. The channel *is* the budget boundary; no separate gating mechanism needed.
+- **RBAC** — not every team should be able to make Merlin read the codebase or query observability. A profile that lacks the code tool simply cannot invoke it.
+
+Design rules (these distinctions matter):
+
+- **Profiles, not per-channel toggles.** Named presets — e.g. *Engineering* (code sandbox, GitHub, Datadog, Linear), *Design* (Figma, Notion), *General* (chat + brain only) — assigned to a channel or a group, with a workspace default. Per-channel configuration is config hell nobody maintains.
+- **Tools are hard-scoped; brain context is biased, not walled.** A profile either grants a tool or it doesn't (hard). But the **brain is shared institutional memory — that is the entire product thesis** — so channel topic should *bias* brain retrieval, never wall it off. **Integration sources** are scoped per profile (a design channel needn't search Datadog).
+- **Do not wall context per channel in v1 — it reintroduces the private-channel primitive we deliberately cut.** v1 is "all channels public to the workspace." Hard context isolation per channel quietly brings privacy back; defer it until/unless we add a privacy primitive. Tool scoping is fully compatible with v1; context-walling is not.
+- **This is the on-ramp to team-specialized agents.** Profile-scoped tools mean "eng Merlin" and "design Merlin" are the same bot with different profiles — a small step to specialized agents later without committing to multiple bot identities now.
+
+### 8.2 Live tool-call streaming to the client
+
+When Merlin runs a slow tool — searching code in a sandbox, querying Datadog, fetching a source — the user must *see it working*, not stare at a spinner. Stream tool-call lifecycle events to the client and render them inline in the thread:
+
+- "Searching the auth service codebase…", "Querying Datadog logs…", "Reading PR #1423…" — derived from tool name + args, updated as each call starts/finishes.
+- This is **cross-cutting**: it applies to every tool (`search_sources`, `fetch_source`, the Datadog query, the code sandbox), and it's *load-bearing* for modes B/C, where a call can take many seconds — without visible progress those features feel broken.
+- It also makes Merlin **legible and trustworthy**: the user sees which sources it consulted before it answers, reinforcing the cited-memory promise.
+
+Plumb tool-call start/finish (and ideally intermediate agent steps from the sandbox) through the existing realtime stream the answer already uses, as a distinct event kind the client renders as transient status above the final message.
+
+---
+
+## 9. GitHub API rate limits — constraints for the client
 
 Verified against current GitHub REST API rate-limit docs. The headline: **the API approach is comfortably viable for v1**, because the limit is per-installation (per customer org) and our access is anchored-and-shallow.
 
@@ -231,7 +312,7 @@ Verified against current GitHub REST API rate-limit docs. The headline: **the AP
 - Initial repo-map crawl: tree (1) + tens of targeted reads < 100 calls, one-time, async. Trivial against 5,000/hr.
 - Per-incident investigation: ~10–50 calls. Would need 100+ investigations in one hour for one customer to threaten the limit — not a real scenario for a 10–50 person team.
 
-This is why the ephemeral sandbox (§7.4) stays a *later* optimization: the rate-limit fear that would justify it doesn't materialize at v1 usage.
+Note (2026-06-26): the ephemeral sandbox (§7.4) is now the **primary** path, not a deferred optimization — most reads happen via local `grep` in the clone, so these REST limits chiefly bound the *fallback* anchored-fetch path and the sandbox's own one-time clone/metadata calls. Either way the budget is comfortable.
 
 ### 8.3 The two real watch-outs
 1. **Code Search is a separate, much tighter bucket** (the code search endpoint is limited to **9 requests/min** for authenticated requests — vs 30/min for the other search endpoints). So the lever to protect is *search frequency*, not file reads. Orientation via the repo map keeps search rare — Merlin usually has an anchor and goes straight to `read`. Keep search the exception.
@@ -245,7 +326,7 @@ The GitHub client wrapper must, from day one:
 
 ---
 
-## 9. Data model summary (build target)
+## 10. Data model summary (build target)
 
 Postgres + pgvector. No Qdrant. Indicative shape — the implementer should turn this into Drizzle schema:
 
@@ -263,26 +344,35 @@ Postgres + pgvector. No Qdrant. Indicative shape — the implementer should turn
   - `id`, `workspace_id`, `channel_id`, time/message range, `body`, `embedding` (pgvector); HNSW index
 - **`integration_connections`** — per-provider auth/config (separate from `sources`).
   - `id`, `workspace_id`, `provider`, tokens (encrypted), config (jsonb), sync cursors, rate-limit state
-- **`memory_events`** — append-only event log (ingest/compile/edit/merge/decay) with full provenance, for replay and human audit. Never deleted.
+- **`memory_events`** — append-only event log (ingest/compile/edit/merge/decay, **plus sandbox/code-agent actions** for §7.4 audit) with full provenance, for replay and human audit. Never deleted.
+- **`agent_profiles`** — named capability presets (tool allowlist + integration-source scope) per §8.1. A `channel.agent_profile_id` (nullable → workspace default) assigns one to a channel/group. Tools hard-scoped; brain retrieval biased, not walled.
 
 Messaging tables already exist (native, full content) — not redefined here.
 
 ---
 
-## 10. Build order (suggested)
+## 11. Build order (suggested)
 
 1. `nodes` + `edges` schema, pgvector set up, HNSW indexes. The brain skeleton.
 2. Filesystem agent tools (`ls`/`read`/`write`/`mkdir`/`move`/`tree`) over `nodes`.
 3. Conversation chunking + embedding of chunks; embedding of pages.
 4. Retrieval: pages-first semantic search → conversation-chunk fallback; plus tree and graph traversal.
 5. Compile-time synthesis loop (chat → synthesized pages with provenance).
-6. First integration (GitHub) as summary-and-pointer: `integration_connections` + `sources` + the header-aware/backoff GitHub client (§8.4).
+6. First integration (GitHub) as summary-and-pointer: `integration_connections` + `sources` + the header-aware/backoff GitHub client (§9.4).
 7. Repo-map generation job (§7.3.1) and anchored code fetch + citation.
 8. Compaction job class (merge / compact / decay / supersession), per-namespace, archive-not-delete, writing to `memory_events`.
 
+### 11.1 Current execution plan (2026-06-26) — three layers
+
+Steps 1–8 above covered the brain core, which is **built**. The active plan layers on top:
+
+- **Layer 1 — instrument & broaden the cheap connectors.** External-**source citation verification** (extend the brain-page `[[…]]` grounding to `sources`; strip unresolved). **Eval harness** (seeded conversations with expected retrieval + citations — the instrument for tuning everything prompt-driven). **Linear connector** (mode-A template). **Live tool-call streaming** to the client (§8.2) so search/fetch/query progress is visible. *Start here.*
+- **Layer 2 — agent runtime scoping.** Per-channel tool/context **profiles** (§8.1). Lands before the sandbox because it's what makes the expensive code/observability tools governable and contained.
+- **Layer 3 — the moat.** Railway **sandbox** (§7.4): connect-time repo-map summary first (cheap wedge) → query-time live investigation → the Datadog→code→draft-PR cross-source loop (§7.5). Notion/Slack (mode-A selective-embed) and Datadog (mode B) slot in alongside, each gated by an eval pass.
+
 ---
 
-## 11. Non-negotiables (re-stated for the implementer)
+## 12. Non-negotiables (re-stated for the implementer)
 
 - **Never embed individual messages.** Pages + conversation chunks only.
 - **pgvector, not Qdrant.** Embedding is a column; no second datastore.
@@ -294,3 +384,7 @@ Messaging tables already exist (native, full content) — not redefined here.
 - **Never hard-delete brain content.** Decay = archive; everything logged to `memory_events`.
 - **GitHub client must respect rate-limit headers + backoff + bounded concurrency** from day one.
 - **Ingestion is never metered.** (Product principle; relevant to anything that gates ingestion.)
+- **Code runs in ephemeral sandboxes, nothing at rest.** Railway sandbox, SHA-pinned, egress-allowlisted, per-tenant isolated, audited to `memory_events`. Write actions are **draft PRs**, never auto-merge.
+- **Tools are channel-scoped via profiles; brain context is biased, not walled.** No per-channel context isolation in v1 — it reintroduces the private-channel primitive we deliberately cut.
+- **Slow tools stream their status to the client.** No silent spinners for sandbox / Datadog / source calls.
+- **Classify every new connector as mode A / B / C first** (§2.4), then wire it. Don't ad-hoc per integration.

@@ -185,8 +185,9 @@ export function createMerlinRespondProcessor(
         // Phase 2 — persist + fan out. Already streamed, so on failure just log
         // and emit the final signal (never clobber the shown text).
         try {
-          // Verify [[/path]] citations; strip any that don't resolve so a
-          // hallucinated source can't masquerade as real (settles on reload).
+          // Verify [[…]] citations (brain pages, messages, sources); strip any
+          // that don't resolve so a hallucinated source can't masquerade as real
+          // (settles on reload), and enrich valid source cites with their url.
           const grounded = await groundCitations(workspaceId, answer.text)
           if (grounded.invalid > 0) {
             logger.warn(

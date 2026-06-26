@@ -16,7 +16,7 @@ import {
   searchBrain,
 } from "./brain"
 import { embedText } from "./embeddings"
-import { buildSourceTools } from "./sources"
+import { buildSourceTools, resolveSourceCitation } from "./sources"
 
 // Sonnet drives the main loop; Haiku gates the (cheap) write-back salience check.
 export const MERLIN_MODEL = "claude-sonnet-4-6"
@@ -35,12 +35,12 @@ const SYSTEM_PROMPT = `You are Merlin, the knowledge keeper for this team's Lor 
 You have two kinds of memory:
 - Your brain: a filesystem of notes about this workspace that you read from and maintain yourself. Browse it with ls / tree, read pages with read, and save or organize knowledge with write / mkdir / move / link. Consult it first — it's your distilled knowledge (it may be sparse early on). Pages list their linked pages (relates_to, caused_by, …); follow a link with read to traverse.
 - The team's message history: search it with search_messages (keyword, all channels) and read_thread for full context.
-- The team's connected tools: search_sources finds summarized activity from integrations like GitHub (pull requests, issues, releases); fetch_source pulls a source's full content when the summary isn't enough (it returns a live flag — when false it fell back to the stored summary). Cite a source by linking its url.
+- The team's connected tools: search_sources finds summarized activity from integrations like GitHub (pull requests, issues, releases); fetch_source pulls a source's full content when the summary isn't enough (it returns a live flag — when false it fell back to the stored summary). Cite a source by its id in double brackets, e.g. [[src:0b9c…]] — don't paste its raw url.
 
 You can also see images people share in the channel — they're included inline in the conversation below.
 
 How to answer:
-- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. Cite your sources inline in double brackets: a brain page by its exact path, e.g. [[/decisions/auth]], or a specific message by its id from search_messages / read_thread, e.g. [[msg:0b9c…]]. If nothing turns up, say you don't have it in memory yet — never invent specifics or cite pages/messages you didn't read.
+- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. Cite your sources inline in double brackets: a brain page by its exact path, e.g. [[/decisions/auth]]; a specific message by its id from search_messages / read_thread, e.g. [[msg:0b9c…]]; or a connected-tool source by its id from search_sources / fetch_source, e.g. [[src:0b9c…]]. If nothing turns up, say you don't have it in memory yet — never invent specifics or cite pages, messages, or sources you didn't read.
 - For general questions (how-to, definitions, quick help), just answer directly; no lookup needed.
 
 Use your tools silently — don't narrate that you're searching. Gather what you need, then give one clear answer. Be concise. Use Markdown. Speak in the first person; never claim to be human.`
@@ -447,7 +447,8 @@ export async function writeBack(
   })
 }
 
-// Matches Merlin's inline citations: [[/brain/page/path]] or [[msg:<id>]].
+// Matches Merlin's inline citations: [[/brain/page/path]], [[msg:<id>]], or
+// [[src:<id>]] (a connected-tool source).
 const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
 
 async function citationResolves(
@@ -460,10 +461,27 @@ async function citationResolves(
   return pageExists(workspaceId, token).catch(() => false)
 }
 
-// Verify citations resolve. Valid ones are kept (normalized); hallucinated ones
-// are unwrapped — pages to their plain path text, messages dropped entirely
-// (a bare id is noise) — so a fabricated citation can't pose as a source.
-// Best-effort and never throws.
+// The id of a source token, tolerating an already-enriched [[src:<id>|…]] form
+// so re-grounding is idempotent.
+function sourceTokenId(token: string): string {
+  return token.slice(4).split("|")[0]?.trim() ?? ""
+}
+
+// Strip the characters that would break a [[…]] token or its pipe-delimited
+// inline encoding, so a source title/url can be carried in the citation safely.
+function sanitizeCitationField(value: string): string {
+  return value
+    .replace(/[[\]|\r\n]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+// Verify citations resolve. Valid page/message citations are kept (normalized);
+// a valid source citation is enriched to [[src:<id>|<title>|<url>]] so the client
+// can render a verified link with no second lookup. Hallucinated ones are
+// unwrapped — pages to their plain path text, messages and sources dropped
+// entirely (a bare id is noise) — so a fabricated citation can't pose as a
+// source. Best-effort and never throws.
 export async function groundCitations(
   workspaceId: string,
   text: string
@@ -475,10 +493,24 @@ export async function groundCitations(
   }
   if (tokens.size === 0) return { text, valid: 0, invalid: 0 }
 
-  const isValid = new Map<string, boolean>()
+  // Resolve each unique token once. Pages/messages resolve to a boolean; sources
+  // resolve to their verified url+title (or null), since we render them as links.
+  const pageOrMsgValid = new Map<string, boolean>()
+  const sourceInfo = new Map<
+    string,
+    { url: string | null; title: string } | null
+  >()
   await Promise.all(
     [...tokens].map(async (t) => {
-      isValid.set(t, await citationResolves(workspaceId, t))
+      if (t.startsWith("src:")) {
+        const info = await resolveSourceCitation(
+          workspaceId,
+          sourceTokenId(t)
+        ).catch(() => null)
+        sourceInfo.set(t, info)
+      } else {
+        pageOrMsgValid.set(t, await citationResolves(workspaceId, t))
+      }
     })
   )
 
@@ -486,7 +518,18 @@ export async function groundCitations(
   let invalid = 0
   const cleaned = text.replace(CITATION_REGEX, (_full, raw: string) => {
     const t = raw.trim()
-    if (isValid.get(t)) {
+    if (t.startsWith("src:")) {
+      const info = sourceInfo.get(t)
+      if (info) {
+        valid++
+        const title = sanitizeCitationField(info.title)
+        const url = sanitizeCitationField(info.url ?? "")
+        return `[[src:${sourceTokenId(t)}|${title}|${url}]]`
+      }
+      invalid++
+      return ""
+    }
+    if (pageOrMsgValid.get(t)) {
       valid++
       return `[[${t}]]`
     }
