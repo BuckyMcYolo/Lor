@@ -5,7 +5,8 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
-    "./placement": "./src/placement.ts"
+    "./placement": "./src/placement.ts",
+    "./sources": "./src/sources.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

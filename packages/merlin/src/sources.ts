@@ -1,14 +1,17 @@
+import { anthropic } from "@ai-sdk/anthropic"
 import { and, cosineDistance, db, eq, isNotNull, schema } from "@repo/db"
-import { tool } from "ai"
+import { generateText, tool } from "ai"
 import { z } from "zod"
 import { embedText } from "./embeddings"
 
-// Track B retrieval: semantic search over ingested integration `source` rows
-// (summaries of PRs, issues, releases, …). Embeddings live on the summary;
-// full content is live-fetched by the connector layer (not here yet).
+// Track B: ingest meaningful integration events into `source` rows (summary +
+// pointer + embedding) and search them semantically. Embed the summary, not the
+// document; full content is live-fetched by the connector layer (not here yet).
 
 const SEARCH_DEFAULT_LIMIT = 6
 const SEARCH_MAX_LIMIT = 15
+// Cheap model summarizes each event into embed-friendly memory.
+const SUMMARY_MODEL = "claude-haiku-4-5"
 
 export type SourceHit = {
   id: string
@@ -38,10 +41,16 @@ export async function searchSources(
       summary: schema.source.summary,
     })
     .from(schema.source)
+    // Join the connection so a revoked/suspended integration's sources drop out.
+    .innerJoin(
+      schema.integrationConnection,
+      eq(schema.source.connectionId, schema.integrationConnection.id)
+    )
     .where(
       and(
         eq(schema.source.workspaceId, workspaceId),
         eq(schema.source.status, "active"),
+        eq(schema.integrationConnection.status, "active"),
         isNotNull(schema.source.embedding)
       )
     )
@@ -86,4 +95,50 @@ export function buildSourceTools(workspaceId: string) {
       strict: true,
     }),
   }
+}
+
+// Derived from the table so it tracks schema changes. The connector supplies the
+// stored columns (minus the ones we compute/auto-fill) plus raw `content`.
+export type IngestSourceInput = Omit<
+  typeof schema.source.$inferInsert,
+  "id" | "summary" | "embedding" | "status" | "createdAt" | "updatedAt"
+> & {
+  // Raw text to summarize (e.g. PR title + body). The summary is what's embedded.
+  content: string
+}
+
+async function summarize(input: IngestSourceInput): Promise<string> {
+  const { text } = await generateText({
+    model: anthropic(SUMMARY_MODEL),
+    prompt: `Summarize this ${input.provider} ${input.kind} for a team's institutional memory in 2–4 sentences: what changed or was decided, who did it, and why it matters. Be factual and specific; no preamble.\n\nTitle: ${input.title}\nAuthor: ${input.author ?? "unknown"}\n\n${input.content}`,
+  })
+  return text.trim()
+}
+
+// Summarize → embed → upsert a source. Idempotent on (workspace, provider,
+// externalId), so re-delivered/edited events update in place.
+export async function ingestSource(input: IngestSourceInput): Promise<void> {
+  const summary = await summarize(input)
+  const embedding = await embedText(summary).catch(() => null)
+
+  const { content: _content, ...columns } = input
+  await db
+    .insert(schema.source)
+    .values({ ...columns, summary, embedding, status: "active" })
+    .onConflictDoUpdate({
+      target: [
+        schema.source.workspaceId,
+        schema.source.provider,
+        schema.source.externalId,
+      ],
+      set: {
+        title: input.title,
+        url: input.url ?? null,
+        author: input.author ?? null,
+        occurredAt: input.occurredAt ?? null,
+        summary,
+        embedding,
+        status: "active",
+      },
+    })
 }
