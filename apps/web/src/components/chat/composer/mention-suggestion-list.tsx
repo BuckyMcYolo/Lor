@@ -7,7 +7,7 @@ import {
   useImperativeHandle,
   useState,
 } from "react"
-import type { MentionCandidate } from "./mention-types"
+import type { MentionCandidate } from "@/components/chat/composer/mention-types"
 
 export interface MentionSuggestionListRef {
   onKeyDown: (props: SuggestionKeyDownProps) => boolean

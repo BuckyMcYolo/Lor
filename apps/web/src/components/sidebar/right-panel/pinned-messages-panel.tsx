@@ -7,9 +7,9 @@ import { formatTime } from "@repo/utils/date"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowLeft } from "lucide-react"
 import { MessageMarkdown } from "@/components/chat/message-markdown"
+import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
+import type { PinnedMessagesSidebarView } from "@/components/sidebar/right-panel/right-sidebar-types"
 import { apiClient } from "@/lib/api-client"
-import { useRightSidebar } from "./right-sidebar-context"
-import type { PinnedMessagesSidebarView } from "./right-sidebar-types"
 
 function nameInitial(name: string) {
   const trimmed = name.trim()

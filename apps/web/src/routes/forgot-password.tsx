@@ -14,7 +14,7 @@ import { useMutation } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { AlertCircle, ArrowLeft, Loader2, MailCheck } from "lucide-react"
 import { type FormEvent, useState } from "react"
-import { AuthLayout } from "../components/auth/auth-layout"
+import { AuthLayout } from "@/components/auth/auth-layout"
 
 export const Route = createFileRoute("/forgot-password")({
   component: ForgotPasswordPage,

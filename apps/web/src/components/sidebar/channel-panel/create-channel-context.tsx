@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, type ReactNode, useContext, useState } from "react"
-import { CreateChannelDialog } from "./create-channel-dialog"
+import { CreateChannelDialog } from "@/components/sidebar/channel-panel/create-channel-dialog"
 
 type CreateChannelContextValue = {
   openCreateChannel: (parentId?: string | null) => void

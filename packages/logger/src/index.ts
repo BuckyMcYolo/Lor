@@ -33,6 +33,14 @@ export function createLogger(name: string): pino.Logger {
     },
     // ISO 8601 timestamps — both vendors auto-detect this format.
     timestamp: pino.stdTimeFunctions.isoTime,
+    // Serialize Error objects logged under `err`/`error` into
+    // `{ type, message, stack }`. Without this, pino emits `{}` for an error
+    // *property* and the dev pretty stream's `errorLikeObjectKeys` has nothing
+    // to render. Datadog/Better Stack both index this shape.
+    serializers: {
+      err: pino.stdSerializers.err,
+      error: pino.stdSerializers.err,
+    },
     // Canonical attributes for both Datadog and Better Stack. Attaching them
     // on every line means the drain side doesn't need any remapping config.
     base: {

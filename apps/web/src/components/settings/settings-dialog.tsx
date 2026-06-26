@@ -35,29 +35,33 @@ import {
   User,
 } from "lucide-react"
 import { useMemo, useState } from "react"
-import { useSettings } from "@/context/settings-context"
-import { MyAccountSettings } from "./my-account-settings"
-import { NotificationSettings } from "./notification-settings"
+import { MyAccountSettings } from "@/components/settings/my-account-settings"
+import { NotificationSettings } from "@/components/settings/notification-settings"
+import { useSettings } from "@/hooks/use-settings"
 
 interface SettingsNav {
+  id: string
   name: string
   icon: LucideIcon
 }
 
-const settingsNav: SettingsNav[] = [
-  { name: "My Account", icon: User },
-  { name: "Appearance", icon: Paintbrush },
-  { name: "Notifications", icon: Bell },
-  { name: "Messages & Media", icon: MessageCircle },
-  { name: "Language & Region", icon: Globe },
-  { name: "Accessibility", icon: Keyboard },
-  { name: "Advanced", icon: Settings },
-]
+const settingsNav = [
+  { id: "account", name: "My Account", icon: User },
+  { id: "appearance", name: "Appearance", icon: Paintbrush },
+  { id: "notifications", name: "Notifications", icon: Bell },
+  { id: "messages", name: "Messages & Media", icon: MessageCircle },
+  { id: "language", name: "Language & Region", icon: Globe },
+  { id: "accessibility", name: "Accessibility", icon: Keyboard },
+  { id: "advanced", name: "Advanced", icon: Settings },
+] as const satisfies readonly SettingsNav[]
 
 export function SettingsDialog() {
-  const { isOpen, closeSettings } = useSettings()
-  const [activeItem, setActiveItem] = useState("My Account")
+  const { target, tab, close, setTab } = useSettings()
+  const isOpen = target === "user"
   const [search, setSearch] = useState("")
+
+  const activeItem =
+    settingsNav.find((item) => item.id === tab) ?? settingsNav[0]
 
   const filteredNav = useMemo(() => {
     if (!search.trim()) return settingsNav
@@ -66,7 +70,7 @@ export function SettingsDialog() {
   }, [search])
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && closeSettings()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
       <DialogContent className="overflow-hidden p-0 md:max-h-[700px] md:max-w-[850px] lg:max-w-[1000px]">
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
@@ -92,10 +96,10 @@ export function SettingsDialog() {
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {filteredNav.map((item) => (
-                      <SidebarMenuItem key={item.name}>
+                      <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
-                          isActive={item.name === activeItem}
-                          onClick={() => setActiveItem(item.name)}
+                          isActive={item.id === activeItem.id}
+                          onClick={() => setTab(item.id)}
                         >
                           <item.icon />
                           <span>{item.name}</span>
@@ -116,19 +120,19 @@ export function SettingsDialog() {
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage>{activeItem}</BreadcrumbPage>
+                    <BreadcrumbPage>{activeItem.name}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
             </header>
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
-              {activeItem === "My Account" ? (
+              {activeItem.id === "account" ? (
                 <MyAccountSettings />
-              ) : activeItem === "Notifications" ? (
+              ) : activeItem.id === "notifications" ? (
                 <NotificationSettings />
               ) : (
                 <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-                  {activeItem} settings coming soon.
+                  {activeItem.name} settings coming soon.
                 </div>
               )}
             </div>

@@ -16,10 +16,10 @@ import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Plus } from "lucide-react"
 import { useMemo, useState } from "react"
+import { SearchBar } from "@/components/sidebar/channel-panel/search-bar"
+import { DMList } from "@/components/sidebar/dm-panel/dm-list"
+import { NewDMDialog } from "@/components/sidebar/dm-panel/new-dm-dialog"
 import { readLastWorkspaceSlug } from "@/lib/last-location"
-import { SearchBar } from "./channel-panel/search-bar"
-import { DMList } from "./dm-panel/dm-list"
-import { NewDMDialog } from "./dm-panel/new-dm-dialog"
 
 function useReturnWorkspace() {
   const { data: workspaces, isPending } = useQuery({

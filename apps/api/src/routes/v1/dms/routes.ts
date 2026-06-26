@@ -21,7 +21,7 @@ import {
   listDMsResponseSchema,
   searchDMMessagesQuerySchema,
   searchDMMessagesResponseSchema,
-} from "./schema"
+} from "@/routes/v1/dms/schema"
 
 export const createDM = createRoute({
   path: "/dms",

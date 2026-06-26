@@ -11,7 +11,7 @@ import {
 import { ArrowUpRight } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
-import { LorMark } from "./lor-mark"
+import { LorMark } from "@/app/components/lor-mark"
 
 const EASE = "cubic-bezier(0.16,1,0.3,1)"
 // Shared transition: 500ms on every animated property so the whole header

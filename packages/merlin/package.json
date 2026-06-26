@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./placement": "./src/placement.ts",
+    "./providers": "./src/providers/index.ts",
     "./sources": "./src/sources.ts"
   },
   "scripts": {
@@ -14,10 +15,10 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.81",
     "@ai-sdk/openai": "^3.0.73",
-    "@octokit/app": "^16.1.2",
     "@repo/db": "workspace:^",
     "@repo/env": "workspace:^",
     "ai": "^6.0.197",
+    "octokit": "^5.0.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

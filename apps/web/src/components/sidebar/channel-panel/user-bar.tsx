@@ -16,12 +16,12 @@ import {
 } from "@repo/ui/components/sidebar"
 import { ThemeSwitcher } from "@repo/ui/components/unlumen-ui/theme-switcher"
 import { ChevronsUpDown, LogOut, Settings } from "lucide-react"
-import { useSettings } from "@/context/settings-context"
-import { UserAvatar } from "../../ui/user-avatar"
+import { UserAvatar } from "@/components/ui/user-avatar"
+import { useSettings } from "@/hooks/use-settings"
 
 export function UserBar() {
   const { data: session } = authClient.useSession()
-  const { openSettings } = useSettings()
+  const { open: openSettings } = useSettings()
   const { isMobile } = useSidebar()
   const name = session?.user.name ?? "User"
   const email = session?.user.email ?? ""
@@ -95,7 +95,7 @@ export function UserBar() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={openSettings}>
+              <DropdownMenuItem onSelect={() => openSettings("user")}>
                 <Settings />
                 Settings
               </DropdownMenuItem>

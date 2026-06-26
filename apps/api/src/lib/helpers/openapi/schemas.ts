@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi"
 import type { ZodType } from "zod"
-import jsonContent from "./json-content"
+import jsonContent from "@/lib/helpers/openapi/json-content"
 
 // ── Pagination ──────────────────────────────────────────
 
@@ -56,6 +56,13 @@ export const notFoundSchema = jsonContent({
     example: { success: false, message: "Not found" },
   }),
   description: "Not found",
+})
+
+export const conflictSchema = jsonContent({
+  schema: errorSchema.openapi({
+    example: { success: false, message: "Conflict" },
+  }),
+  description: "Conflict",
 })
 
 export const internalServerErrorSchema = jsonContent({

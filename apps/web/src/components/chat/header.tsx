@@ -8,11 +8,11 @@ import {
 } from "@repo/ui/components/tooltip"
 import { useParams } from "@tanstack/react-router"
 import { Hash } from "lucide-react"
+import { HeaderSearch } from "@/components/chat/header-search"
 import {
   LeftSidebarToggle,
   RightPanelToggle,
 } from "@/components/sidebar/sidebar-toggle"
-import { HeaderSearch } from "./header-search"
 
 export type ChatContext =
   | { type: "channel"; name: string; topic?: string }

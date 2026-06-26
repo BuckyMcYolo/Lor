@@ -3,7 +3,7 @@ import { PRESENCE_ONLINE_USERS_SET_KEY } from "@repo/realtime-types"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { getRedisClient } from "@/lib/redis"
 import type { AppRouteHandler } from "@/lib/types/app-types"
-import type { GetUserProfileRoute } from "./routes"
+import type { GetUserProfileRoute } from "@/routes/v1/users/routes"
 
 export const getUserProfile: AppRouteHandler<GetUserProfileRoute> = async (
   c

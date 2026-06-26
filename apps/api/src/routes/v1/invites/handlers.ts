@@ -9,7 +9,7 @@ import type {
   DeleteInviteRoute,
   ListInvitesRoute,
   PreviewInviteRoute,
-} from "./routes"
+} from "@/routes/v1/invites/routes"
 
 // ── Helpers ──────────────────────────────────────────────
 

@@ -17,8 +17,8 @@ import { useNavigate } from "@tanstack/react-router"
 import { MessageCircle } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import { apiClient } from "@/lib/api-client"
-import { UserAvatar } from "./user-avatar"
 
 function ProfileCardContent({ userId }: { userId: string }) {
   const queryClient = useQueryClient()

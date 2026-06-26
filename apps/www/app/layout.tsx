@@ -2,9 +2,9 @@ import type { Metadata } from "next"
 import { Cinzel, Fraunces } from "next/font/google"
 import localFont from "next/font/local"
 import "@repo/ui/globals.css"
-import { Grain } from "./components/grain"
-import { SiteHeader } from "./components/site-header"
-import { ThemeProvider } from "./components/theme-provider"
+import { Grain } from "@/app/components/grain"
+import { SiteHeader } from "@/app/components/site-header"
+import { ThemeProvider } from "@/app/components/theme-provider"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",

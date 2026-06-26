@@ -11,8 +11,8 @@ import {
 import type { PlacementTurn } from "@repo/merlin/placement"
 import { extractDirectMentionUserIds } from "@repo/messaging"
 import type { RealtimeMessage } from "@repo/realtime-types"
-import type { AccessibleChannel } from "./channel-access"
-import { createMessage } from "./messages"
+import type { AccessibleChannel } from "@/services/channel-access"
+import { createMessage } from "@/services/messages"
 
 const PLACEMENT_CONTEXT_LIMIT = 12
 

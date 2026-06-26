@@ -44,17 +44,18 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { CreateInviteDialog } from "@/components/invite/create-invite-dialog"
-import { WorkspaceSettingsDialog } from "@/components/workspace/workspace-settings-dialog"
-import { apiClient } from "@/lib/api-client"
-import { writeLastWorkspaceSlug } from "@/lib/last-location"
-import { canCreateChannels } from "@/lib/permissions"
-import { ChannelList } from "./channel-panel/channel-list"
+import { ChannelList } from "@/components/sidebar/channel-panel/channel-list"
 import {
   CreateChannelProvider,
   useCreateChannel,
-} from "./channel-panel/create-channel-context"
-import { WorkspaceCommand } from "./channel-panel/workspace-command"
-import { CreateWorkspaceDialog } from "./create-workspace-dialog"
+} from "@/components/sidebar/channel-panel/create-channel-context"
+import { WorkspaceCommand } from "@/components/sidebar/channel-panel/workspace-command"
+import { CreateWorkspaceDialog } from "@/components/sidebar/create-workspace-dialog"
+import { WorkspaceSettingsDialog } from "@/components/workspace/workspace-settings-dialog"
+import { useSettings } from "@/hooks/use-settings"
+import { apiClient } from "@/lib/api-client"
+import { writeLastWorkspaceSlug } from "@/lib/last-location"
+import { canCreateChannels } from "@/lib/permissions"
 
 /**
  * Full standalone workspace sidebar (Sidebar shell + content). Kept for
@@ -86,9 +87,12 @@ function WorkspaceSidebarInner() {
   const { workspaceSlug } = useParams({ strict: false })
   const navigate = useNavigate()
   const { openCreateChannel, openCreateCategory } = useCreateChannel()
+  const { target, tab, open: openSettings, close, setTab } = useSettings()
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
+
+  const settingsOpen = target === "workspace"
+  const settingsSection = tab === "integrations" ? "integrations" : "general"
 
   const { data: workspaces, isPending } = useQuery({
     queryKey: ["workspaces"],
@@ -193,7 +197,7 @@ function WorkspaceSidebarInner() {
                   {activeWorkspace?.name ?? "Workspace"}
                 </DropdownMenuLabel>
                 <DropdownMenuItem
-                  onSelect={() => setSettingsOpen(true)}
+                  onSelect={() => openSettings("workspace")}
                   disabled={!activeWorkspace}
                 >
                   <Settings className="size-4 text-muted-foreground" />
@@ -330,8 +334,10 @@ function WorkspaceSidebarInner() {
       {activeWorkspace && (
         <WorkspaceSettingsDialog
           open={settingsOpen}
-          onOpenChange={setSettingsOpen}
+          onOpenChange={(o) => (o ? openSettings("workspace") : close())}
           workspace={activeWorkspace}
+          section={settingsSection}
+          onSectionChange={setTab}
         />
       )}
       <CreateInviteDialog open={inviteOpen} onOpenChange={setInviteOpen} />

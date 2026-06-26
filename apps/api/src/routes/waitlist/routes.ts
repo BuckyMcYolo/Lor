@@ -5,7 +5,7 @@ import {
   waitlistErrorSchema,
   waitlistRequestSchema,
   waitlistSuccessSchema,
-} from "./schema"
+} from "@/routes/waitlist/schema"
 
 export const createWaitlistEntry = createRoute({
   path: "/waitlist",

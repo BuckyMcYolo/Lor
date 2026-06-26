@@ -3,6 +3,7 @@ import { and, cosineDistance, db, eq, isNotNull, schema } from "@repo/db"
 import { generateText, tool } from "ai"
 import { z } from "zod"
 import { embedText } from "./embeddings"
+import { getSourceProvider } from "./providers"
 
 // Track B: ingest meaningful integration events into `source` rows (summary +
 // pointer + embedding) and search them semantically. Embed the summary, not the
@@ -94,6 +95,71 @@ export function buildSourceTools(workspaceId: string) {
       },
       strict: true,
     }),
+    fetch_source: tool({
+      description:
+        "Fetch a source's full content (the complete PR/issue/release body and discussion), beyond the summary from search_sources. Pass a source id. Returns a `live` flag: when false the integration was unreachable and `content` falls back to the stored summary.",
+      inputSchema: z.object({
+        id: z.string().describe("a source id from search_sources"),
+      }),
+      execute: async ({ id }) => {
+        try {
+          return await fetchSourceContent(workspaceId, id)
+        } catch {
+          return { error: "fetch failed" }
+        }
+      },
+      strict: true,
+    }),
+  }
+}
+
+// Live-fetch a source's full content via its provider, scoped to the workspace.
+// Falls back to the stored summary when the provider can't fetch (unconfigured
+// or error), so the model always gets something usable.
+export async function fetchSourceContent(workspaceId: string, id: string) {
+  const row = await db
+    .select({
+      provider: schema.source.provider,
+      kind: schema.source.kind,
+      externalId: schema.source.externalId,
+      url: schema.source.url,
+      title: schema.source.title,
+      summary: schema.source.summary,
+      connectionExternalId: schema.integrationConnection.externalId,
+    })
+    .from(schema.source)
+    .innerJoin(
+      schema.integrationConnection,
+      eq(schema.source.connectionId, schema.integrationConnection.id)
+    )
+    .where(
+      and(
+        eq(schema.source.id, id),
+        eq(schema.source.workspaceId, workspaceId),
+        eq(schema.source.status, "active"),
+        eq(schema.integrationConnection.status, "active")
+      )
+    )
+    .limit(1)
+    .then((r) => r[0])
+  if (!row) return { error: "source not found" }
+
+  const provider = getSourceProvider(row.provider)
+  const fetched = provider
+    ? await provider
+        .fetchContent(
+          { kind: row.kind, externalId: row.externalId, url: row.url },
+          { externalId: row.connectionExternalId }
+        )
+        .catch(() => null)
+    : null
+
+  return {
+    title: row.title,
+    url: row.url,
+    kind: row.kind,
+    content: fetched ?? row.summary,
+    live: fetched !== null,
   }
 }
 

@@ -9,7 +9,7 @@ import {
 import { useMutation } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { Loader2, Mail, MailCheck } from "lucide-react"
-import { AuthLayout } from "../components/auth/auth-layout"
+import { AuthLayout } from "@/components/auth/auth-layout"
 
 export const Route = createFileRoute("/check-email")({
   component: CheckEmailPage,

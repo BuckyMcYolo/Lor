@@ -11,7 +11,7 @@ import type {
 import {
   type AccessibleChannel,
   assertUserCanAccessChannel,
-} from "./channel-access"
+} from "@/services/channel-access"
 
 type CreateMessageInput = {
   userId: string

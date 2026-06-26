@@ -11,14 +11,14 @@ import { cn } from "@repo/ui/lib/utils"
 import { useParams } from "@tanstack/react-router"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { UserBar } from "./channel-panel/user-bar"
-import { DMSidebarContent } from "./dm-sidebar"
+import { UserBar } from "@/components/sidebar/channel-panel/user-bar"
+import { DMSidebarContent } from "@/components/sidebar/dm-sidebar"
 import {
   RightSidebarProvider,
   useRightSidebar,
-} from "./right-panel/right-sidebar-context"
-import { RightSidebarPanel } from "./right-panel/right-sidebar-panel"
-import { WorkspaceSidebarContent } from "./workspace-sidebar"
+} from "@/components/sidebar/right-panel/right-sidebar-context"
+import { RightSidebarPanel } from "@/components/sidebar/right-panel/right-sidebar-panel"
+import { WorkspaceSidebarContent } from "@/components/sidebar/workspace-sidebar"
 
 /**
  * URL-driven left sidebar with a book-page-turn transition:

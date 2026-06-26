@@ -1,6 +1,6 @@
 import { createRouter } from "@/lib/helpers/app/create-app"
-import * as handlers from "./handlers"
-import * as routes from "./routes"
+import * as handlers from "@/routes/v1/dms/handlers"
+import * as routes from "@/routes/v1/dms/routes"
 
 const dmsRouter = createRouter()
   .openapi(routes.createDM, handlers.createDM)

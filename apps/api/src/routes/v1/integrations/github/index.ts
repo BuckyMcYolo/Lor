@@ -2,7 +2,7 @@ import { Webhooks } from "@octokit/webhooks"
 import { env } from "@repo/env/server"
 import { createRouter } from "@/lib/helpers/app/create-app"
 import { logger } from "@/lib/logger"
-import { registerGithubHandlers } from "./events"
+import { registerGithubHandlers } from "@/routes/v1/integrations/github/events"
 
 const githubRouter = createRouter()
 

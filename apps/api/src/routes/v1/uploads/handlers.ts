@@ -17,12 +17,12 @@ import type {
   AvatarPresignRoute,
   PresignRoute,
   WorkspaceIconPresignRoute,
-} from "./routes"
+} from "@/routes/v1/uploads/routes"
 import {
   MAX_AVATAR_SIZE,
   MAX_WORKSPACE_ICON_SIZE,
   PRESIGNED_URL_EXPIRY_SECONDS,
-} from "./schema"
+} from "@/routes/v1/uploads/schema"
 
 const DM_CHANNEL_TYPES = ["dm", "group_dm"] as const
 

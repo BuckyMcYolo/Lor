@@ -4,7 +4,7 @@ import type { AppRouteHandler } from "@/lib/types/app-types"
 import type {
   GetNotificationSettingsRoute,
   UpdateNotificationSettingsRoute,
-} from "./routes"
+} from "@/routes/v1/notification-settings/routes"
 
 const DEFAULT_SETTINGS = {
   desktopNotifications: "all_messages" as const,

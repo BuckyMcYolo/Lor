@@ -1,4 +1,4 @@
-import { Waitlist } from "./waitlist"
+import { Waitlist } from "@/app/components/waitlist"
 
 export function ClosingCTA() {
   return (

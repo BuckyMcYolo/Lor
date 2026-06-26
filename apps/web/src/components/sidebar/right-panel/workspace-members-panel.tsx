@@ -40,6 +40,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { MoreHorizontal } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
+import type { WorkspaceMembersSidebarView } from "@/components/sidebar/right-panel/right-sidebar-types"
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { UserProfilePopover } from "@/components/ui/user-profile-card"
 import { useSocket } from "@/context/socket-context"
@@ -52,8 +54,6 @@ import {
   canKickWorkspaceMembers,
   canManageWorkspaceMember,
 } from "@/lib/permissions"
-import { useRightSidebar } from "./right-sidebar-context"
-import type { WorkspaceMembersSidebarView } from "./right-sidebar-types"
 
 const statusStyles: Record<WorkspaceMemberPresence["status"], string> = {
   online: "bg-emerald-500",

@@ -7,7 +7,7 @@ import {
 } from "@repo/ui/components/tooltip"
 import { SidebarToggleIcon } from "@repo/ui/components/unlumen-ui/sidebar-toggle-icon"
 import { cn } from "@repo/ui/lib/utils"
-import { useRightSidebar } from "./right-panel/right-sidebar-context"
+import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
 
 /**
  * Left-sidebar toggle. Anchored to shadcn's `useSidebar` open state so the

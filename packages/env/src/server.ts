@@ -46,13 +46,13 @@ const serverSchema = z.object({
     (v) => (v === "" ? undefined : v),
     z.string().url().optional()
   ),
-  // GitHub App webhook HMAC secret. Optional so only the webhook path needs it
-  // (the receiver 503s when unset).
   GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
   // GitHub App identity for installation-authed REST (fetch_source). Optional:
   // fetch_source falls back to the stored summary when unset.
   GITHUB_APP_ID: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
+  // The GitHub App's public slug (github.com/apps/<slug>), for the install link.
+  GITHUB_APP_SLUG: z.string().min(1).optional(),
   NEXT_PUBLIC_SELF_HOSTED: z
     .preprocess((v) => v === "true" || v === "1", z.boolean())
     .default(false),

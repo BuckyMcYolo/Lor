@@ -29,7 +29,7 @@ import {
   updateChannelRequestSchema,
   updateChannelResponseSchema,
   workspaceSlugParamsSchema,
-} from "./schema"
+} from "@/routes/v1/channels/schema"
 
 export const listChannels = createRoute({
   path: "/workspaces/{workspaceSlug}/channels",

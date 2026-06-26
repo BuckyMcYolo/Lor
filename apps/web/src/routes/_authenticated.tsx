@@ -7,15 +7,14 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import { useEffect } from "react"
-import { OnboardingDialog } from "../components/onboarding/onboarding-dialog"
-import { SettingsDialog } from "../components/settings/settings-dialog"
-import { Sidebar } from "../components/sidebar"
-import { MobileSidebarProvider } from "../context/mobile-sidebar-context"
-import { SettingsProvider } from "../context/settings-context"
-import { SocketProvider } from "../context/socket-context"
-import { UnreadProvider } from "../context/unread-context"
-import { useBrowserNotifications } from "../hooks/use-browser-notifications"
-import { useUpdateCheck } from "../hooks/use-update-check"
+import { OnboardingDialog } from "@/components/onboarding/onboarding-dialog"
+import { SettingsDialog } from "@/components/settings/settings-dialog"
+import { Sidebar } from "@/components/sidebar/index"
+import { MobileSidebarProvider } from "@/context/mobile-sidebar-context"
+import { SocketProvider } from "@/context/socket-context"
+import { UnreadProvider } from "@/context/unread-context"
+import { useBrowserNotifications } from "@/hooks/use-browser-notifications"
+import { useUpdateCheck } from "@/hooks/use-update-check"
 
 // v0.1.2
 function BrowserNotifications() {
@@ -50,8 +49,23 @@ function UpdateBanner() {
 
 const LAST_PATH_KEY = "lor:last-path"
 
+// Settings dialogs are URL-driven so they survive refresh and deep-link
+// (e.g. the GitHub setup redirect reopens the Integrations tab):
+// ?settings=user|workspace&tab=<section>.
+type SettingsSearch = {
+  settings?: "user" | "workspace"
+  tab?: string
+}
+
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
+    settings:
+      search.settings === "user" || search.settings === "workspace"
+        ? search.settings
+        : undefined,
+    tab: typeof search.tab === "string" ? search.tab : undefined,
+  }),
 })
 
 function AuthenticatedLayout() {
@@ -104,19 +118,17 @@ function AuthenticatedLayout() {
   return (
     <SocketProvider enabled={!!session}>
       <UnreadProvider>
-        <SettingsProvider>
-          <BrowserNotifications />
-          <UpdateBanner />
-          <MobileSidebarProvider>
-            <div className="flex h-screen overflow-hidden bg-background text-foreground">
-              <Sidebar>
-                <Outlet />
-              </Sidebar>
-              <OnboardingDialog open={showOnboarding} />
-              <SettingsDialog />
-            </div>
-          </MobileSidebarProvider>
-        </SettingsProvider>
+        <BrowserNotifications />
+        <UpdateBanner />
+        <MobileSidebarProvider>
+          <div className="flex h-screen overflow-hidden bg-background text-foreground">
+            <Sidebar>
+              <Outlet />
+            </Sidebar>
+            <OnboardingDialog open={showOnboarding} />
+            <SettingsDialog />
+          </div>
+        </MobileSidebarProvider>
       </UnreadProvider>
     </SocketProvider>
   )

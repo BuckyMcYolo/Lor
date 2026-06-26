@@ -10,7 +10,7 @@ import {
   getNotificationSettingsResponseSchema,
   updateNotificationSettingsBodySchema,
   updateNotificationSettingsResponseSchema,
-} from "./schema"
+} from "@/routes/v1/notification-settings/schema"
 
 export const getNotificationSettings = createRoute({
   path: "/notification-settings",
