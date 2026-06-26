@@ -107,12 +107,21 @@ export type IngestSourceInput = Omit<
   content: string
 }
 
+// Chars of raw content to keep if summarization is unavailable.
+const SUMMARY_FALLBACK_MAX = 1000
+
 async function summarize(input: IngestSourceInput): Promise<string> {
-  const { text } = await generateText({
-    model: anthropic(SUMMARY_MODEL),
-    prompt: `Summarize this ${input.provider} ${input.kind} for a team's institutional memory in 2–4 sentences: what changed or was decided, who did it, and why it matters. Be factual and specific; no preamble.\n\nTitle: ${input.title}\nAuthor: ${input.author ?? "unknown"}\n\n${input.content}`,
-  })
-  return text.trim()
+  try {
+    const { text } = await generateText({
+      model: anthropic(SUMMARY_MODEL),
+      prompt: `Summarize this ${input.provider} ${input.kind} for a team's institutional memory in 2–4 sentences: what changed or was decided, who did it, and why it matters. Be factual and specific; no preamble.\n\nTitle: ${input.title}\nAuthor: ${input.author ?? "unknown"}\n\n${input.content}`,
+    })
+    return text.trim()
+  } catch {
+    // LLM unavailable — fall back to truncated raw content so the ingest still
+    // succeeds (a better summary lands on the next re-delivery/edit).
+    return input.content.trim().slice(0, SUMMARY_FALLBACK_MAX)
+  }
 }
 
 // Summarize → embed → upsert a source. Idempotent on (workspace, provider,
@@ -137,8 +146,10 @@ export async function ingestSource(input: IngestSourceInput): Promise<void> {
         author: input.author ?? null,
         occurredAt: input.occurredAt ?? null,
         summary,
-        embedding,
         status: "active",
+        // Only overwrite the embedding when we have a fresh one — don't null out
+        // a previously-good embedding if embedText failed on this re-delivery.
+        ...(embedding ? { embedding } : {}),
       },
     })
 }
