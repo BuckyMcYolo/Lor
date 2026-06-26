@@ -568,9 +568,11 @@ export const listThreadReplies: AppRouteHandler<
     )
   }
 
-  // Fetch the replies and the root message in parallel. The root is fetched as
-  // a single channel-level message (around + limit 1 returns just the anchor)
+  // Only hydrate the root on the initial page (no cursor) — the client reads
+  // `root` from the first page only, so paginated calls skip the extra query.
+  // The root is fetched as a single channel-level message (around + limit 1)
   // so the panel can show it even when it's scrolled out of the channel feed.
+  const isInitialPage = !before && !after
   const [replies, rootResult] = await Promise.all([
     fetchMessages({
       channelId,
@@ -581,16 +583,18 @@ export const listThreadReplies: AppRouteHandler<
       after,
       threadRootId: messageId,
     }),
-    fetchMessages({
-      channelId,
-      currentUserId: currentUser.id,
-      limit: 1,
-      around: messageId,
-    }),
+    isInitialPage
+      ? fetchMessages({
+          channelId,
+          currentUserId: currentUser.id,
+          limit: 1,
+          around: messageId,
+        })
+      : Promise.resolve(null),
   ])
 
   return c.json(
-    { ...replies, root: rootResult.data[0] ?? null },
+    { ...replies, root: rootResult?.data[0] ?? null },
     HttpStatusCodes.OK
   )
 }

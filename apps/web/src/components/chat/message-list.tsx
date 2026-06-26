@@ -365,8 +365,10 @@ const REANCHOR_WINDOW_MS = 6000
 
 /** Scrolls a message into view and keeps it centered against late layout shifts. */
 export function scrollToMessage(messageId: string): boolean {
+  // Scope to the channel feed's scroll container so we don't match the thread
+  // panel's duplicate copy of the same message (it has no [data-message-scroll]).
   const el = document.querySelector(
-    `[data-message-id="${messageId}"]`
+    `[data-message-scroll] [data-message-id="${messageId}"]`
   ) as HTMLElement | null
   if (!el) return false
 

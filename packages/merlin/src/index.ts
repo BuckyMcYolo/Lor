@@ -365,16 +365,18 @@ export async function respond(
 
   const userMessage: ModelMessage = { role: "user", content: parts }
 
+  const tools = {
+    ...buildChatTools(ctx.workspaceId),
+    ...buildSourceTools(ctx.workspaceId),
+    ...buildBrainReadTools(ctx.workspaceId),
+    ...buildBrainWriteTools(ctx.workspaceId, onMemoryWritten),
+  }
+
   const result = streamText({
     model: anthropic(MERLIN_MODEL),
     system: `${SYSTEM_PROMPT}\n\n${ANSWER_WRITE_GUIDANCE}`,
     messages: [userMessage],
-    tools: {
-      ...buildChatTools(ctx.workspaceId),
-      ...buildSourceTools(ctx.workspaceId),
-      ...buildBrainReadTools(ctx.workspaceId),
-      ...buildBrainWriteTools(ctx.workspaceId, onMemoryWritten),
-    },
+    tools,
     stopWhen: stepCountIs(MAX_STEPS),
   })
 
@@ -395,6 +397,10 @@ export async function respond(
       model: anthropic(MERLIN_MODEL),
       system: `${SYSTEM_PROMPT}\n\n${ANSWER_WRITE_GUIDANCE}`,
       messages: [userMessage, ...response.messages],
+      // The history carries tool_use/tool_result blocks, so Anthropic requires
+      // tools to be defined — but force a text answer (no more tool calls).
+      tools,
+      toolChoice: "none",
     })
     for await (const delta of retry.textStream) {
       text += delta
