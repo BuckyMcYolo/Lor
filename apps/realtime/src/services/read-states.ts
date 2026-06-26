@@ -14,7 +14,7 @@ import type {
   ChannelReadState,
   NotificationBootstrap,
 } from "@repo/realtime-types"
-import { assertUserCanAccessChannel } from "./channel-access"
+import { assertUserCanAccessChannel } from "@/services/channel-access"
 
 type MarkChannelReadInput = {
   userId: string

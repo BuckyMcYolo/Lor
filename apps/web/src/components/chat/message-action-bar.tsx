@@ -19,7 +19,7 @@ import {
 } from "@repo/ui/components/tooltip"
 import { MoreHorizontal, Reply } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { EmojiReactionPicker } from "./emoji-reaction-picker"
+import { EmojiReactionPicker } from "@/components/chat/emoji-reaction-picker"
 
 interface MessageActionBarProps {
   onReact?: (emoji: string) => void

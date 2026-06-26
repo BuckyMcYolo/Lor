@@ -31,6 +31,9 @@ import { useNavigate, useParams } from "@tanstack/react-router"
 import { ChevronDown, Hash, MoreHorizontal, Plus, Volume2 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useState } from "react"
+import { useCreateChannel } from "@/components/sidebar/channel-panel/create-channel-context"
+import { DeleteChannelDialog } from "@/components/sidebar/channel-panel/delete-channel-dialog"
+import { EditChannelDialog } from "@/components/sidebar/channel-panel/edit-channel-dialog"
 import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { useUnread } from "@/context/unread-context"
 import { apiClient } from "@/lib/api-client"
@@ -40,9 +43,6 @@ import {
   canDeleteChannels,
   canManageChannels,
 } from "@/lib/permissions"
-import { useCreateChannel } from "./create-channel-context"
-import { DeleteChannelDialog } from "./delete-channel-dialog"
-import { EditChannelDialog } from "./edit-channel-dialog"
 
 const channelIcons = {
   text: Hash,

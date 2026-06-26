@@ -17,7 +17,7 @@ import type {
   ListDMsRoute,
   ListDMThreadRepliesRoute,
   SearchDMMessagesRoute,
-} from "./routes"
+} from "@/routes/v1/dms/routes"
 
 const emptyPage = (page: number) => ({
   itemsTotal: 0,

@@ -1,7 +1,7 @@
 import { createRouter } from "@/lib/helpers/app/create-app"
-import githubRouter from "./github/index"
-import * as handlers from "./handlers"
-import * as routes from "./routes"
+import githubRouter from "@/routes/v1/integrations/github/index"
+import * as handlers from "@/routes/v1/integrations/handlers"
+import * as routes from "@/routes/v1/integrations/routes"
 
 // Webhook receivers live in per-provider subfolders (./github/index). The
 // workspace-scoped management endpoints (list/connect/disconnect) are here.

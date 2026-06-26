@@ -13,7 +13,7 @@ import { useMutation } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { type FormEvent, useEffect, useState } from "react"
-import { PasswordInput } from "../components/auth/password-input"
+import { PasswordInput } from "@/components/auth/password-input"
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,

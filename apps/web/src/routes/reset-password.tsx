@@ -13,8 +13,8 @@ import { useMutation } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
 import { type FormEvent, useState } from "react"
-import { AuthLayout } from "../components/auth/auth-layout"
-import { PasswordInput } from "../components/auth/password-input"
+import { AuthLayout } from "@/components/auth/auth-layout"
+import { PasswordInput } from "@/components/auth/password-input"
 
 export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,

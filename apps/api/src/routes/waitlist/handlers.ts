@@ -1,7 +1,7 @@
 import { db } from "@repo/db"
 import { waitlist } from "@repo/db/schema"
 import type { AppRouteHandler } from "@/lib/types/app-types"
-import type { CreateWaitlistEntryRoute } from "./routes"
+import type { CreateWaitlistEntryRoute } from "@/routes/waitlist/routes"
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 

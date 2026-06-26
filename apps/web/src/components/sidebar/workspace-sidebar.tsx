@@ -44,18 +44,18 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { CreateInviteDialog } from "@/components/invite/create-invite-dialog"
+import { ChannelList } from "@/components/sidebar/channel-panel/channel-list"
+import {
+  CreateChannelProvider,
+  useCreateChannel,
+} from "@/components/sidebar/channel-panel/create-channel-context"
+import { WorkspaceCommand } from "@/components/sidebar/channel-panel/workspace-command"
+import { CreateWorkspaceDialog } from "@/components/sidebar/create-workspace-dialog"
 import { WorkspaceSettingsDialog } from "@/components/workspace/workspace-settings-dialog"
 import { useSettings } from "@/hooks/use-settings"
 import { apiClient } from "@/lib/api-client"
 import { writeLastWorkspaceSlug } from "@/lib/last-location"
 import { canCreateChannels } from "@/lib/permissions"
-import { ChannelList } from "./channel-panel/channel-list"
-import {
-  CreateChannelProvider,
-  useCreateChannel,
-} from "./channel-panel/create-channel-context"
-import { WorkspaceCommand } from "./channel-panel/workspace-command"
-import { CreateWorkspaceDialog } from "./create-workspace-dialog"
 
 /**
  * Full standalone workspace sidebar (Sidebar shell + content). Kept for

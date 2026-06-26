@@ -19,7 +19,7 @@ import {
   updateWorkspaceResponseSchema,
   workspaceMemberParamsSchema,
   workspaceSlugParamsSchema,
-} from "./schema"
+} from "@/routes/v1/workspaces/schema"
 
 export const listWorkspaceMembers = createRoute({
   path: "/workspaces/{workspaceSlug}/members",

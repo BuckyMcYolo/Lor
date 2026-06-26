@@ -6,7 +6,7 @@ import {
   useEffect,
   useState,
 } from "react"
-import { useSocket } from "./socket-context"
+import { useSocket } from "@/context/socket-context"
 
 type UnreadState = {
   unreadCount: number

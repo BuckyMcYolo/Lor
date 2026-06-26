@@ -15,7 +15,7 @@ import {
   presignResponseSchema,
   workspaceIconPresignRequestSchema,
   workspaceIconPresignResponseSchema,
-} from "./schema"
+} from "@/routes/v1/uploads/schema"
 
 export const presign = createRoute({
   path: "/uploads/presign",

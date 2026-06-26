@@ -1,10 +1,10 @@
 import Image from "next/image"
-import { AgentBento } from "./components/agent-bento"
-import { ClosingCTA } from "./components/closing-cta"
-import { ProductDemo } from "./components/product-demo"
-import { Reveal } from "./components/reveal"
-import { SiteFooter } from "./components/site-footer"
-import { Waitlist } from "./components/waitlist"
+import { AgentBento } from "@/app/components/agent-bento"
+import { ClosingCTA } from "@/app/components/closing-cta"
+import { ProductDemo } from "@/app/components/product-demo"
+import { Reveal } from "@/app/components/reveal"
+import { SiteFooter } from "@/app/components/site-footer"
+import { Waitlist } from "@/app/components/waitlist"
 
 // ---------------------------------------------------------------------------
 // Hero — full-bleed image, atmospheric type, waitlist as the only action

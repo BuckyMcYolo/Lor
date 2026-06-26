@@ -25,7 +25,7 @@ import type {
   ReorderChannelsRoute,
   ToggleMessagePinRoute,
   UpdateChannelRoute,
-} from "./routes"
+} from "@/routes/v1/channels/routes"
 
 export const listChannels: AppRouteHandler<ListChannelsRoute> = async (c) => {
   const workspace = c.var.workspace

@@ -7,8 +7,8 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import "@repo/ui/globals.css"
 import "streamdown/styles.css"
-import "./styles/fonts.css"
-import { routeTree } from "./routeTree.gen"
+import "@/styles/fonts.css"
+import { routeTree } from "@/routeTree.gen"
 
 const queryClient = new QueryClient({
   defaultOptions: {

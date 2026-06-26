@@ -47,19 +47,33 @@ export const githubProvider: SourceProvider = {
       })
       const state = data.merged ? "merged" : data.state
       let out = `# ${data.title}\nState: ${state} · by ${data.user?.login ?? "unknown"}\n\n${data.body ?? "(no description)"}`
-      // PRs are issues under the hood — the conversation thread is the bulk of
-      // the discussion we want as institutional memory.
-      const comments = await octokit.rest.issues
-        .listComments({
-          owner: ref.owner,
-          repo: ref.repo,
-          issue_number: ref.id,
-          per_page: MAX_COMMENTS,
-        })
-        .then((r) => r.data)
-        .catch(() => [])
+      // PRs are issues under the hood — the conversation thread plus the
+      // inline code-review comments are the discussion we want as memory.
+      const [comments, reviewComments] = await Promise.all([
+        octokit.rest.issues
+          .listComments({
+            owner: ref.owner,
+            repo: ref.repo,
+            issue_number: ref.id,
+            per_page: MAX_COMMENTS,
+          })
+          .then((r) => r.data)
+          .catch(() => []),
+        octokit.rest.pulls
+          .listReviewComments({
+            owner: ref.owner,
+            repo: ref.repo,
+            pull_number: ref.id,
+            per_page: MAX_COMMENTS,
+          })
+          .then((r) => r.data)
+          .catch(() => []),
+      ])
       for (const cm of comments) {
         out += `\n\n— ${cm.user?.login ?? "unknown"}: ${cm.body ?? ""}`
+      }
+      for (const rc of reviewComments) {
+        out += `\n\n— ${rc.user?.login ?? "unknown"} on ${rc.path}: ${rc.body ?? ""}`
       }
       return clip(out)
     }

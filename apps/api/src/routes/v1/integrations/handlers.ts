@@ -2,7 +2,7 @@ import { db } from "@repo/db"
 import { integrationConnection } from "@repo/db/schema"
 import { env } from "@repo/env/server"
 import { getSourceProvider } from "@repo/merlin/providers"
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq, ne, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "@/lib/helpers/http/status-codes"
 import { logger } from "@/lib/logger"
 import type { AppRouteHandler } from "@/lib/types/app-types"
@@ -10,7 +10,7 @@ import type {
   ConnectGithubRoute,
   DisconnectIntegrationRoute,
   ListIntegrationsRoute,
-} from "./routes"
+} from "@/routes/v1/integrations/routes"
 
 export const listIntegrations: AppRouteHandler<ListIntegrationsRoute> = async (
   c
@@ -80,6 +80,13 @@ export const connectGithub: AppRouteHandler<ConnectGithubRoute> = async (c) => {
   const accountLogin = verified.accountLabel ?? null
 
   const ok = await db.transaction(async (tx) => {
+    // Serialize concurrent connects for this workspace+provider so the
+    // revoke-then-insert below can't interleave into multiple active rows.
+    // The lock is held for the transaction and released on commit/rollback.
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`${workspace.id}:github`}, 0))`
+    )
+
     // The installation is globally unique; don't let one workspace hijack an
     // installation already linked to another.
     const existing = await tx
@@ -108,7 +115,7 @@ export const connectGithub: AppRouteHandler<ConnectGithubRoute> = async (c) => {
         )
       )
 
-    await tx
+    const written = await tx
       .insert(integrationConnection)
       .values({
         workspaceId: workspace.id,
@@ -127,7 +134,10 @@ export const connectGithub: AppRouteHandler<ConnectGithubRoute> = async (c) => {
         // this workspace already owns.
         setWhere: eq(integrationConnection.workspaceId, workspace.id),
       })
-    return true
+      .returning({ id: integrationConnection.id })
+
+    // setWhere blocked the update → the installation is owned elsewhere.
+    return written.length > 0
   })
 
   if (!ok) {

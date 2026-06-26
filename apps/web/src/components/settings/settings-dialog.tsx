@@ -35,9 +35,9 @@ import {
   User,
 } from "lucide-react"
 import { useMemo, useState } from "react"
+import { MyAccountSettings } from "@/components/settings/my-account-settings"
+import { NotificationSettings } from "@/components/settings/notification-settings"
 import { useSettings } from "@/hooks/use-settings"
-import { MyAccountSettings } from "./my-account-settings"
-import { NotificationSettings } from "./notification-settings"
 
 interface SettingsNav {
   id: string

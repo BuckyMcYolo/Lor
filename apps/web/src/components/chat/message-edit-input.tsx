@@ -7,12 +7,12 @@ import { Markdown } from "@tiptap/markdown"
 import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import { useCallback, useEffect, useMemo, useRef } from "react"
-import { toStoredMarkdown } from "@/lib/editor-utils"
-import type { MentionCandidate } from "./composer/mention-types"
+import type { MentionCandidate } from "@/components/chat/composer/mention-types"
 import {
   createMentionSuggestion,
   SUGGESTION_MENU_SELECTOR,
-} from "./composer/message-input"
+} from "@/components/chat/composer/message-input"
+import { toStoredMarkdown } from "@/lib/editor-utils"
 
 const MAX_MESSAGE_LENGTH = 2000
 

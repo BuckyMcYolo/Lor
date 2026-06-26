@@ -1,10 +1,10 @@
 import { Image } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import type { ReactNode } from "react"
-import { PinnedMessagesPanel } from "./pinned-messages-panel"
-import type { RightSidebarView } from "./right-sidebar-types"
-import { ThreadPanel } from "./thread-panel"
-import { WorkspaceMembersPanel } from "./workspace-members-panel"
+import { PinnedMessagesPanel } from "@/components/sidebar/right-panel/pinned-messages-panel"
+import type { RightSidebarView } from "@/components/sidebar/right-panel/right-sidebar-types"
+import { ThreadPanel } from "@/components/sidebar/right-panel/thread-panel"
+import { WorkspaceMembersPanel } from "@/components/sidebar/right-panel/workspace-members-panel"
 
 function PlaceholderSidebar({
   title,

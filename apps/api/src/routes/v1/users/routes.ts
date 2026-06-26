@@ -7,7 +7,10 @@ import {
   unauthorizedSchema,
 } from "@/lib/helpers/openapi/schemas"
 import { sessionAuthMiddleware } from "@/middleware/session-auth"
-import { getUserProfileResponseSchema, userIdParamsSchema } from "./schema"
+import {
+  getUserProfileResponseSchema,
+  userIdParamsSchema,
+} from "@/routes/v1/users/schema"
 
 export const getUserProfile = createRoute({
   path: "/users/{userId}",

@@ -45,24 +45,24 @@ import {
   useRef,
   useState,
 } from "react"
-import type { PendingAttachment } from "@/hooks/use-file-upload"
-import type { Message } from "@/lib/api-types"
-import { extractMentionIds, toStoredMarkdown } from "@/lib/editor-utils"
-import type { ChatContext } from "../header"
-import { AttachmentPreview } from "./attachment-preview"
-import { CodeBlockView } from "./code-block-view"
+import { AttachmentPreview } from "@/components/chat/composer/attachment-preview"
+import { CodeBlockView } from "@/components/chat/composer/code-block-view"
 import {
   MentionSuggestionList,
   type MentionSuggestionListProps,
   type MentionSuggestionListRef,
-} from "./mention-suggestion-list"
-import type { MentionCandidate } from "./mention-types"
+} from "@/components/chat/composer/mention-suggestion-list"
+import type { MentionCandidate } from "@/components/chat/composer/mention-types"
 import {
   type SlashCommandItem,
   SlashCommandList,
   type SlashCommandListProps,
   type SlashCommandListRef,
-} from "./slash-command-list"
+} from "@/components/chat/composer/slash-command-list"
+import type { ChatContext } from "@/components/chat/header"
+import type { PendingAttachment } from "@/hooks/use-file-upload"
+import type { Message } from "@/lib/api-types"
+import { extractMentionIds, toStoredMarkdown } from "@/lib/editor-utils"
 
 const MAX_MENTION_RESULTS = 8
 const MAX_SLASH_RESULTS = 8

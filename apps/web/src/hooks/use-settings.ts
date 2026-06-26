@@ -4,8 +4,6 @@ import { useCallback } from "react"
 export type SettingsTarget = "user" | "workspace"
 
 // URL-driven settings dialogs: ?settings=user|workspace&tab=<section>.
-// Replaces the old SettingsProvider so a refresh/deep-link reopens the
-// right dialog + section (the GitHub setup redirect lands on Integrations).
 export function useSettings() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false })

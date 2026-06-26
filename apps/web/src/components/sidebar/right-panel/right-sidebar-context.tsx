@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react"
-import type { RightSidebarView } from "./right-sidebar-types"
+import type { RightSidebarView } from "@/components/sidebar/right-panel/right-sidebar-types"
 
 interface RightSidebarContextValue {
   view: RightSidebarView | null

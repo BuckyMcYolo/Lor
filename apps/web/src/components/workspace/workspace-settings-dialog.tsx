@@ -142,7 +142,10 @@ export function WorkspaceSettingsDialog({
                 <div className="min-h-0 flex-1 overflow-y-auto p-6">
                   <div className="mx-auto max-w-2xl">
                     {section === "general" ? (
+                      // key on identity so the form resets if the workspace
+                      // changes under us (no stale name/icon saved onto another).
                       <GeneralSection
+                        key={workspace.id}
                         workspace={workspace}
                         onClose={() => onOpenChange(false)}
                       />

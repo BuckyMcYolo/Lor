@@ -19,7 +19,7 @@ import {
   listInvitesResponseSchema,
   workspaceInviteCodeParamsSchema,
   workspaceSlugParamsSchema,
-} from "./schema"
+} from "@/routes/v1/invites/schema"
 
 // ── Workspace-scoped routes (require workspace membership) ──────
 

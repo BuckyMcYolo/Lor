@@ -20,6 +20,8 @@ import { DropZoneOverlay } from "@/components/chat/drop-zone-overlay"
 import { MessageItem } from "@/components/chat/message-item"
 import { scrollToMessage } from "@/components/chat/message-list"
 import { TypingIndicator } from "@/components/chat/typing-indicator"
+import { useRightSidebar } from "@/components/sidebar/right-panel/right-sidebar-context"
+import type { ThreadSidebarView } from "@/components/sidebar/right-panel/right-sidebar-types"
 import { useSocket } from "@/context/socket-context"
 import { useFileUpload } from "@/hooks/use-file-upload"
 import { useMessageDeletion } from "@/hooks/use-message-deletion"
@@ -31,8 +33,6 @@ import { useThreadMessages } from "@/hooks/use-thread-messages"
 import { useTypingIndicator } from "@/hooks/use-typing-indicator"
 import { apiClient } from "@/lib/api-client"
 import type { Message } from "@/lib/api-types"
-import { useRightSidebar } from "./right-sidebar-context"
-import type { ThreadSidebarView } from "./right-sidebar-types"
 
 const MESSAGE_GROUP_WINDOW_MINUTES = 5
 

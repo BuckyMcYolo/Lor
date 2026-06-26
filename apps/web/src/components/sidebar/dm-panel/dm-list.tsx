@@ -8,11 +8,11 @@ import {
 import { cn } from "@repo/ui/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import { useMobileSidebar } from "@/context/mobile-sidebar-context"
 import { useUnread } from "@/context/unread-context"
 import { apiClient } from "@/lib/api-client"
 import type { DMember } from "@/lib/api-types"
-import { UserAvatar } from "../../ui/user-avatar"
 
 export function DMList() {
   const navigate = useNavigate()

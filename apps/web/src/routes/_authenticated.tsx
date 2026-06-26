@@ -7,14 +7,14 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import { useEffect } from "react"
-import { OnboardingDialog } from "../components/onboarding/onboarding-dialog"
-import { SettingsDialog } from "../components/settings/settings-dialog"
-import { Sidebar } from "../components/sidebar"
-import { MobileSidebarProvider } from "../context/mobile-sidebar-context"
-import { SocketProvider } from "../context/socket-context"
-import { UnreadProvider } from "../context/unread-context"
-import { useBrowserNotifications } from "../hooks/use-browser-notifications"
-import { useUpdateCheck } from "../hooks/use-update-check"
+import { OnboardingDialog } from "@/components/onboarding/onboarding-dialog"
+import { SettingsDialog } from "@/components/settings/settings-dialog"
+import { Sidebar } from "@/components/sidebar/index"
+import { MobileSidebarProvider } from "@/context/mobile-sidebar-context"
+import { SocketProvider } from "@/context/socket-context"
+import { UnreadProvider } from "@/context/unread-context"
+import { useBrowserNotifications } from "@/hooks/use-browser-notifications"
+import { useUpdateCheck } from "@/hooks/use-update-check"
 
 // v0.1.2
 function BrowserNotifications() {

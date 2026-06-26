@@ -16,8 +16,8 @@ import {
 } from "@repo/ui/components/sidebar"
 import { ThemeSwitcher } from "@repo/ui/components/unlumen-ui/theme-switcher"
 import { ChevronsUpDown, LogOut, Settings } from "lucide-react"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import { useSettings } from "@/hooks/use-settings"
-import { UserAvatar } from "../../ui/user-avatar"
 
 export function UserBar() {
   const { data: session } = authClient.useSession()

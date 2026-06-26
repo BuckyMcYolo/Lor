@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi"
 import type { ZodType } from "zod"
-import jsonContent from "./json-content"
+import jsonContent from "@/lib/helpers/openapi/json-content"
 
 // ── Pagination ──────────────────────────────────────────
 

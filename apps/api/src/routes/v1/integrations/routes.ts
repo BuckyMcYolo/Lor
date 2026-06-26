@@ -17,7 +17,7 @@ import {
   disconnectResponseSchema,
   integrationsWorkspaceParamsSchema,
   listIntegrationsResponseSchema,
-} from "./schema"
+} from "@/routes/v1/integrations/schema"
 
 export const listIntegrations = createRoute({
   path: "/workspaces/{workspaceSlug}/integrations",

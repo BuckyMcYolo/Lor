@@ -2,7 +2,7 @@ import type {
   RealtimeMessage,
   RealtimeMessageReactionUpdated,
 } from "@repo/realtime-types"
-import type { Message, MessageAuthor } from "./api-types"
+import type { Message, MessageAuthor } from "@/lib/api-types"
 
 export function realtimeMessageToMessage(rm: RealtimeMessage): Message {
   return {

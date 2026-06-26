@@ -4,13 +4,13 @@ import { cn } from "@repo/ui/lib/utils"
 import { differenceInMinutes, isSameDay } from "@repo/utils/date"
 import { ArrowDown, Hash, Loader2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import type { MentionCandidate } from "@/components/chat/composer/mention-types"
+import { DateDivider } from "@/components/chat/date-divider"
+import type { ChatContext } from "@/components/chat/header"
+import { MessageItem } from "@/components/chat/message-item"
+import { ThreadActivityStack } from "@/components/chat/thread-activity"
 import type { ThreadActivity } from "@/hooks/use-thread-activity"
 import type { Message } from "@/lib/api-types"
-import type { MentionCandidate } from "./composer/mention-types"
-import { DateDivider } from "./date-divider"
-import type { ChatContext } from "./header"
-import { MessageItem } from "./message-item"
-import { ThreadActivityStack } from "./thread-activity"
 
 interface MessageListProps {
   context: ChatContext

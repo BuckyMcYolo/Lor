@@ -10,8 +10,8 @@ import { channelRoom } from "@repo/realtime-types/rooms"
 import type { Emitter } from "@socket.io/redis-emitter"
 import type { Job } from "bullmq"
 import ogs from "open-graph-scraper"
+import { isSafeUrl, matchProxyRule } from "@/jobs/link-unfurl-url"
 import { logger } from "@/lib/logger"
-import { isSafeUrl, matchProxyRule } from "./link-unfurl-url"
 
 const OG_FETCH_TIMEOUT_MS = 5000
 const MAX_REDIRECT_HOPS = 5
