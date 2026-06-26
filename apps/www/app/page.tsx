@@ -38,7 +38,7 @@ function Hero() {
 
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center md:pb-32">
         <Reveal>
-          <h1 className="max-w-[20ch] text-balance text-5xl font-semibold leading-[0.96] tracking-[-0.04em] sm:text-6xl md:text-[88px]">
+          <h1 className="max-w-[20ch] text-balance font-cinzel text-5xl font-semibold leading-[1.04] tracking-normal sm:text-6xl md:text-[78px]">
             Every great journey needs a guide.
             <br />
             {/*<span className="text-foreground/55">Lor is yours.</span>*/}

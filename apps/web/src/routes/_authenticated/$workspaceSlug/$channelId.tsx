@@ -30,6 +30,8 @@ import { canPinMessages } from "@/lib/permissions"
 
 type ChannelSearchParams = {
   msgId?: string
+  // Persists the open thread so a refresh reopens the right-panel thread.
+  threadId?: string
 }
 
 export const Route = createFileRoute(
@@ -38,12 +40,13 @@ export const Route = createFileRoute(
   component: ChannelView,
   validateSearch: (search: Record<string, unknown>): ChannelSearchParams => ({
     msgId: typeof search.msgId === "string" ? search.msgId : undefined,
+    threadId: typeof search.threadId === "string" ? search.threadId : undefined,
   }),
 })
 
 function ChannelView() {
   const { workspaceSlug, channelId } = Route.useParams()
-  const { msgId } = Route.useSearch()
+  const { msgId, threadId } = Route.useSearch()
   const navigate = Route.useNavigate()
   const socket = useSocket()
   const isMobile = useIsMobile()
@@ -59,18 +62,52 @@ function ChannelView() {
     writeLastChannelId(workspaceSlug, channelId)
   }, [workspaceSlug, channelId])
 
+  // Read the current threadId without re-running the mount effect on its
+  // changes (runtime open/close is driven by the URL-sync effect below).
+  const threadIdRef = useRef(threadId)
+  threadIdRef.current = threadId
+
+  // Set the initial right-panel view when entering a channel: reopen the
+  // thread from the URL (refresh / deep link) or fall back to members.
   useEffect(() => {
     if (isMobile === false) {
-      setView({
-        type: "workspace-members",
-        workspaceSlug,
-        channelId,
-      })
+      const initialThreadId = threadIdRef.current
+      setView(
+        initialThreadId
+          ? {
+              type: "thread",
+              workspaceSlug,
+              channelId,
+              threadRootId: initialThreadId,
+            }
+          : { type: "workspace-members", workspaceSlug, channelId }
+      )
     }
     return () => {
       clearView()
     }
   }, [setView, clearView, workspaceSlug, channelId, isMobile])
+
+  // Keep ?threadId in step with the panel so a refresh restores it and closing
+  // the thread drops it. Mirrors view → URL (the mount effect does URL → view).
+  useEffect(() => {
+    if (isMobile !== false) return
+    if (view?.type === "thread") {
+      if (view.threadRootId !== threadId) {
+        void navigate({
+          search: (prev) => ({ ...prev, threadId: view.threadRootId }),
+          replace: true,
+        })
+      }
+    } else if (view && threadId) {
+      // Only clear once a real non-thread view is set — `view === null` is the
+      // pre-hydration state on refresh and must not wipe the URL's threadId.
+      void navigate({
+        search: (prev) => ({ ...prev, threadId: undefined }),
+        replace: true,
+      })
+    }
+  }, [view, threadId, isMobile, navigate])
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["channel", workspaceSlug, channelId],

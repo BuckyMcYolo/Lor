@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Fraunces } from "next/font/google"
+import { Cinzel, Fraunces } from "next/font/google"
 import localFont from "next/font/local"
 import "@repo/ui/globals.css"
 import { Grain } from "./components/grain"
@@ -19,6 +19,11 @@ const fraunces = Fraunces({
   variable: "--font-fraunces",
   display: "swap",
 })
+const cinzel = Cinzel({
+  subsets: ["latin"],
+  variable: "--font-cinzel",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lor.chat"),
@@ -26,16 +31,13 @@ export const metadata: Metadata = {
   description:
     "Lor is the AI multiplayer workspace for teams. Every conversation, decision, and integration becomes searchable lore your team can ask anything of.",
   icons: {
-    // SVG icon — color-scheme aware (defined inline in the SVG via
-    // prefers-color-scheme media query)
+    // Castle mark (purple rounded square, transparent corners). Crisp SVG
+    // primary, PNG fallback + apple-touch.
     icon: [
       { url: "/lor-icon.svg", type: "image/svg+xml" },
-      // Fallback for browsers that don't render SVG favicons
       { url: "/lor-bg-removed-square.png", type: "image/png" },
     ],
     shortcut: "/lor-icon.svg",
-    // Apple touch icon (iOS home screen) ignores prefers-color-scheme
-    // anyway — keep the PNG variant for it
     apple: "/lor-bg-removed-square.png",
   },
   openGraph: {
@@ -56,7 +58,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.className} ${geistMono.variable} ${fraunces.variable} antialiased`}
+        className={`${geistSans.className} ${geistMono.variable} ${fraunces.variable} ${cinzel.variable} antialiased`}
       >
         <ThemeProvider attribute="class" forcedTheme="dark">
           <SiteHeader />

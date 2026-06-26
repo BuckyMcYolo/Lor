@@ -83,6 +83,14 @@ export {
   listMessagesResponseSchema,
 }
 
+// Thread replies also carry the root message itself, so the panel can render
+// it even when the root has scrolled out of the channel feed (e.g. a thread
+// reopened from the URL on refresh).
+export const listThreadRepliesResponseSchema =
+  listMessagesResponseSchema.extend({
+    root: messageWithAuthorSchema.nullable(),
+  })
+
 // ── Pins ──────────────────────────────────────────
 
 export const messageIdParamsSchema = channelParamsSchema.extend({

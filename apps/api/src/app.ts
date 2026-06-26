@@ -6,6 +6,7 @@ import { globalRateLimit } from "@/middleware/rate-limit"
 import index from "@/routes/index.route"
 import channelsRouter from "@/routes/v1/channels/index"
 import dmsRouter from "@/routes/v1/dms/index"
+import integrationsRouter from "@/routes/v1/integrations/index"
 import invitesRouter from "@/routes/v1/invites/index"
 import notificationSettingsRouter from "@/routes/v1/notification-settings/index"
 import uploadsRouter from "@/routes/v1/uploads/index"
@@ -44,6 +45,7 @@ const routes = app
   .route("/v1", dmsRouter)
   .route("/v1", uploadsRouter)
   .route("/v1", usersRouter)
+  .route("/v1", integrationsRouter)
 
 export type AppType = typeof routes
 

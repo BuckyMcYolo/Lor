@@ -102,10 +102,21 @@ export function useChannelMessages({
     }
   }, [normalizedAnchor, channelId, queryClient])
 
-  const messages = useMemo(
-    () => query.data?.pages.flatMap((page) => page.data) ?? [],
-    [query.data]
-  )
+  // Dedupe by id: an anchored (`around`) refetch can race with in-flight
+  // before/after pagination fetches and briefly leave the same message in two
+  // pages. The live-insert path already guards against dupes; mirror that here.
+  const messages = useMemo(() => {
+    const seen = new Set<string>()
+    const deduped: Message[] = []
+    for (const page of query.data?.pages ?? []) {
+      for (const m of page.data) {
+        if (seen.has(m.id)) continue
+        seen.add(m.id)
+        deduped.push(m)
+      }
+    }
+    return deduped
+  }, [query.data])
 
   // True iff the newest cached page has reached the live tail.
   const isAtPresent = query.data?.pages[0]?.reachedNewest === true

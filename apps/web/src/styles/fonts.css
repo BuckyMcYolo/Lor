@@ -19,11 +19,19 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Cinzel";
+  src: url("../assets/fonts/Cinzel.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: swap;
+}
+
 :root {
   --font-geist-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
   --font-geist-mono: "Geist Mono", ui-monospace, monospace;
   --font-serif:
     "Lora", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-cinzel: "Cinzel", ui-serif, Georgia, "Times New Roman", serif;
 }
 
 body {

@@ -382,7 +382,11 @@ export function WorkspaceMembersPanel({
             ...current,
             members: current.members.map((member) => ({
               ...member,
-              status: onlineSet.has(member.userId) ? "online" : "offline",
+              // Bots (Merlin) have no socket presence — keep them always online.
+              status:
+                member.isBot || onlineSet.has(member.userId)
+                  ? "online"
+                  : "offline",
             })),
           }
         }
@@ -418,7 +422,7 @@ export function WorkspaceMembersPanel({
           return {
             ...current,
             members: current.members.map((member) =>
-              member.userId === payload.userId
+              member.userId === payload.userId && !member.isBot
                 ? { ...member, status: nextStatus }
                 : member
             ),

@@ -16,6 +16,7 @@ import {
   searchBrain,
 } from "./brain"
 import { embedText } from "./embeddings"
+import { buildSourceTools } from "./sources"
 
 // Sonnet drives the main loop; Haiku gates the (cheap) write-back salience check.
 export const MERLIN_MODEL = "claude-sonnet-4-6"
@@ -34,6 +35,7 @@ const SYSTEM_PROMPT = `You are Merlin, the knowledge keeper for this team's Lor 
 You have two kinds of memory:
 - Your brain: a filesystem of notes about this workspace that you read from and maintain yourself. Browse it with ls / tree, read pages with read, and save or organize knowledge with write / mkdir / move / link. Consult it first — it's your distilled knowledge (it may be sparse early on). Pages list their linked pages (relates_to, caused_by, …); follow a link with read to traverse.
 - The team's message history: search it with search_messages (keyword, all channels) and read_thread for full context.
+- The team's connected tools: search_sources finds summarized activity from integrations like GitHub (pull requests, issues, releases). Cite one by linking its url.
 
 You can also see images people share in the channel — they're included inline in the conversation below.
 
@@ -363,15 +365,18 @@ export async function respond(
 
   const userMessage: ModelMessage = { role: "user", content: parts }
 
+  const tools = {
+    ...buildChatTools(ctx.workspaceId),
+    ...buildSourceTools(ctx.workspaceId),
+    ...buildBrainReadTools(ctx.workspaceId),
+    ...buildBrainWriteTools(ctx.workspaceId, onMemoryWritten),
+  }
+
   const result = streamText({
     model: anthropic(MERLIN_MODEL),
     system: `${SYSTEM_PROMPT}\n\n${ANSWER_WRITE_GUIDANCE}`,
     messages: [userMessage],
-    tools: {
-      ...buildChatTools(ctx.workspaceId),
-      ...buildBrainReadTools(ctx.workspaceId),
-      ...buildBrainWriteTools(ctx.workspaceId, onMemoryWritten),
-    },
+    tools,
     stopWhen: stepCountIs(MAX_STEPS),
   })
 
@@ -382,6 +387,32 @@ export async function respond(
   }
 
   const response = await result.response
+
+  // The tool loop occasionally ends on a tool call at the step cap without
+  // emitting any answer text. Run one no-tools synthesis pass continuing the
+  // same conversation so Merlin produces a real reply from what it gathered,
+  // rather than posting a blank message.
+  if (!text.trim()) {
+    const retry = streamText({
+      model: anthropic(MERLIN_MODEL),
+      system: `${SYSTEM_PROMPT}\n\n${ANSWER_WRITE_GUIDANCE}`,
+      messages: [userMessage, ...response.messages],
+      // The history carries tool_use/tool_result blocks, so Anthropic requires
+      // tools to be defined — but force a text answer (no more tool calls).
+      tools,
+      toolChoice: "none",
+    })
+    for await (const delta of retry.textStream) {
+      text += delta
+      await onDelta(delta)
+    }
+    const retryResponse = await retry.response
+    return {
+      text,
+      messages: [userMessage, ...response.messages, ...retryResponse.messages],
+    }
+  }
+
   return { text, messages: [userMessage, ...response.messages] }
 }
 
@@ -408,6 +439,7 @@ export async function writeBack(
     ],
     tools: {
       ...buildChatTools(ctx.workspaceId),
+      ...buildSourceTools(ctx.workspaceId),
       ...buildBrainReadTools(ctx.workspaceId),
       ...buildBrainWriteTools(ctx.workspaceId, onMemoryWritten),
     },

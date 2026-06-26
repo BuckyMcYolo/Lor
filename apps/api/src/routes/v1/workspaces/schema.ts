@@ -17,6 +17,7 @@ export const workspaceMemberPresenceSchema = z.object({
   image: z.string().nullable(),
   role: z.string(),
   isOwner: z.boolean(),
+  isBot: z.boolean(),
   status: z.enum(["online", "offline"]),
 })
 

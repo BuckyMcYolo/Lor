@@ -19,6 +19,7 @@ import {
   listMessagesResponseSchema,
   listPinnedMessagesResponseSchema,
   listThreadActivityResponseSchema,
+  listThreadRepliesResponseSchema,
   messageIdParamsSchema,
   messageLocationParamsSchema,
   messageLocationResponseSchema,
@@ -256,7 +257,7 @@ export const listThreadReplies = createRoute({
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent({
-      schema: listMessagesResponseSchema,
+      schema: listThreadRepliesResponseSchema,
       description: "Paginated thread replies",
     }),
     [HttpStatusCodes.UNAUTHORIZED]: unauthorizedSchema,
