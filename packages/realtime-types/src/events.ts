@@ -369,6 +369,17 @@ export interface ServerToClientEvents {
     path: string
     action: "created" | "updated"
   }) => void
+  // Merlin invoking a tool mid-answer (search, fetch, …). phase=start when the
+  // call begins, end when it returns; `label` is a human status line. Transient:
+  // the client shows in-flight calls while the reply streams, keyed by toolCallId.
+  "merlin:tool": (payload: {
+    channelId: string
+    threadRootId: string | null
+    messageId: string
+    toolCallId: string
+    label: string
+    phase: "start" | "end"
+  }) => void
   "message:pin:toggled": (payload: RealtimeMessagePinToggled) => void
   "message:thread:updated": (payload: RealtimeMessageThreadUpdated) => void
   "notification:bootstrap": (payload: NotificationBootstrap) => void

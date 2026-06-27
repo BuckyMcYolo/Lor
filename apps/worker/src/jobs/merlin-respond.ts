@@ -162,6 +162,17 @@ export function createMerlinRespondProcessor(
                   path,
                   action,
                 }),
+              // Live tool-call status ("Searching sources…") streamed to the
+              // client so slow tools don't read as a dead spinner.
+              onToolEvent: ({ toolCallId, label, phase }) =>
+                emitter.to(room).emit("merlin:tool", {
+                  channelId,
+                  threadRootId,
+                  messageId: merlinMessageId,
+                  toolCallId,
+                  label,
+                  phase,
+                }),
             }
           )
           if (pending.length > 0) emit(pending, false)

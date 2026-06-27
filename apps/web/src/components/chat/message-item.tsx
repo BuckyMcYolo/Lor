@@ -355,6 +355,21 @@ export function MessageItem({
               onCitationJump={onJumpToMessage}
             />
           )}
+          {message.streaming &&
+            message.toolActivity &&
+            message.toolActivity.length > 0 && (
+              <div className="mt-1 flex flex-col gap-0.5">
+                {message.toolActivity.map((t) => (
+                  <span
+                    key={t.toolCallId}
+                    className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground italic"
+                  >
+                    <span className="inline-block size-1.5 animate-pulse rounded-full bg-muted-foreground" />
+                    {t.label}
+                  </span>
+                ))}
+              </div>
+            )}
           {message.remembered && message.remembered.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {message.remembered.map((r) => (

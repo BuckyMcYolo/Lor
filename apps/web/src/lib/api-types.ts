@@ -30,6 +30,8 @@ export type ListMessagesResponse = InferResponseType<
 export type Message = ListMessagesResponse["data"][number] & {
   streaming?: boolean
   remembered?: { path: string; action: "created" | "updated" }[]
+  // Tool calls in flight while Merlin streams, for a live "searching…" status.
+  toolActivity?: { toolCallId: string; label: string }[]
 }
 export type MessageAuthor = Message["author"]
 

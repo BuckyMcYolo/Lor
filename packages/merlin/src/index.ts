@@ -120,10 +120,20 @@ export type RespondContext = {
   conversation: ConversationTurn[]
 }
 
+export type ToolEvent = {
+  toolCallId: string
+  toolName: string
+  // A short human status line, e.g. "Searching connected sources for …".
+  label: string
+  phase: "start" | "end"
+}
+
 export type RespondCallbacks = {
   onDelta: (delta: string) => void | Promise<void>
   // Fires when Merlin writes to its brain mid-answer (explicit save requests).
   onMemoryWritten?: (e: { path: string; action: "created" | "updated" }) => void
+  // Fires when a tool call starts/finishes, for a live "searching…" indicator.
+  onToolEvent?: (e: ToolEvent) => void
 }
 
 export type RespondResult = {
@@ -288,11 +298,50 @@ function buildChatTools(workspaceId: string) {
   }
 }
 
+// A short human status for a tool call, shown live in the client while Merlin
+// works. Uses the call's input where it sharpens the line (the search query, the
+// page path); falls back to a generic phrase, then the bare tool name.
+function toolLabel(toolName: string, input: unknown): string {
+  const field = (k: string): string | undefined => {
+    if (input && typeof input === "object" && k in input) {
+      const v = (input as Record<string, unknown>)[k]
+      if (typeof v === "string" && v.trim()) return v.trim().slice(0, 60)
+    }
+    return undefined
+  }
+  const query = field("query")
+  const path = field("path")
+  switch (toolName) {
+    case "search_messages":
+      return query ? `Searching messages for “${query}”` : "Searching messages"
+    case "read_thread":
+      return "Reading a thread"
+    case "search_sources":
+      return query
+        ? `Searching connected sources for “${query}”`
+        : "Searching connected sources"
+    case "fetch_source":
+      return "Fetching a source"
+    case "ls":
+    case "tree":
+      return "Looking through memory"
+    case "read":
+      return path ? `Reading memory ${path}` : "Reading memory"
+    case "write":
+    case "mkdir":
+    case "move":
+    case "link":
+      return "Updating memory"
+    default:
+      return `Working (${toolName})`
+  }
+}
+
 // Read-only answer loop. onDelta fires per streamed chunk; the returned
 // messages let write-back continue the same conversation.
 export async function respond(
   ctx: RespondContext,
-  { onDelta, onMemoryWritten }: RespondCallbacks
+  { onDelta, onMemoryWritten, onToolEvent }: RespondCallbacks
 ): Promise<RespondResult> {
   // Semantic pre-fetch: seed the top matching brain pages. Best-effort —
   // the brain tools remain the fallback.
@@ -387,10 +436,31 @@ export async function respond(
     stopWhen: stepCountIs(MAX_STEPS),
   })
 
+  // Iterate the full stream (not just textStream) so tool calls surface as live
+  // status. Text accumulates exactly as before; an error part is re-thrown to
+  // preserve the caller's fallback path.
   let text = ""
-  for await (const delta of result.textStream) {
-    text += delta
-    await onDelta(delta)
+  for await (const part of result.fullStream) {
+    if (part.type === "text-delta") {
+      text += part.text
+      await onDelta(part.text)
+    } else if (part.type === "tool-call") {
+      onToolEvent?.({
+        toolCallId: part.toolCallId,
+        toolName: part.toolName,
+        label: toolLabel(part.toolName, part.input),
+        phase: "start",
+      })
+    } else if (part.type === "tool-result") {
+      onToolEvent?.({
+        toolCallId: part.toolCallId,
+        toolName: part.toolName,
+        label: toolLabel(part.toolName, part.input),
+        phase: "end",
+      })
+    } else if (part.type === "error") {
+      throw part.error
+    }
   }
 
   const response = await result.response
