@@ -14,6 +14,11 @@ const SEARCH_MAX_LIMIT = 15
 // Cheap model summarizes each event into embed-friendly memory.
 const SUMMARY_MODEL = "claude-haiku-4-5"
 
+// Source ids are uuids; guard before querying so a malformed or hallucinated
+// citation token can't reach the DB. Mirrors the message-id guard in index.ts.
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 export type SourceHit = {
   id: string
   kind: string
@@ -73,20 +78,18 @@ export function buildSourceTools(workspaceId: string) {
   return {
     search_sources: tool({
       description:
-        "Search summarized activity from the team's connected integrations (e.g. GitHub pull requests, issues, releases). Semantic search; returns matching items with title, summary, author, date, and a url. Cite a source by linking its url.",
+        "Search summarized activity from the team's connected integrations (e.g. GitHub pull requests, issues, releases). Semantic search; returns matching items with an id, title, summary, author, date, and url. Cite a result as [[src:<id>]] using its id (not by pasting its url).",
       inputSchema: z.object({
         query: z.string().describe("what to look for"),
-        limit: z
-          .number()
-          .int()
-          .optional()
-          .describe("max results, 1–15 (default 6)"),
+        limit: z.number().optional().describe("max results, 1–15 (default 6)"),
       }),
       execute: async ({ query, limit }) => {
         try {
-          const n = Math.min(
-            Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1),
-            SEARCH_MAX_LIMIT
+          const n = Math.floor(
+            Math.min(
+              Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1),
+              SEARCH_MAX_LIMIT
+            )
           )
           return await searchSources(workspaceId, await embedText(query), n)
         } catch {
@@ -97,7 +100,7 @@ export function buildSourceTools(workspaceId: string) {
     }),
     fetch_source: tool({
       description:
-        "Fetch a source's full content (the complete PR/issue/release body and discussion), beyond the summary from search_sources. Pass a source id. Returns a `live` flag: when false the integration was unreachable and `content` falls back to the stored summary.",
+        "Fetch a source's full content (the complete PR/issue/release body and discussion), beyond the summary from search_sources. Pass a source id. Returns a `live` flag: when false the integration was unreachable and `content` falls back to the stored summary. Cite it as [[src:<id>]] with the same id you passed.",
       inputSchema: z.object({
         id: z.string().describe("a source id from search_sources"),
       }),
@@ -161,6 +164,35 @@ export async function fetchSourceContent(workspaceId: string, id: string) {
     content: fetched ?? row.summary,
     live: fetched !== null,
   }
+}
+
+// Resolve a [[src:<id>]] citation to its verified url + title, scoped to the
+// workspace and gated on an active connection — so a hallucinated or cross-tenant
+// id resolves to null and the citation gets stripped. Returns null when the id is
+// malformed, missing, or its integration has been revoked.
+export async function resolveSourceCitation(
+  workspaceId: string,
+  id: string
+): Promise<{ url: string | null; title: string } | null> {
+  if (!UUID_REGEX.test(id)) return null
+  const row = await db
+    .select({ url: schema.source.url, title: schema.source.title })
+    .from(schema.source)
+    .innerJoin(
+      schema.integrationConnection,
+      eq(schema.source.connectionId, schema.integrationConnection.id)
+    )
+    .where(
+      and(
+        eq(schema.source.id, id),
+        eq(schema.source.workspaceId, workspaceId),
+        eq(schema.source.status, "active"),
+        eq(schema.integrationConnection.status, "active")
+      )
+    )
+    .limit(1)
+    .then((r) => r[0])
+  return row ? { url: row.url, title: row.title } : null
 }
 
 // Derived from the table so it tracks schema changes. The connector supplies the

@@ -22,6 +22,7 @@ import { ChevronRight } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import type { MentionCandidate } from "@/components/chat/composer/mention-types"
 import { EmbedCard } from "@/components/chat/embed-card"
+import { MerlinMessageBody } from "@/components/chat/merlin-message-body"
 import { MessageActionBar } from "@/components/chat/message-action-bar"
 import { AttachmentGrid } from "@/components/chat/message-attachment"
 import { MessageEditInput } from "@/components/chat/message-edit-input"
@@ -342,11 +343,22 @@ export function MessageItem({
               onCancel={handleEditCancel}
               mentionCandidates={mentionCandidates}
             />
-          ) : message.streaming && !message.content ? (
+          ) : message.streaming &&
+            !message.content &&
+            !(message.merlinToolCalls && message.merlinToolCalls.length > 0) ? (
             <span className="inline-flex items-center text-sm text-muted-foreground italic">
               Merlin is thinking
               <span className="ml-1 animate-pulse">…</span>
             </span>
+          ) : message.merlinToolCalls && message.merlinToolCalls.length > 0 ? (
+            // Merlin: interleave answer text with tool-call groups in order.
+            <MerlinMessageBody
+              content={message.content}
+              toolCalls={message.merlinToolCalls}
+              streaming={message.streaming}
+              mentions={message.mentions}
+              onCitationJump={onJumpToMessage}
+            />
           ) : (
             <MessageMarkdown
               content={message.content}

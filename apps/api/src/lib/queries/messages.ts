@@ -1,5 +1,5 @@
 import { db } from "@repo/db"
-import type { Attachment, Embed } from "@repo/db/schema"
+import type { Attachment, Embed, MerlinToolCall } from "@repo/db/schema"
 import { message, messageMention, messageReaction, user } from "@repo/db/schema"
 import {
   and,
@@ -24,6 +24,7 @@ type BareMessageRow = {
   pinned: boolean
   attachments: Attachment[] | null
   embeds: Embed[] | null
+  merlinToolCalls: MerlinToolCall[] | null
   referencedMessageId: string | null
   threadRootId: string | null
   editedAt: Date | null
@@ -46,6 +47,7 @@ const messageSelect = {
   pinned: message.pinned,
   attachments: message.attachments,
   embeds: message.embeds,
+  merlinToolCalls: message.merlinToolCalls,
   referencedMessageId: message.referencedMessageId,
   threadRootId: message.threadRootId,
   editedAt: message.editedAt,
@@ -468,6 +470,7 @@ export async function fetchMessages({
   const data = messages.map((msg) => ({
     ...msg,
     embeds: msg.embeds ?? [],
+    merlinToolCalls: msg.merlinToolCalls ?? [],
     mentions: mentionsByMessageId.get(msg.id) ?? [],
     reactions: Array.from(reactionsByMessageId.get(msg.id)?.values() ?? []),
     referencedMessage: msg.referencedMessageId

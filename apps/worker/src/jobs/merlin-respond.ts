@@ -11,6 +11,7 @@ import {
   or,
   schema,
 } from "@repo/db"
+import type { MerlinToolCall } from "@repo/db/schema"
 import { withContext } from "@repo/logger"
 import { groundCitations, respond, writeBack } from "@repo/merlin"
 import { buildMessageFanout } from "@repo/messaging"
@@ -117,6 +118,9 @@ export function createMerlinRespondProcessor(
         let answer: Awaited<ReturnType<typeof respond>>
         let workspaceId: string
         let gateText: string
+        // Tools Merlin consults while answering — accumulated for the durable
+        // trail persisted on the message, and streamed live via merlin:tool.
+        const toolCalls: MerlinToolCall[] = []
         try {
           const conversation = await loadConversation({
             channelId,
@@ -162,6 +166,23 @@ export function createMerlinRespondProcessor(
                   path,
                   action,
                 }),
+              // Live tool status ("Searching sources…") streamed so slow tools
+              // don't read as a dead spinner; also accumulated for the durable
+              // trail persisted below (survives the answer and a reload). Upsert
+              // by toolCallId: start sets the label, completion adds detail.
+              onToolEvent: (toolCall) => {
+                const idx = toolCalls.findIndex(
+                  (t) => t.toolCallId === toolCall.toolCallId
+                )
+                if (idx >= 0) toolCalls[idx] = toolCall
+                else toolCalls.push(toolCall)
+                emitter.to(room).emit("merlin:tool", {
+                  channelId,
+                  threadRootId,
+                  messageId: merlinMessageId,
+                  toolCall,
+                })
+              },
             }
           )
           if (pending.length > 0) emit(pending, false)
@@ -185,8 +206,9 @@ export function createMerlinRespondProcessor(
         // Phase 2 — persist + fan out. Already streamed, so on failure just log
         // and emit the final signal (never clobber the shown text).
         try {
-          // Verify [[/path]] citations; strip any that don't resolve so a
-          // hallucinated source can't masquerade as real (settles on reload).
+          // Verify [[…]] citations (brain pages, messages, sources); strip any
+          // that don't resolve so a hallucinated source can't masquerade as real
+          // (settles on reload), and enrich valid source cites with their url.
           const grounded = await groundCitations(workspaceId, answer.text)
           if (grounded.invalid > 0) {
             logger.warn(
@@ -210,9 +232,38 @@ export function createMerlinRespondProcessor(
             )
           }
 
+          // Tool offsets (`at`) were measured against the pre-grounded stream,
+          // but we persist the grounded `content` — remap them so the client
+          // still splits text/tools correctly on reload. Grounding a prefix
+          // rewrites the same tokens as the full pass, so the grounded prefix
+          // length is the grounded offset. Citation-free prefixes (the common
+          // case — tools run before any cited text) short-circuit with no DB work.
+          const offsetCache = new Map<number, number>()
+          const remapOffset = async (at: number): Promise<number> => {
+            if (at <= 0) return at
+            const cached = offsetCache.get(at)
+            if (cached !== undefined) return cached
+            const g = await groundCitations(
+              workspaceId,
+              answer.text.slice(0, at)
+            ).catch(() => null)
+            const mapped = g ? g.text.length : at
+            offsetCache.set(at, mapped)
+            return mapped
+          }
+          const persistedToolCalls = emptyFallback
+            ? toolCalls
+            : await Promise.all(
+                toolCalls.map(async (tc) =>
+                  tc.at === undefined
+                    ? tc
+                    : { ...tc, at: await remapOffset(tc.at) }
+                )
+              )
+
           await db
             .update(schema.message)
-            .set({ content: finalText })
+            .set({ content: finalText, merlinToolCalls: persistedToolCalls })
             .where(eq(schema.message.id, merlinMessageId))
 
           // Notify like a normal message: fan out unread/mention to recipients.

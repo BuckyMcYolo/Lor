@@ -3,12 +3,22 @@ import { useEffect } from "react"
 import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import type { AppSocket } from "@/lib/socket"
 
+type ToolCall = {
+  toolCallId: string
+  toolName: string
+  label: string
+  at?: number
+  detail?: { summary?: string; items?: { title: string; url?: string }[] }
+  status?: "ok" | "error"
+}
+
 interface MessagePage {
   data: {
     id: string
     content: string | null
     streaming?: boolean
     remembered?: { path: string; action: "created" | "updated" }[]
+    merlinToolCalls?: ToolCall[]
   }[]
 }
 
@@ -99,6 +109,46 @@ export function useMerlinStream({
     socket.on("merlin:memory", handleMemory)
     return () => {
       socket.off("merlin:memory", handleMemory)
+    }
+  }, [socket, channelId, queryClient])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleTool = (payload: {
+      channelId: string
+      threadRootId: string | null
+      messageId: string
+      toolCall: ToolCall
+    }) => {
+      if (payload.channelId !== channelId) return
+      const key = payload.threadRootId
+        ? ["thread", payload.threadRootId]
+        : ["messages", channelId]
+      queryClient.setQueryData<InfiniteData<MessagePage>>(key, (old) => {
+        if (!old) return old
+        return updateMessagesAcrossPages(old, (msgs) =>
+          msgs.map((m) => {
+            if (m.id !== payload.messageId) return m
+            // Upsert into the same trail the server persists, so live and
+            // reloaded renders match (start adds the row, completion fills detail).
+            const existing = m.merlinToolCalls ?? []
+            const idx = existing.findIndex(
+              (t) => t.toolCallId === payload.toolCall.toolCallId
+            )
+            const merlinToolCalls =
+              idx >= 0
+                ? existing.map((t, i) => (i === idx ? payload.toolCall : t))
+                : [...existing, payload.toolCall]
+            return { ...m, merlinToolCalls }
+          })
+        )
+      })
+    }
+
+    socket.on("merlin:tool", handleTool)
+    return () => {
+      socket.off("merlin:tool", handleTool)
     }
   }, [socket, channelId, queryClient])
 }

@@ -15,7 +15,9 @@ const USER_MENTION_TOKEN_REGEX =
 const TIPTAP_MENTION_REGEX =
   /\[@[^\]]*?\bid="([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})"[^\]]*]/gi
 const EVERYONE_MENTION_REGEX = /(^|\s)@everyone\b/gi
-// Merlin cites brain pages it grounded in as [[/path]] (verified server-side).
+// Merlin cites grounded sources, all verified server-side: [[/path]] (brain
+// page), [[msg:<id>]] (message), or [[src:<id>|<title>|<url>]] (connected-tool
+// source, enriched with its verified title + url at grounding time).
 const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
 
 // Shared Shiki highlighter instance; loads languages lazily as code streams in.
@@ -32,6 +34,13 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
+}
+
+// Only http(s) urls become clickable. Our custom <srcref> tag bypasses
+// Streamdown's href sanitizer, so guard the scheme here (defense-in-depth —
+// these urls come from our own source rows, but never trust by construction).
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim())
 }
 
 function getMentionLabel(mention: Message["mentions"][number]) {
@@ -70,14 +79,34 @@ function toRenderableMarkdown(
         const id = token.slice(4).trim()
         return `<msgref data-id="${escapeHtml(id)}">↗ message</msgref>`
       }
+      if (token.startsWith("src:")) {
+        // Enriched [[src:<id>|<title>|<url>]] once grounded; bare [[src:<id>]]
+        // while still streaming (renders as a non-clickable chip until settled).
+        const [, title = "", url = ""] = token.slice(4).split("|")
+        const label = title.trim() || "source"
+        const trimmedUrl = url.trim()
+        const safeUrl = isHttpUrl(trimmedUrl) ? trimmedUrl : ""
+        return safeUrl
+          ? `<srcref data-url="${escapeHtml(safeUrl)}">↗ ${escapeHtml(label)}</srcref>`
+          : `<srcref>↗ ${escapeHtml(label)}</srcref>`
+      }
       return `<pageref>${escapeHtml(token)}</pageref>`
     })
 }
 
 interface MentionProps {
   "data-id"?: string
+  "data-url"?: string
   children?: ReactNode
   node?: { properties?: Record<string, unknown> }
+}
+
+function srcUrl(props: MentionProps): string | undefined {
+  const candidate =
+    props["data-url"] ??
+    (props.node?.properties?.dataUrl as string | undefined) ??
+    (props.node?.properties?.["data-url"] as string | undefined)
+  return candidate && isHttpUrl(candidate) ? candidate : undefined
 }
 
 function mentionId(props: MentionProps): string | undefined {
@@ -133,6 +162,29 @@ export function MessageMarkdown({
           {props.children}
         </span>
       ),
+      // Verified connected-tool source citation ([[src:<id>]]). Links out to the
+      // source's verified url (carried inline post-grounding); falls back to a
+      // non-clickable chip while streaming, before the url is attached.
+      srcref: (props: MentionProps) => {
+        const url = srcUrl(props)
+        if (url) {
+          return (
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center rounded bg-primary/10 px-1 py-0.5 text-[0.82em] text-primary hover:bg-primary/20"
+            >
+              {props.children}
+            </a>
+          )
+        }
+        return (
+          <span className="inline-flex items-center rounded bg-muted px-1 py-0.5 text-[0.82em] text-muted-foreground">
+            {props.children}
+          </span>
+        )
+      },
       // Verified message citation ([[msg:<id>]]). Clickable — jumps to the
       // message (resolving its channel if elsewhere in the workspace).
       msgref: (props: MentionProps) => {
@@ -211,8 +263,13 @@ export function MessageMarkdown({
     >
       <Streamdown
         plugins={{ code: codePlugin }}
-        allowedTags={{ mention: ["data-id"], pageref: [], msgref: ["data-id"] }}
-        literalTagContent={["mention", "pageref", "msgref"]}
+        allowedTags={{
+          mention: ["data-id"],
+          pageref: [],
+          msgref: ["data-id"],
+          srcref: ["data-url"],
+        }}
+        literalTagContent={["mention", "pageref", "msgref", "srcref"]}
         components={components}
       >
         {markdown}

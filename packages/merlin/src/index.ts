@@ -1,5 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic"
 import { and, asc, db, eq, or, schema, sql } from "@repo/db"
+import type { MerlinToolCall } from "@repo/db/schema"
 import {
   generateObject,
   generateText,
@@ -15,8 +16,15 @@ import {
   pageExists,
   searchBrain,
 } from "./brain"
+import {
+  classifyToken,
+  extractCitationTokens,
+  prefixedTokenId,
+  type Resolution,
+  rewriteCitations,
+} from "./citations"
 import { embedText } from "./embeddings"
-import { buildSourceTools } from "./sources"
+import { buildSourceTools, resolveSourceCitation } from "./sources"
 
 // Sonnet drives the main loop; Haiku gates the (cheap) write-back salience check.
 export const MERLIN_MODEL = "claude-sonnet-4-6"
@@ -35,12 +43,12 @@ const SYSTEM_PROMPT = `You are Merlin, the knowledge keeper for this team's Lor 
 You have two kinds of memory:
 - Your brain: a filesystem of notes about this workspace that you read from and maintain yourself. Browse it with ls / tree, read pages with read, and save or organize knowledge with write / mkdir / move / link. Consult it first — it's your distilled knowledge (it may be sparse early on). Pages list their linked pages (relates_to, caused_by, …); follow a link with read to traverse.
 - The team's message history: search it with search_messages (keyword, all channels) and read_thread for full context.
-- The team's connected tools: search_sources finds summarized activity from integrations like GitHub (pull requests, issues, releases); fetch_source pulls a source's full content when the summary isn't enough (it returns a live flag — when false it fell back to the stored summary). Cite a source by linking its url.
+- The team's connected tools: search_sources finds summarized activity from integrations like GitHub (pull requests, issues, releases); fetch_source pulls a source's full content when the summary isn't enough (it returns a live flag — when false it fell back to the stored summary). Cite a source by its id in double brackets, e.g. [[src:0b9c…]] — don't paste its raw url.
 
 You can also see images people share in the channel — they're included inline in the conversation below.
 
 How to answer:
-- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. Cite your sources inline in double brackets: a brain page by its exact path, e.g. [[/decisions/auth]], or a specific message by its id from search_messages / read_thread, e.g. [[msg:0b9c…]]. If nothing turns up, say you don't have it in memory yet — never invent specifics or cite pages/messages you didn't read.
+- For questions about THIS team/workspace, check your brain first, then search the message history for anything it doesn't cover. Ground your answer in what you find; note who said it and roughly when. Cite your sources inline in double brackets: a brain page by its exact path, e.g. [[/decisions/auth]]; a specific message by its id from search_messages / read_thread, e.g. [[msg:0b9c…]]; or a connected-tool source by its id from search_sources / fetch_source, e.g. [[src:0b9c…]]. If nothing turns up, say you don't have it in memory yet — never invent specifics or cite pages, messages, or sources you didn't read.
 - For general questions (how-to, definitions, quick help), just answer directly; no lookup needed.
 
 Use your tools silently — don't narrate that you're searching. Gather what you need, then give one clear answer. Be concise. Use Markdown. Speak in the first person; never claim to be human.`
@@ -113,10 +121,17 @@ export type RespondContext = {
   conversation: ConversationTurn[]
 }
 
+// The evolving record of one tool call: emitted with just a label when the call
+// starts, then again with detail + status when it completes.
+export type ToolEvent = MerlinToolCall
+
 export type RespondCallbacks = {
   onDelta: (delta: string) => void | Promise<void>
   // Fires when Merlin writes to its brain mid-answer (explicit save requests).
   onMemoryWritten?: (e: { path: string; action: "created" | "updated" }) => void
+  // Fires on tool-call (label) and again on tool-result (detail + status), keyed
+  // by toolCallId — for the live + persisted tool trail.
+  onToolEvent?: (e: ToolEvent) => void
 }
 
 export type RespondResult = {
@@ -255,7 +270,9 @@ function buildChatTools(workspaceId: string) {
       }),
       execute: async ({ query, limit }) => {
         try {
-          const n = Math.min(Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1), 20)
+          const n = Math.floor(
+            Math.min(Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1), 20)
+          )
           return await searchMessages(workspaceId, query, n)
         } catch {
           return { error: "search failed" }
@@ -281,11 +298,121 @@ function buildChatTools(workspaceId: string) {
   }
 }
 
+// A short human status for a tool call, shown live in the client while Merlin
+// works. Uses the call's input where it sharpens the line (the search query, the
+// page path); falls back to a generic phrase, then the bare tool name.
+function toolLabel(toolName: string, input: unknown): string {
+  const field = (k: string): string | undefined => {
+    if (input && typeof input === "object" && k in input) {
+      const v = (input as Record<string, unknown>)[k]
+      if (typeof v === "string" && v.trim()) return v.trim().slice(0, 60)
+    }
+    return undefined
+  }
+  const query = field("query")
+  const path = field("path")
+  switch (toolName) {
+    case "search_messages":
+      return query ? `Searching messages for “${query}”` : "Searching messages"
+    case "read_thread":
+      return "Reading a thread"
+    case "search_sources":
+      return query
+        ? `Searching connected sources for “${query}”`
+        : "Searching connected sources"
+    case "fetch_source":
+      return "Fetching a source"
+    case "ls":
+    case "tree":
+      return "Looking through memory"
+    case "read":
+      return path ? `Reading memory ${path}` : "Reading memory"
+    case "write":
+    case "mkdir":
+    case "move":
+    case "link":
+      return "Updating memory"
+    default:
+      return `Working (${toolName})`
+  }
+}
+
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null
+}
+function asString(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim() ? v.trim() : undefined
+}
+
+// Compact, bounded summary of a tool's output for the expandable detail panel.
+// Returns no detail for tools whose label already says everything (brain reads).
+function toolDetail(
+  toolName: string,
+  output: unknown
+): Pick<MerlinToolCall, "detail" | "status"> {
+  const rec = asRecord(output)
+  if (rec && "error" in rec) {
+    return {
+      status: "error",
+      detail: { summary: asString(rec.error) ?? "failed" },
+    }
+  }
+  const toItems = (
+    arr: unknown
+  ): NonNullable<MerlinToolCall["detail"]>["items"] => {
+    if (!Array.isArray(arr) || arr.length === 0) return undefined
+    return arr.slice(0, 8).map((it) => {
+      const r = asRecord(it)
+      return {
+        title:
+          asString(r?.title) ?? asString(r?.text)?.slice(0, 80) ?? "untitled",
+        url: asString(r?.url),
+      }
+    })
+  }
+  const count = Array.isArray(output) ? output.length : 0
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
+  switch (toolName) {
+    case "search_sources":
+      return {
+        status: "ok",
+        detail: {
+          summary: count === 0 ? "No results" : plural(count, "result"),
+          items: toItems(output),
+        },
+      }
+    case "search_messages":
+      return {
+        status: "ok",
+        detail: {
+          summary: count === 0 ? "No matches" : plural(count, "message"),
+          items: toItems(output),
+        },
+      }
+    case "fetch_source": {
+      const title = asString(rec?.title)
+      return {
+        status: "ok",
+        detail: {
+          summary:
+            rec?.live === true ? "Fetched live content" : "Used stored summary",
+          items: title ? [{ title, url: asString(rec?.url) }] : undefined,
+        },
+      }
+    }
+    default:
+      // brain ls/read/tree/write/… — the label is self-explanatory.
+      return { status: "ok" }
+  }
+}
+
 // Read-only answer loop. onDelta fires per streamed chunk; the returned
 // messages let write-back continue the same conversation.
 export async function respond(
   ctx: RespondContext,
-  { onDelta, onMemoryWritten }: RespondCallbacks
+  { onDelta, onMemoryWritten, onToolEvent }: RespondCallbacks
 ): Promise<RespondResult> {
   // Semantic pre-fetch: seed the top matching brain pages. Best-effort —
   // the brain tools remain the fallback.
@@ -380,10 +507,38 @@ export async function respond(
     stopWhen: stepCountIs(MAX_STEPS),
   })
 
+  // Iterate the full stream (not just textStream) so tool calls surface as live
+  // status. Text accumulates exactly as before; an error part is re-thrown to
+  // preserve the caller's fallback path.
   let text = ""
-  for await (const delta of result.textStream) {
-    text += delta
-    await onDelta(delta)
+  for await (const part of result.fullStream) {
+    if (part.type === "text-delta") {
+      text += part.text
+      await onDelta(part.text)
+    } else if (part.type === "tool-call") {
+      // Call started — record what Merlin is consulting (input known, no result
+      // yet). `at` = text emitted so far, so the UI can interleave tools with
+      // text in order. A failed call still counts as consulted.
+      onToolEvent?.({
+        toolCallId: part.toolCallId,
+        toolName: part.toolName,
+        label: toolLabel(part.toolName, part.input),
+        at: text.length,
+      })
+    } else if (part.type === "tool-result") {
+      // Call finished — fill in the result detail + status (same toolCallId, so
+      // consumers upsert over the start event). No text streams between a call
+      // and its result, so `at` is unchanged.
+      onToolEvent?.({
+        toolCallId: part.toolCallId,
+        toolName: part.toolName,
+        label: toolLabel(part.toolName, part.input),
+        at: text.length,
+        ...toolDetail(part.toolName, part.output),
+      })
+    } else if (part.type === "error") {
+      throw part.error
+    }
   }
 
   const response = await result.response
@@ -447,51 +602,48 @@ export async function writeBack(
   })
 }
 
-// Matches Merlin's inline citations: [[/brain/page/path]] or [[msg:<id>]].
-const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
-
-async function citationResolves(
-  workspaceId: string,
-  token: string
-): Promise<boolean> {
-  if (token.startsWith("msg:")) {
-    return messageExists(workspaceId, token.slice(4).trim()).catch(() => false)
-  }
-  return pageExists(workspaceId, token).catch(() => false)
-}
-
-// Verify citations resolve. Valid ones are kept (normalized); hallucinated ones
-// are unwrapped — pages to their plain path text, messages dropped entirely
-// (a bare id is noise) — so a fabricated citation can't pose as a source.
-// Best-effort and never throws.
+// Verify Merlin's inline citations against the DB, then hand off to the pure
+// rewrite (./citations) which keeps valid ones, enriches sources with their
+// verified title+url, and strips hallucinated ones so a fabricated citation can't
+// pose as a source. Workspace-scoped; best-effort and never throws.
 export async function groundCitations(
   workspaceId: string,
   text: string
 ): Promise<{ text: string; valid: number; invalid: number }> {
-  const tokens = new Set<string>()
-  for (const m of text.matchAll(CITATION_REGEX)) {
-    const t = m[1]?.trim()
-    if (t) tokens.add(t)
-  }
+  const tokens = extractCitationTokens(text)
   if (tokens.size === 0) return { text, valid: 0, invalid: 0 }
 
-  const isValid = new Map<string, boolean>()
+  // Resolve each unique token once. Pages/messages resolve to a boolean; sources
+  // resolve to their verified url+title (or null), since we render them as links.
+  const resolutions = new Map<string, Resolution>()
   await Promise.all(
     [...tokens].map(async (t) => {
-      isValid.set(t, await citationResolves(workspaceId, t))
+      const kind = classifyToken(t)
+      if (kind === "src") {
+        const source = await resolveSourceCitation(
+          workspaceId,
+          prefixedTokenId(t)
+        ).catch(() => null)
+        resolutions.set(t, { kind: "src", source })
+      } else if (kind === "msg") {
+        const exists = await messageExists(
+          workspaceId,
+          prefixedTokenId(t)
+        ).catch(() => false)
+        resolutions.set(t, { kind: "msg", exists })
+      } else {
+        const exists = await pageExists(workspaceId, t).catch(() => false)
+        resolutions.set(t, { kind: "page", exists })
+      }
     })
   )
 
-  let valid = 0
-  let invalid = 0
-  const cleaned = text.replace(CITATION_REGEX, (_full, raw: string) => {
-    const t = raw.trim()
-    if (isValid.get(t)) {
-      valid++
-      return `[[${t}]]`
-    }
-    invalid++
-    return t.startsWith("msg:") ? "" : t
-  })
-  return { text: cleaned, valid, invalid }
+  // Every matched token is in the map; the fallback only satisfies the type.
+  const fallback = (t: string): Resolution => {
+    const kind = classifyToken(t)
+    return kind === "src"
+      ? { kind: "src", source: null }
+      : { kind, exists: false }
+  }
+  return rewriteCitations(text, (t) => resolutions.get(t) ?? fallback(t))
 }

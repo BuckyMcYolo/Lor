@@ -369,6 +369,26 @@ export interface ServerToClientEvents {
     path: string
     action: "created" | "updated"
   }) => void
+  // Merlin invoked a tool mid-answer (search, fetch, …). Sent on call (label
+  // only) and again on completion (with detail + status). The client upserts it
+  // into the message's tool trail by toolCallId; the same trail is persisted on
+  // the message for reload. Mirrors MerlinToolCall in @repo/db/schema.
+  "merlin:tool": (payload: {
+    channelId: string
+    threadRootId: string | null
+    messageId: string
+    toolCall: {
+      toolCallId: string
+      toolName: string
+      label: string
+      at?: number
+      detail?: {
+        summary?: string
+        items?: { title: string; url?: string }[]
+      }
+      status?: "ok" | "error"
+    }
+  }) => void
   "message:pin:toggled": (payload: RealtimeMessagePinToggled) => void
   "message:thread:updated": (payload: RealtimeMessageThreadUpdated) => void
   "notification:bootstrap": (payload: NotificationBootstrap) => void
