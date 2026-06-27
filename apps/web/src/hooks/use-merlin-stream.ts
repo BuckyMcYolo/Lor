@@ -3,13 +3,22 @@ import { useEffect } from "react"
 import { updateMessagesAcrossPages } from "@/lib/message-cache-utils"
 import type { AppSocket } from "@/lib/socket"
 
+type ToolCall = {
+  toolCallId: string
+  toolName: string
+  label: string
+  at?: number
+  detail?: { summary?: string; items?: { title: string; url?: string }[] }
+  status?: "ok" | "error"
+}
+
 interface MessagePage {
   data: {
     id: string
     content: string | null
     streaming?: boolean
     remembered?: { path: string; action: "created" | "updated" }[]
-    toolActivity?: { toolCallId: string; label: string }[]
+    merlinToolCalls?: ToolCall[]
   }[]
 }
 
@@ -50,8 +59,6 @@ export function useMerlinStream({
                   ...m,
                   content: (m.content ?? "") + payload.delta,
                   streaming: !payload.done,
-                  // Clear any in-flight tool status once the reply settles.
-                  ...(payload.done ? { toolActivity: [] } : {}),
                 }
               : m
           )
@@ -112,9 +119,7 @@ export function useMerlinStream({
       channelId: string
       threadRootId: string | null
       messageId: string
-      toolCallId: string
-      label: string
-      phase: "start" | "end"
+      toolCall: ToolCall
     }) => {
       if (payload.channelId !== channelId) return
       const key = payload.threadRootId
@@ -125,20 +130,17 @@ export function useMerlinStream({
         return updateMessagesAcrossPages(old, (msgs) =>
           msgs.map((m) => {
             if (m.id !== payload.messageId) return m
-            // Drop any prior entry for this call, then re-add it while it runs.
-            const rest = (m.toolActivity ?? []).filter(
-              (t) => t.toolCallId !== payload.toolCallId
+            // Upsert into the same trail the server persists, so live and
+            // reloaded renders match (start adds the row, completion fills detail).
+            const existing = m.merlinToolCalls ?? []
+            const idx = existing.findIndex(
+              (t) => t.toolCallId === payload.toolCall.toolCallId
             )
-            return {
-              ...m,
-              toolActivity:
-                payload.phase === "start"
-                  ? [
-                      ...rest,
-                      { toolCallId: payload.toolCallId, label: payload.label },
-                    ]
-                  : rest,
-            }
+            const merlinToolCalls =
+              idx >= 0
+                ? existing.map((t, i) => (i === idx ? payload.toolCall : t))
+                : [...existing, payload.toolCall]
+            return { ...m, merlinToolCalls }
           })
         )
       })

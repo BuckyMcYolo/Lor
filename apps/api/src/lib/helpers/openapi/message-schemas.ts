@@ -32,6 +32,22 @@ export const messageEmbedSchema = z.object({
   siteName: z.string().optional(),
 })
 
+export const merlinToolCallSchema = z.object({
+  toolCallId: z.string(),
+  toolName: z.string(),
+  label: z.string(),
+  at: z.number().optional(),
+  detail: z
+    .object({
+      summary: z.string().optional(),
+      items: z
+        .array(z.object({ title: z.string(), url: z.string().optional() }))
+        .optional(),
+    })
+    .optional(),
+  status: z.enum(["ok", "error"]).optional(),
+})
+
 export const referencedMessageSchema = z
   .object({
     id: z.string().uuid(),
@@ -62,6 +78,9 @@ export const messageWithAuthorSchema = selectMessageSchema.extend({
   embeds: z.array(messageEmbedSchema),
   referencedMessage: referencedMessageSchema,
   threadSummary: threadSummarySchema,
+  // Only Merlin replies carry these; optional so other message endpoints
+  // (DMs, pinned, …) need not supply them.
+  merlinToolCalls: z.array(merlinToolCallSchema).optional(),
 })
 
 // Cursor-based query: `around`, `before`, `after` are mutually exclusive

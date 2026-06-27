@@ -11,6 +11,7 @@ import {
   or,
   schema,
 } from "@repo/db"
+import type { MerlinToolCall } from "@repo/db/schema"
 import { withContext } from "@repo/logger"
 import { groundCitations, respond, writeBack } from "@repo/merlin"
 import { buildMessageFanout } from "@repo/messaging"
@@ -117,6 +118,9 @@ export function createMerlinRespondProcessor(
         let answer: Awaited<ReturnType<typeof respond>>
         let workspaceId: string
         let gateText: string
+        // Tools Merlin consults while answering — accumulated for the durable
+        // trail persisted on the message, and streamed live via merlin:tool.
+        const toolCalls: MerlinToolCall[] = []
         try {
           const conversation = await loadConversation({
             channelId,
@@ -162,17 +166,23 @@ export function createMerlinRespondProcessor(
                   path,
                   action,
                 }),
-              // Live tool-call status ("Searching sources…") streamed to the
-              // client so slow tools don't read as a dead spinner.
-              onToolEvent: ({ toolCallId, label, phase }) =>
+              // Live tool status ("Searching sources…") streamed so slow tools
+              // don't read as a dead spinner; also accumulated for the durable
+              // trail persisted below (survives the answer and a reload). Upsert
+              // by toolCallId: start sets the label, completion adds detail.
+              onToolEvent: (toolCall) => {
+                const idx = toolCalls.findIndex(
+                  (t) => t.toolCallId === toolCall.toolCallId
+                )
+                if (idx >= 0) toolCalls[idx] = toolCall
+                else toolCalls.push(toolCall)
                 emitter.to(room).emit("merlin:tool", {
                   channelId,
                   threadRootId,
                   messageId: merlinMessageId,
-                  toolCallId,
-                  label,
-                  phase,
-                }),
+                  toolCall,
+                })
+              },
             }
           )
           if (pending.length > 0) emit(pending, false)
@@ -224,7 +234,7 @@ export function createMerlinRespondProcessor(
 
           await db
             .update(schema.message)
-            .set({ content: finalText })
+            .set({ content: finalText, merlinToolCalls: toolCalls })
             .where(eq(schema.message.id, merlinMessageId))
 
           // Notify like a normal message: fan out unread/mention to recipients.

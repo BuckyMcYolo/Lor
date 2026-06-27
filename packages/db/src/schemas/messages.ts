@@ -58,6 +58,13 @@ export const message = pgTable(
     // [{ type, url, title?, description?, thumbnail? }]
     embeds: jsonb("embeds").$type<Embed[]>().default([]),
 
+    // Merlin's tool-call trail for this answer — the tools it consulted to
+    // produce the reply, kept as a durable, legible record. [{ toolCallId,
+    // toolName, label }]
+    merlinToolCalls: jsonb("merlin_tool_calls")
+      .$type<MerlinToolCall[]>()
+      .default([]),
+
     pinned: boolean("pinned").default(false).notNull(),
 
     editedAt: timestamp("edited_at"),
@@ -132,4 +139,22 @@ export type Embed = {
   description?: string
   thumbnail?: string
   siteName?: string
+}
+
+export type MerlinToolCall = {
+  toolCallId: string
+  toolName: string
+  // Human status line, e.g. "Searching connected sources for …".
+  label: string
+  // Character offset into the message `content` where this call occurred, so the
+  // UI can render text and tool groups in the order the model produced them.
+  at?: number
+  // Compact, bounded result for the expandable detail panel (filled on
+  // completion; absent while the call is still in flight or for tools whose
+  // label already says everything).
+  detail?: {
+    summary?: string
+    items?: { title: string; url?: string }[]
+  }
+  status?: "ok" | "error"
 }

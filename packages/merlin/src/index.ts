@@ -1,5 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic"
 import { and, asc, db, eq, or, schema, sql } from "@repo/db"
+import type { MerlinToolCall } from "@repo/db/schema"
 import {
   generateObject,
   generateText,
@@ -120,19 +121,16 @@ export type RespondContext = {
   conversation: ConversationTurn[]
 }
 
-export type ToolEvent = {
-  toolCallId: string
-  toolName: string
-  // A short human status line, e.g. "Searching connected sources for …".
-  label: string
-  phase: "start" | "end"
-}
+// The evolving record of one tool call: emitted with just a label when the call
+// starts, then again with detail + status when it completes.
+export type ToolEvent = MerlinToolCall
 
 export type RespondCallbacks = {
   onDelta: (delta: string) => void | Promise<void>
   // Fires when Merlin writes to its brain mid-answer (explicit save requests).
   onMemoryWritten?: (e: { path: string; action: "created" | "updated" }) => void
-  // Fires when a tool call starts/finishes, for a live "searching…" indicator.
+  // Fires on tool-call (label) and again on tool-result (detail + status), keyed
+  // by toolCallId — for the live + persisted tool trail.
   onToolEvent?: (e: ToolEvent) => void
 }
 
@@ -337,6 +335,77 @@ function toolLabel(toolName: string, input: unknown): string {
   }
 }
 
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null
+}
+function asString(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim() ? v.trim() : undefined
+}
+
+// Compact, bounded summary of a tool's output for the expandable detail panel.
+// Returns no detail for tools whose label already says everything (brain reads).
+function toolDetail(
+  toolName: string,
+  output: unknown
+): Pick<MerlinToolCall, "detail" | "status"> {
+  const rec = asRecord(output)
+  if (rec && "error" in rec) {
+    return {
+      status: "error",
+      detail: { summary: asString(rec.error) ?? "failed" },
+    }
+  }
+  const toItems = (
+    arr: unknown
+  ): NonNullable<MerlinToolCall["detail"]>["items"] => {
+    if (!Array.isArray(arr) || arr.length === 0) return undefined
+    return arr.slice(0, 8).map((it) => {
+      const r = asRecord(it)
+      return {
+        title:
+          asString(r?.title) ?? asString(r?.text)?.slice(0, 80) ?? "untitled",
+        url: asString(r?.url),
+      }
+    })
+  }
+  const count = Array.isArray(output) ? output.length : 0
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
+  switch (toolName) {
+    case "search_sources":
+      return {
+        status: "ok",
+        detail: {
+          summary: count === 0 ? "No results" : plural(count, "result"),
+          items: toItems(output),
+        },
+      }
+    case "search_messages":
+      return {
+        status: "ok",
+        detail: {
+          summary: count === 0 ? "No matches" : plural(count, "message"),
+          items: toItems(output),
+        },
+      }
+    case "fetch_source": {
+      const title = asString(rec?.title)
+      return {
+        status: "ok",
+        detail: {
+          summary:
+            rec?.live === true ? "Fetched live content" : "Used stored summary",
+          items: title ? [{ title, url: asString(rec?.url) }] : undefined,
+        },
+      }
+    }
+    default:
+      // brain ls/read/tree/write/… — the label is self-explanatory.
+      return { status: "ok" }
+  }
+}
+
 // Read-only answer loop. onDelta fires per streamed chunk; the returned
 // messages let write-back continue the same conversation.
 export async function respond(
@@ -445,18 +514,25 @@ export async function respond(
       text += part.text
       await onDelta(part.text)
     } else if (part.type === "tool-call") {
+      // Call started — record what Merlin is consulting (input known, no result
+      // yet). `at` = text emitted so far, so the UI can interleave tools with
+      // text in order. A failed call still counts as consulted.
       onToolEvent?.({
         toolCallId: part.toolCallId,
         toolName: part.toolName,
         label: toolLabel(part.toolName, part.input),
-        phase: "start",
+        at: text.length,
       })
     } else if (part.type === "tool-result") {
+      // Call finished — fill in the result detail + status (same toolCallId, so
+      // consumers upsert over the start event). No text streams between a call
+      // and its result, so `at` is unchanged.
       onToolEvent?.({
         toolCallId: part.toolCallId,
         toolName: part.toolName,
         label: toolLabel(part.toolName, part.input),
-        phase: "end",
+        at: text.length,
+        ...toolDetail(part.toolName, part.output),
       })
     } else if (part.type === "error") {
       throw part.error
