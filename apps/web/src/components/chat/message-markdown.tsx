@@ -36,6 +36,13 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;")
 }
 
+// Only http(s) urls become clickable. Our custom <srcref> tag bypasses
+// Streamdown's href sanitizer, so guard the scheme here (defense-in-depth —
+// these urls come from our own source rows, but never trust by construction).
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim())
+}
+
 function getMentionLabel(mention: Message["mentions"][number]) {
   return mention.displayUsername ?? mention.username ?? mention.name
 }
@@ -77,7 +84,8 @@ function toRenderableMarkdown(
         // while still streaming (renders as a non-clickable chip until settled).
         const [, title = "", url = ""] = token.slice(4).split("|")
         const label = title.trim() || "source"
-        const safeUrl = url.trim()
+        const trimmedUrl = url.trim()
+        const safeUrl = isHttpUrl(trimmedUrl) ? trimmedUrl : ""
         return safeUrl
           ? `<srcref data-url="${escapeHtml(safeUrl)}">↗ ${escapeHtml(label)}</srcref>`
           : `<srcref>↗ ${escapeHtml(label)}</srcref>`
@@ -94,11 +102,11 @@ interface MentionProps {
 }
 
 function srcUrl(props: MentionProps): string | undefined {
-  return (
+  const candidate =
     props["data-url"] ??
     (props.node?.properties?.dataUrl as string | undefined) ??
     (props.node?.properties?.["data-url"] as string | undefined)
-  )
+  return candidate && isHttpUrl(candidate) ? candidate : undefined
 }
 
 function mentionId(props: MentionProps): string | undefined {

@@ -85,9 +85,11 @@ export function buildSourceTools(workspaceId: string) {
       }),
       execute: async ({ query, limit }) => {
         try {
-          const n = Math.min(
-            Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1),
-            SEARCH_MAX_LIMIT
+          const n = Math.floor(
+            Math.min(
+              Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1),
+              SEARCH_MAX_LIMIT
+            )
           )
           return await searchSources(workspaceId, await embedText(query), n)
         } catch {

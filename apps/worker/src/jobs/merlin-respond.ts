@@ -232,9 +232,38 @@ export function createMerlinRespondProcessor(
             )
           }
 
+          // Tool offsets (`at`) were measured against the pre-grounded stream,
+          // but we persist the grounded `content` — remap them so the client
+          // still splits text/tools correctly on reload. Grounding a prefix
+          // rewrites the same tokens as the full pass, so the grounded prefix
+          // length is the grounded offset. Citation-free prefixes (the common
+          // case — tools run before any cited text) short-circuit with no DB work.
+          const offsetCache = new Map<number, number>()
+          const remapOffset = async (at: number): Promise<number> => {
+            if (at <= 0) return at
+            const cached = offsetCache.get(at)
+            if (cached !== undefined) return cached
+            const g = await groundCitations(
+              workspaceId,
+              answer.text.slice(0, at)
+            ).catch(() => null)
+            const mapped = g ? g.text.length : at
+            offsetCache.set(at, mapped)
+            return mapped
+          }
+          const persistedToolCalls = emptyFallback
+            ? toolCalls
+            : await Promise.all(
+                toolCalls.map(async (tc) =>
+                  tc.at === undefined
+                    ? tc
+                    : { ...tc, at: await remapOffset(tc.at) }
+                )
+              )
+
           await db
             .update(schema.message)
-            .set({ content: finalText, merlinToolCalls: toolCalls })
+            .set({ content: finalText, merlinToolCalls: persistedToolCalls })
             .where(eq(schema.message.id, merlinMessageId))
 
           // Notify like a normal message: fan out unread/mention to recipients.

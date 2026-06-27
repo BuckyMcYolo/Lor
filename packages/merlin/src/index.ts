@@ -270,7 +270,9 @@ function buildChatTools(workspaceId: string) {
       }),
       execute: async ({ query, limit }) => {
         try {
-          const n = Math.min(Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1), 20)
+          const n = Math.floor(
+            Math.min(Math.max(limit ?? SEARCH_DEFAULT_LIMIT, 1), 20)
+          )
           return await searchMessages(workspaceId, query, n)
         } catch {
           return { error: "search failed" }

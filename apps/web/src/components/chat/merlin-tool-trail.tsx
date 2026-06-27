@@ -71,6 +71,7 @@ export function MerlinToolTrail({
     <div className="mt-1 text-[11px] text-muted-foreground">
       <button
         type="button"
+        aria-expanded={expanded}
         onClick={() => setOpen((v) => !v)}
         className="inline-flex max-w-full cursor-pointer items-center gap-1 rounded px-0.5 hover:text-foreground"
       >
@@ -95,6 +96,7 @@ export function MerlinToolTrail({
                 <button
                   type="button"
                   disabled={!drillable}
+                  aria-expanded={drillable ? rowOpen : undefined}
                   onClick={() =>
                     setOpenRows((m) => ({ ...m, [t.toolCallId]: !rowOpen }))
                   }
