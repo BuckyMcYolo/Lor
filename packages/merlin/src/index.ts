@@ -15,6 +15,13 @@ import {
   pageExists,
   searchBrain,
 } from "./brain"
+import {
+  classifyToken,
+  extractCitationTokens,
+  prefixedTokenId,
+  type Resolution,
+  rewriteCitations,
+} from "./citations"
 import { embedText } from "./embeddings"
 import { buildSourceTools, resolveSourceCitation } from "./sources"
 
@@ -447,94 +454,48 @@ export async function writeBack(
   })
 }
 
-// Matches Merlin's inline citations: [[/brain/page/path]], [[msg:<id>]], or
-// [[src:<id>]] (a connected-tool source).
-const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
-
-async function citationResolves(
-  workspaceId: string,
-  token: string
-): Promise<boolean> {
-  if (token.startsWith("msg:")) {
-    return messageExists(workspaceId, token.slice(4).trim()).catch(() => false)
-  }
-  return pageExists(workspaceId, token).catch(() => false)
-}
-
-// The id of a source token, tolerating an already-enriched [[src:<id>|…]] form
-// so re-grounding is idempotent.
-function sourceTokenId(token: string): string {
-  return token.slice(4).split("|")[0]?.trim() ?? ""
-}
-
-// Strip the characters that would break a [[…]] token or its pipe-delimited
-// inline encoding, so a source title/url can be carried in the citation safely.
-function sanitizeCitationField(value: string): string {
-  return value
-    .replace(/[[\]|\r\n]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
-// Verify citations resolve. Valid page/message citations are kept (normalized);
-// a valid source citation is enriched to [[src:<id>|<title>|<url>]] so the client
-// can render a verified link with no second lookup. Hallucinated ones are
-// unwrapped — pages to their plain path text, messages and sources dropped
-// entirely (a bare id is noise) — so a fabricated citation can't pose as a
-// source. Best-effort and never throws.
+// Verify Merlin's inline citations against the DB, then hand off to the pure
+// rewrite (./citations) which keeps valid ones, enriches sources with their
+// verified title+url, and strips hallucinated ones so a fabricated citation can't
+// pose as a source. Workspace-scoped; best-effort and never throws.
 export async function groundCitations(
   workspaceId: string,
   text: string
 ): Promise<{ text: string; valid: number; invalid: number }> {
-  const tokens = new Set<string>()
-  for (const m of text.matchAll(CITATION_REGEX)) {
-    const t = m[1]?.trim()
-    if (t) tokens.add(t)
-  }
+  const tokens = extractCitationTokens(text)
   if (tokens.size === 0) return { text, valid: 0, invalid: 0 }
 
   // Resolve each unique token once. Pages/messages resolve to a boolean; sources
   // resolve to their verified url+title (or null), since we render them as links.
-  const pageOrMsgValid = new Map<string, boolean>()
-  const sourceInfo = new Map<
-    string,
-    { url: string | null; title: string } | null
-  >()
+  const resolutions = new Map<string, Resolution>()
   await Promise.all(
     [...tokens].map(async (t) => {
-      if (t.startsWith("src:")) {
-        const info = await resolveSourceCitation(
+      const kind = classifyToken(t)
+      if (kind === "src") {
+        const source = await resolveSourceCitation(
           workspaceId,
-          sourceTokenId(t)
+          prefixedTokenId(t)
         ).catch(() => null)
-        sourceInfo.set(t, info)
+        resolutions.set(t, { kind: "src", source })
+      } else if (kind === "msg") {
+        const exists = await messageExists(
+          workspaceId,
+          prefixedTokenId(t)
+        ).catch(() => false)
+        resolutions.set(t, { kind: "msg", exists })
       } else {
-        pageOrMsgValid.set(t, await citationResolves(workspaceId, t))
+        const exists = await pageExists(workspaceId, t).catch(() => false)
+        resolutions.set(t, { kind: "page", exists })
       }
     })
   )
 
-  let valid = 0
-  let invalid = 0
-  const cleaned = text.replace(CITATION_REGEX, (_full, raw: string) => {
-    const t = raw.trim()
-    if (t.startsWith("src:")) {
-      const info = sourceInfo.get(t)
-      if (info) {
-        valid++
-        const title = sanitizeCitationField(info.title)
-        const url = sanitizeCitationField(info.url ?? "")
-        return `[[src:${sourceTokenId(t)}|${title}|${url}]]`
-      }
-      invalid++
-      return ""
-    }
-    if (pageOrMsgValid.get(t)) {
-      valid++
-      return `[[${t}]]`
-    }
-    invalid++
-    return t.startsWith("msg:") ? "" : t
-  })
-  return { text: cleaned, valid, invalid }
+  // Every matched token is in the map; the fallback only satisfies the type.
+  const fallback = (t: string): Resolution => {
+    const kind = classifyToken(t)
+    return kind === "src"
+      ? { kind: "src", source: null }
+      : { kind, exists: false }
+  }
+  return rewriteCitations(text, (t) => resolutions.get(t) ?? fallback(t))
 }
